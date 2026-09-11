@@ -21,6 +21,7 @@ from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
 
 OUTLINE = Path(__file__).resolve().parent / "logo_outline.json"
+WORDMARK = Path(__file__).resolve().parent / "ford_wordmark.json"
 QUAD = 64  # arc resolution
 
 
@@ -179,6 +180,36 @@ def volvo():
     return [ring, shaft, head]
 
 
+def ford():
+    """FORD in the Blue Oval -- block capitals, not the script.
+
+    The real script needs a 0.38 mm stroke at this size, which is under one
+    extrusion, so no nozzle will render it legibly however well it is drawn.
+    Capitals at 0.51 mm actually come out.  The letters are cut *through* the
+    oval pad (see PADS) rather than standing proud of it, so a filament change
+    gives light letters on a coloured oval, the way the badge really looks.
+    """
+    data = json.loads(WORDMARK.read_text())
+    shapes = [Polygon(g["exterior"], g["holes"]).buffer(0) for g in data["shapes"]]
+    b = np.array([g.bounds for g in shapes])
+    k = WORD_W / (b[:, 2].max() - b[:, 0].min())
+    cx = (b[:, 0].min() + b[:, 2].max()) / 2.0
+    cy = (b[:, 1].min() + b[:, 3].max()) / 2.0
+    return [affinity.scale(affinity.translate(g, -cx, -cy), k, k, origin=(0, 0))
+            for g in shapes]
+
+
+def _ford_oval():
+    return _ellipse(0.0, 0.0, 1.0, OVAL_B)
+
+
+OVAL_B = 0.385   # Blue Oval is about 2.6:1
+WORD_W = 1.40   # word width in oval half-widths: 70% of the oval
+
+# Marks drawn as a solid pad with the strokes cut out of it, rather than as
+# strokes standing proud of the flat top.
+PADS = {"ford": _ford_oval}
+
 LOGOS = {
     "honda": honda,
     "bmw": bmw,
@@ -190,27 +221,48 @@ LOGOS = {
     "jeep": jeep,
     "chevrolet": chevrolet,
     "volvo": volvo,
+    "ford": ford,
 }
 
 
-def load(name, width_mm):
-    """The mark's strokes, centred on the origin and scaled to `width_mm` wide."""
+def _placed(name, width_mm):
+    """Strokes and pad, centred on the origin and scaled to `width_mm` wide.
+
+    Both are normalised against the same bounding box -- which the pad
+    dominates when there is one -- so they stay registered to each other.
+    """
     raw = []
     for stroke in LOGOS[name]():
         raw.extend(parts(stroke))        # a clip can split a stroke in two
     strokes = [_dedupe(s) for s in raw]
+    pad = _dedupe(PADS[name]()) if name in PADS else None
 
-    b = np.array([s.bounds for s in strokes])
+    ref = strokes if pad is None else [pad, *strokes]
+    b = np.array([g.bounds for g in ref])
     cx = (b[:, 0].min() + b[:, 2].max()) / 2.0
     cy = (b[:, 1].min() + b[:, 3].max()) / 2.0
     k = width_mm / (b[:, 2].max() - b[:, 0].min())
-    return [affinity.scale(affinity.translate(s, -cx, -cy), k, k, origin=(0, 0))
-            for s in strokes]
+
+    def place(g):
+        return affinity.scale(affinity.translate(g, -cx, -cy), k, k, origin=(0, 0))
+
+    return [place(s) for s in strokes], (place(pad) if pad is not None else None)
+
+
+def load(name, width_mm):
+    """The mark's strokes, centred on the origin and scaled to `width_mm` wide."""
+    return _placed(name, width_mm)[0]
+
+
+def load_pad(name, width_mm):
+    """The solid pad the strokes are cut out of, or None for a raised mark."""
+    return _placed(name, width_mm)[1]
 
 
 def fit_width(name, max_r):
     """The width that makes the mark reach exactly `max_r` from its centre."""
-    return 2.0 * max_r / max_radius(load(name, 2.0))
+    strokes, pad = _placed(name, 2.0)
+    return 2.0 * max_r / max_radius(strokes if pad is None else [pad])
 
 
 def merged(strokes):

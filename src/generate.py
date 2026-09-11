@@ -59,7 +59,7 @@ FLAT = dict(
 EMBLEM_W = {
     "honda": 11.9, "bmw": 13.1, "mercedes": 13.1, "toyota": 13.1,
     "audi": 13.1, "volkswagen": 13.1, "jeep": 13.1, "chevrolet": 12.8,
-    "mitsubishi": 9.9, "volvo": 9.2,
+    "mitsubishi": 9.9, "volvo": 9.2, "ford": 13.1,
 }
 # Mitsubishi and Volvo look narrow in that table but are not: their extreme
 # points are not horizontally opposed, so they still reach the full 6.55 mm
@@ -86,6 +86,7 @@ BUILDS = [
     ("jeep", "flat_top"),
     ("chevrolet", "flat_top"),
     ("volvo", "flat_top"),
+    ("ford", "flat_top"),
 ]
 
 # Mesh resolution
@@ -265,10 +266,12 @@ def build_flat(brand, engraved=False):
     r_thread = THREAD_MAJOR_D / 2.0 + THREAD_CLEARANCE
 
     strokes = logos.load(brand, EMBLEM_W[brand])
+    pad = logos.load_pad(brand, EMBLEM_W[brand])
+    reach = logos.max_radius(strokes if pad is None else [pad])
     limit = c["od"] / 2.0 - c["chamfer_top"]
-    if logos.max_radius(strokes) > limit:
-        raise ValueError(f"{brand}: emblem reaches r={logos.max_radius(strokes):.2f} mm, "
-                         f"past the {limit:.2f} mm flat top -- shrink EMBLEM_W")
+    if reach > limit:
+        raise ValueError(f"{brand}: emblem reaches r={reach:.2f} mm, past the "
+                         f"{limit:.2f} mm flat top -- shrink EMBLEM_W")
 
     body = fluted_body(c["od"], c["height"], c["chamfer_bottom"],
                        c["chamfer_top"], c["flute_band"])
@@ -278,7 +281,15 @@ def build_flat(brand, engraved=False):
         sink = c["emblem_sink"]
         cuts = emblem_prisms(strokes, c["height"] - sink, sink + 0.5)
         return boolean("difference", [body, *cuts])
+
     rise = c["emblem_rise"]
+    if pad is not None:
+        # Raise the pad, then cut the strokes through it down to exactly the
+        # flat top face, so a colour change at that height leaves the strokes
+        # in the body colour and the pad in the second one.
+        solid = boolean("union", [body, *emblem_prisms([pad], c["height"] - 0.3, rise + 0.3)])
+        return boolean("difference", [solid, *emblem_prisms(strokes, c["height"], rise + 0.6)])
+
     add = emblem_prisms(strokes, c["height"] - 0.3, rise + 0.3)
     return boolean("union", [body, *add])
 
