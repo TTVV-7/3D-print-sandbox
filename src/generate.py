@@ -56,7 +56,14 @@ FLAT = dict(
 # rectangle whose corners eat that radius, so it has to run narrower than the
 # round marks.  build_flat() checks the fit and refuses to emit a cap whose
 # emblem would spill over the chamfer.
-EMBLEM_W = {"honda": 11.9, "bmw": 13.1, "mercedes": 13.1, "toyota": 13.1}
+EMBLEM_W = {
+    "honda": 11.9, "bmw": 13.1, "mercedes": 13.1, "toyota": 13.1,
+    "audi": 13.1, "volkswagen": 13.1, "jeep": 13.1, "chevrolet": 12.8,
+    "mitsubishi": 9.9, "volvo": 9.2,
+}
+# Mitsubishi and Volvo look narrow in that table but are not: their extreme
+# points are not horizontally opposed, so they still reach the full 6.55 mm
+# radius.  logos.fit_width(name, 6.55) computes these.
 
 BADGE = dict(
     od=11.6, body_height=8.6, bore_depth=8.2,
@@ -73,6 +80,12 @@ BUILDS = [
     ("bmw", "flat_top"),
     ("mercedes", "flat_top"),
     ("toyota", "flat_top"),
+    ("audi", "flat_top"),
+    ("volkswagen", "flat_top"),
+    ("mitsubishi", "flat_top"),
+    ("jeep", "flat_top"),
+    ("chevrolet", "flat_top"),
+    ("volvo", "flat_top"),
 ]
 
 # Mesh resolution

@@ -1,7 +1,7 @@
 # Car-brand valve caps
 
-Schrader valve stem caps with a car maker's emblem on top. Honda, BMW,
-Mercedes and Toyota, all off the same parametric cap body.
+Schrader valve stem caps with a car maker's emblem on top. Ten marks so far,
+all off the same parametric cap body.
 
 | | |
 |---|---|
@@ -13,16 +13,32 @@ The **flat top** is the main one: Ø14.0 × 13.1 mm, knurled, flat face with the
 emblem raised 0.6 mm so a single filament change prints the logo in a second
 colour.
 
-| STL | Emblem width | Narrowest stroke |
-|---|---|---|
-| `stl/honda_valve_cap_flat_top.stl` | 11.9 mm | 0.59 mm |
-| `stl/bmw_valve_cap_flat_top.stl` | 13.1 mm | 1.01 mm |
-| `stl/mercedes_valve_cap_flat_top.stl` | 13.1 mm | 0.75 mm |
-| `stl/toyota_valve_cap_flat_top.stl` | 13.1 mm | 0.57 mm |
+All are `stl/<brand>_valve_cap_flat_top.stl`:
 
-Honda runs narrower than the rest because its mark is a wide rounded rectangle
-whose corners hit the edge of the flat face first; the round marks fill more of
-the top. Two more shapes exist for Honda:
+| Brand | Emblem width | Narrowest stroke | Narrowest gap |
+|---|---|---|---|
+| honda | 11.9 mm | 0.59 mm | 1.52 mm |
+| bmw | 13.1 mm | 1.01 mm | 2.09 mm |
+| mercedes | 13.1 mm | 0.75 mm | 2.09 mm |
+| toyota | 13.1 mm | 0.57 mm | 0.42 mm |
+| audi | 13.1 mm | 0.56 mm | 2.09 mm |
+| volkswagen | 13.1 mm | 0.59 mm | 2.09 mm |
+| jeep | 13.1 mm | 0.55 mm | 0.41 mm |
+| chevrolet | 12.8 mm | solid | — |
+| mitsubishi | 9.9 mm | solid | 0.71 mm |
+| volvo | 9.2 mm | 0.56 mm | 1.52 mm |
+
+Chevrolet and Mitsubishi are solid shapes rather than outlines, so "narrowest
+stroke" doesn't apply — their only fine detail is the pointed corners, which
+round off by about a nozzle width and look fine for it.
+
+Emblem widths differ because what actually constrains the mark is the *radius*
+of the flat face (6.65 mm), not its width. Honda's wide rounded rectangle hits
+that limit at the corners; Mitsubishi and Volvo look narrow in the table but
+reach the same 6.55 mm radius, because their widest points aren't horizontally
+opposed. `logos.fit_width(name, 6.55)` computes the number for a new mark.
+
+Two more shapes exist for Honda:
 
 | STL | Size (mm) | What it is |
 |---|---|---|
@@ -37,20 +53,26 @@ steps — so BMW and Mercedes don't get one.
 
 ## About the emblems
 
-Honda is traced from the supplied `honda_logo.glb`. The other three are built
-from primitives in `src/logos.py` — circles, ellipses, wedges and bars — which
-is both easier and better than tracing a mesh: the symmetry is exact, and every
-stroke width is a number you can turn up until it prints cleanly.
+Honda is traced from the supplied `honda_logo.glb`. The rest are built from
+primitives in `src/logos.py` — circles, ellipses, wedges, bars and mitred
+polylines — which is both easier and better than tracing a mesh: the symmetry
+is exact, and every stroke width is a number you can turn up until it prints.
 
-Two deliberate departures from the real marks:
+Deliberate departures from the real marks, all of them forced by the 0.4 mm
+nozzle at this size:
 
-- **BMW** has no lettering in the outer band. At 13 mm across it would be
-  under a millimetre tall — a smear, not text. The raised parts are the band
-  plus two diagonally opposite quarters, so the filament change gives you the
-  quartered roundel rather than a flat outline.
-- **Toyota**'s inner T sits a little further off the outer ellipse than in the
-  real logo, opening the tightest gap from 0.24 mm to 0.40 mm so a 0.4 mm
-  nozzle still resolves it as a gap instead of welding it shut.
+- **BMW** has no lettering in the outer band — at 13 mm across it would be
+  under a millimetre tall, a smear rather than text. The raised parts are the
+  band plus two diagonally opposite quarters, so the filament change gives you
+  the quartered roundel rather than a flat outline.
+- **Toyota**'s inner T sits further off the outer ellipse than in the real
+  logo, opening the tightest gap from 0.24 mm to 0.42 mm.
+- **Audi**'s rings are drawn noticeably heavier. Correct proportions put the
+  stroke at 0.28 mm, which nothing will hold; these are 0.56 mm.
+- **Volkswagen**'s W sits lower than in the real mark, to keep a printable gap
+  under the point of the V.
+- **Volvo** is the iron mark only — the ring and arrow, no wordmark band.
+- **Jeep** is the seven-slot grille and headlights, not the wordmark.
 
 ## The thread
 
@@ -129,10 +151,26 @@ Write a builder in `src/logos.py` returning a list of shapely polygons — the
 strokes of the mark — normalised to an overall width of 2.0, register it in
 `LOGOS`, add a width to `EMBLEM_W` and a line to `BUILDS`.
 
-Return the strokes *separately* rather than pre-unioning them. A shapely union
-of touching strokes is "valid" but its boundary touches itself where they meet,
-and extruding that gives a non-watertight mesh; `generate.py` extrudes each
-stroke and lets the boolean engine weld them, which is robust. `build_flat()`
-checks the emblem fits inside the flat face and refuses to emit a cap if not.
+Three things that bite:
+
+- Return the strokes *separately* rather than pre-unioning them. A shapely
+  union of touching strokes is "valid", but its boundary touches itself where
+  they meet and extruding that gives a non-watertight mesh. `generate.py`
+  extrudes each stroke and lets the boolean engine weld them, which is robust.
+- Where a stroke meets a ring, run it **past** the outer edge and clip it back
+  with `.intersection(disc)`. Ending it inside the ring instead leaves a
+  hairline sliver along the ring's inner edge.
+- Cutting one primitive with another can leave a duplicate vertex where the cut
+  crosses an axis, which earcut turns into a degenerate triangle. `_dedupe()`
+  in `load()` catches it, and `emblem_prisms()` fails loudly if one slips
+  through.
+
+`build_flat()` checks the emblem fits inside the flat face and refuses to emit
+a cap if not.
+
+Marks built from lettering or fine illustration — Ford's script, Nissan's
+wordmark, Subaru's star cluster, any of the crests — aren't worth constructing
+by hand, and most wouldn't survive 13 mm anyway. `src/extract_outline.py` will
+trace one out of a `.glb` if you find a model for it.
 
 These are manufacturer trademarks — caps for your own car, not for selling.

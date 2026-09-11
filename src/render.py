@@ -18,7 +18,10 @@ def look_at(eye, target, up=(0, 0, 1)):
     return np.vstack([s, u, -f]), np.array(eye, float)
 
 
-def render(mesh, path, size=760, elev=22.0, azim=35.0, zoom=1.18, bg=245):
+def render(mesh, path, size=760, elev=22.0, azim=-60.0, zoom=1.18, bg=245):
+    """Azimuth is measured so the camera sits on the -Y side: that puts +Y up
+    on screen.  A +Y camera (azim=+90) mirrors both axes, i.e. renders the
+    emblem 180 degrees rotated."""
     c = mesh.bounds.mean(axis=0)
     radius = np.linalg.norm(mesh.extents) / 2.0
     a, e = np.radians(azim), np.radians(elev)
@@ -34,7 +37,10 @@ def render(mesh, path, size=760, elev=22.0, azim=35.0, zoom=1.18, bg=245):
     n = (np.asarray(mesh.vertices)[faces[:, 1]] - np.asarray(mesh.vertices)[faces[:, 0]])
     n = np.cross(n, np.asarray(mesh.vertices)[faces[:, 2]] - np.asarray(mesh.vertices)[faces[:, 0]])
     n /= (np.linalg.norm(n, axis=1, keepdims=True) + 1e-12)
-    key = np.array([0.45, 0.35, 0.82]); key /= np.linalg.norm(key)
+    # Key light in camera space (right / up / toward the camera), so whatever
+    # the azimuth, the faces you can see are the faces that are lit.
+    key = 0.40 * R[0] + 0.35 * R[1] + 0.85 * R[2]
+    key /= np.linalg.norm(key)
     shade = np.clip(n @ key, 0, 1) ** 0.85 * 0.78 + 0.18
     spec = np.clip(n @ key, 0, 1) ** 28 * 0.5
     lum = np.clip(shade + spec, 0, 1)
@@ -89,6 +95,7 @@ if __name__ == "__main__":
     for stl in sorted((ROOT / "stl").glob("*.stl")):
         m = trimesh.load(stl)
         render(m, out / f"{stl.stem}.png")
-        render(m, out / f"{stl.stem}_top.png", elev=72.0, azim=90.0, zoom=1.45)
-        render(half(m), out / f"{stl.stem}_section.png", azim=55)
+        render(m, out / f"{stl.stem}_top.png", elev=72.0, azim=-90.0, zoom=1.45)
+        if stl.stem.startswith("honda"):   # the body is shared, one cutaway does
+            render(half(m), out / f"{stl.stem}_section.png", azim=-35)
         print("rendered", stl.stem)

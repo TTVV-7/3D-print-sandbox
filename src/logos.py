@@ -17,15 +17,20 @@ from pathlib import Path
 
 import numpy as np
 from shapely import affinity
-from shapely.geometry import MultiPolygon, Point, Polygon, box
+from shapely.geometry import LineString, MultiPolygon, Point, Polygon, box
 from shapely.ops import unary_union
 
 OUTLINE = Path(__file__).resolve().parent / "logo_outline.json"
 QUAD = 64  # arc resolution
 
 
-def _circle(r):
-    return Point(0.0, 0.0).buffer(r, quad_segs=QUAD)
+def _circle(r, cx=0.0, cy=0.0):
+    return Point(cx, cy).buffer(r, quad_segs=QUAD)
+
+
+def _stroke(points, width):
+    """A mitred polyline of constant width -- the strokes of a letterform."""
+    return LineString(points).buffer(width / 2.0, cap_style=2, join_style=2)
 
 
 def _ellipse(cx, cy, rx, ry):
@@ -114,20 +119,98 @@ def toyota():
     ]
 
 
+def audi():
+    """Four interlocking rings.
+
+    The rings are drawn heavier than the real mark: at this size correct
+    proportions put the stroke at 0.28 mm, which no 0.4 mm nozzle will hold.
+    """
+    r, t, spacing = 0.5, 0.145, 0.78
+    return [_ring(_circle(r, cx=x * spacing, cy=0.0), t)
+            for x in (-1.5, -0.5, 0.5, 1.5)]
+
+
+def volkswagen():
+    """V over W inside a ring.
+
+    Both letters are clipped to the ring so nothing pokes out past it, and the
+    W sits lower than in the real mark to keep a printable gap under the V.
+    """
+    disc = _circle(1.0)
+    # Both letters run past the outer circle before being clipped back: ending
+    # them inside the ring instead leaves a hairline sliver along its inner edge.
+    v = _stroke([(-0.80, 0.70), (0.0, 0.20), (0.80, 0.70)], 0.13)
+    w = _stroke([(-1.05, 0.02), (-0.50, -0.92), (0.0, -0.10),
+                 (0.50, -0.92), (1.05, 0.02)], 0.13)
+    return [_ring(disc, 0.09), v.intersection(disc), w.intersection(disc)]
+
+
+def mitsubishi():
+    """Three rhombi at 120 degrees, held off the centre by a small gap."""
+    gap, tip, half = 0.07, 1.0, 0.275
+    dia = Polygon([(0.0, gap), (-half, (gap + tip) / 2), (0.0, tip), (half, (gap + tip) / 2)])
+    return [affinity.rotate(dia, a, origin=(0, 0)) for a in (0, 120, 240)]
+
+
+def jeep():
+    """The seven-slot grille and two round headlights."""
+    slot_w, spacing, half_h = 0.115, 0.20, 0.62
+    slots = [_stroke([(i * spacing, -half_h + slot_w / 2),
+                      (i * spacing, half_h - slot_w / 2)], slot_w)
+             for i in range(-3, 4)]
+    lamps = [_circle(0.34, cx=x, cy=0.0) for x in (-1.04, 1.04)]
+    return [*slots, *lamps]
+
+
+def chevrolet():
+    """The bowtie: a squat cross with the ends of the long bar cut back."""
+    return [Polygon([
+        (-0.86, 0.19), (-0.32, 0.19), (-0.32, 0.46), (0.32, 0.46),
+        (0.32, 0.19), (1.00, 0.19), (0.86, -0.19), (0.32, -0.19),
+        (0.32, -0.46), (-0.32, -0.46), (-0.32, -0.19), (-1.00, -0.19),
+    ])]
+
+
+def volvo():
+    """The iron mark: a ring with the arrow of Mars at 45 degrees."""
+    ring = _ring(_circle(1.0), 0.14)
+    shaft = _stroke([(0.58, 0.58), (0.98, 0.98)], 0.19)
+    head = Polygon([(1.30, 1.30), (0.738, 1.162), (1.162, 0.738)])
+    return [ring, shaft, head]
+
+
 LOGOS = {
     "honda": honda,
     "bmw": bmw,
     "mercedes": mercedes,
     "toyota": toyota,
+    "audi": audi,
+    "volkswagen": volkswagen,
+    "mitsubishi": mitsubishi,
+    "jeep": jeep,
+    "chevrolet": chevrolet,
+    "volvo": volvo,
 }
 
 
 def load(name, width_mm):
-    """The mark's strokes, scaled so its overall width is `width_mm`."""
-    strokes = [_dedupe(s) for s in LOGOS[name]()]
-    bounds = np.array([s.bounds for s in strokes])
-    k = width_mm / (bounds[:, 2].max() - bounds[:, 0].min())
-    return [affinity.scale(s, k, k, origin=(0, 0)) for s in strokes]
+    """The mark's strokes, centred on the origin and scaled to `width_mm` wide."""
+    raw = []
+    for stroke in LOGOS[name]():
+        raw.extend(parts(stroke))        # a clip can split a stroke in two
+    strokes = [_dedupe(s) for s in raw]
+
+    b = np.array([s.bounds for s in strokes])
+    cx = (b[:, 0].min() + b[:, 2].max()) / 2.0
+    cy = (b[:, 1].min() + b[:, 3].max()) / 2.0
+    k = width_mm / (b[:, 2].max() - b[:, 0].min())
+    return [affinity.scale(affinity.translate(s, -cx, -cy), k, k, origin=(0, 0))
+            for s in strokes]
+
+
+def fit_width(name, max_r):
+    """The width that makes the mark reach exactly `max_r` from its centre."""
+    return 2.0 * max_r / max_radius(load(name, 2.0))
 
 
 def merged(strokes):
