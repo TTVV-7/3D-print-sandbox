@@ -1,12 +1,17 @@
-"""Generate Honda-themed Schrader valve caps as printable STLs.
+"""Generate car-brand Schrader valve caps as printable STLs.
 
-Three variants come out of this script:
+Emblems come from src/logos.py (honda, bmw, mercedes, toyota).  Three cap
+shapes are available for each:
 
   flat_top   - 14 mm knurled cap, flat top, emblem raised 0.6 mm so a single
                filament change prints the logo in a second colour.
   engraved   - same cap, emblem recessed 0.5 mm instead (paint-fill / subtle).
-  badge      - 12 mm knurled body flaring into a 14 mm emblem-shaped plate with
-               the logo raised on it, i.e. an actual badge on top of the cap.
+  badge      - knurled body flaring into an emblem-shaped plate with the logo
+               raised on it, i.e. an actual badge on top of the cap.  Only
+               makes sense for a logo with a distinctive silhouette (Honda);
+               for the round marks the flat top is the same thing but tidier.
+
+Edit BUILDS at the bottom to pick which brand/variant combinations to emit.
 
 Everything is driven by the constants below; re-run the script after changing
 them.  Threads are the real Schrader valve stem thread (0.305"-32 UNS, the
@@ -14,16 +19,15 @@ thread on a TR413 and friends), cut with a uniform radial clearance.
 
     python3 src/generate.py
 """
-import json
 from pathlib import Path
 
 import numpy as np
 import trimesh
-from shapely import affinity
 from shapely.geometry import Polygon
 
+import logos
+
 ROOT = Path(__file__).resolve().parent.parent
-OUTLINE = Path(__file__).resolve().parent / "logo_outline.json"
 STL_DIR = ROOT / "stl"
 
 # ---------------------------------------------------------------------------
@@ -44,8 +48,15 @@ FLAT = dict(
     od=14.0, height=12.5, bore_depth=9.3,
     chamfer_bottom=0.8, chamfer_top=0.35,
     flute_band=(1.0, 11.4),
-    emblem_w=11.9, emblem_rise=0.6, emblem_sink=0.5,
+    emblem_rise=0.6, emblem_sink=0.5,
 )
+
+# Emblem width per brand, in mm.  The limit is the flat top face: od/2 minus
+# the top chamfer = 6.65 mm of radius.  Honda's mark is a wide rounded
+# rectangle whose corners eat that radius, so it has to run narrower than the
+# round marks.  build_flat() checks the fit and refuses to emit a cap whose
+# emblem would spill over the chamfer.
+EMBLEM_W = {"honda": 11.9, "bmw": 13.1, "mercedes": 13.1, "toyota": 13.1}
 
 BADGE = dict(
     od=11.6, body_height=8.6, bore_depth=8.2,
@@ -54,6 +65,15 @@ BADGE = dict(
     flare_rise=2.7, plate_thick=1.2,
     emblem_w=15.0, emblem_rise=0.7,
 )
+
+BUILDS = [
+    ("honda", "flat_top"),
+    ("honda", "flat_top_engraved"),
+    ("honda", "badge"),
+    ("bmw", "flat_top"),
+    ("mercedes", "flat_top"),
+    ("toyota", "flat_top"),
+]
 
 # Mesh resolution
 N_THETA_BODY = 288
@@ -178,20 +198,16 @@ def lead_in_cone(z_mouth, height, r_thread):
 # ---------------------------------------------------------------------------
 # emblem
 # ---------------------------------------------------------------------------
-def load_emblem(width_mm, fatten=0.0):
-    data = json.loads(OUTLINE.read_text())
-    poly = Polygon(data["exterior"], data["holes"]).buffer(0)
-    poly = affinity.scale(poly, width_mm / data["width"], width_mm / data["width"],
-                          origin=(0, 0))
-    if fatten:
-        poly = poly.buffer(fatten, join_style=2)
-    return poly
-
-
-def emblem_prism(poly, z_base, thickness):
-    mesh = trimesh.creation.extrude_polygon(poly, thickness)
-    mesh.apply_translation((0.0, 0.0, z_base))
-    return mesh
+def emblem_prisms(strokes, z_base, thickness):
+    """One solid per stroke; the caller hands them all to a single boolean."""
+    out = []
+    for i, stroke in enumerate(strokes):
+        mesh = trimesh.creation.extrude_polygon(stroke, thickness)
+        if not mesh.is_watertight:
+            raise ValueError(f"stroke {i} did not extrude to a closed solid")
+        mesh.apply_translation((0.0, 0.0, z_base))
+        out.append(mesh)
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -231,31 +247,40 @@ def bored(body, bore_depth, r_thread_major):
 # ---------------------------------------------------------------------------
 # variants
 # ---------------------------------------------------------------------------
-def build_flat(engraved=False):
+def build_flat(brand, engraved=False):
     c = FLAT
     r_thread = THREAD_MAJOR_D / 2.0 + THREAD_CLEARANCE
+
+    strokes = logos.load(brand, EMBLEM_W[brand])
+    limit = c["od"] / 2.0 - c["chamfer_top"]
+    if logos.max_radius(strokes) > limit:
+        raise ValueError(f"{brand}: emblem reaches r={logos.max_radius(strokes):.2f} mm, "
+                         f"past the {limit:.2f} mm flat top -- shrink EMBLEM_W")
+
     body = fluted_body(c["od"], c["height"], c["chamfer_bottom"],
                        c["chamfer_top"], c["flute_band"])
     body = bored(body, c["bore_depth"], r_thread)
 
-    poly = load_emblem(c["emblem_w"])
     if engraved:
         sink = c["emblem_sink"]
-        cut = emblem_prism(poly, c["height"] - sink, sink + 0.5)
-        return boolean("difference", [body, cut])
+        cuts = emblem_prisms(strokes, c["height"] - sink, sink + 0.5)
+        return boolean("difference", [body, *cuts])
     rise = c["emblem_rise"]
-    add = emblem_prism(poly, c["height"] - 0.3, rise + 0.3)
-    return boolean("union", [body, add])
+    add = emblem_prisms(strokes, c["height"] - 0.3, rise + 0.3)
+    return boolean("union", [body, *add])
 
 
-def build_badge():
+def build_badge(brand):
     c = BADGE
     r_thread = THREAD_MAJOR_D / 2.0 + THREAD_CLEARANCE
     body = fluted_body(c["od"], c["body_height"], c["chamfer_bottom"], 0.0,
                        c["flute_band"])
 
-    poly = load_emblem(c["emblem_w"])
-    outer = Polygon(poly.exterior)
+    strokes = logos.load(brand, c["emblem_w"])
+    islands = logos.parts(logos.merged(strokes))
+    if len(islands) > 1:
+        raise ValueError(f"{brand}: badge plate needs a single-island emblem")
+    outer = Polygon(islands[0].exterior)
     max_r = np.hypot(*np.array(outer.exterior.coords).T).max()
     scale0 = (c["od"] / 2.0) / max_r          # flare starts inside the body wall
 
@@ -264,10 +289,10 @@ def build_badge():
     z_top = z_plate + c["plate_thick"]
 
     flare = loft(outer, z_flare - 0.3, z_plate, scale0, 1.0)
-    plate = emblem_prism(outer, z_plate - 0.01, c["plate_thick"] + 0.01)
-    logo = emblem_prism(poly, z_top - 0.3, c["emblem_rise"] + 0.3)
+    plate = emblem_prisms([outer], z_plate - 0.01, c["plate_thick"] + 0.01)
+    logo = emblem_prisms(strokes, z_top - 0.3, c["emblem_rise"] + 0.3)
 
-    solid = boolean("union", [body, flare, plate, logo])
+    solid = boolean("union", [body, flare, *plate, *logo])
     cutter = thread_cutter(-1.0, c["bore_depth"])
     cone = lead_in_cone(-0.5, THREAD_LEADIN + 0.5, r_thread)
     return boolean("difference", [solid, cutter, cone])
@@ -280,16 +305,22 @@ def report(name, mesh):
           f"{mesh.volume/1000:5.2f} cm^3  {'watertight' if ok else 'NOT WATERTIGHT'}")
 
 
+def build(brand, variant):
+    if variant == "flat_top":
+        return build_flat(brand)
+    if variant == "flat_top_engraved":
+        return build_flat(brand, engraved=True)
+    if variant == "badge":
+        return build_badge(brand)
+    raise ValueError(f"unknown variant {variant!r}")
+
+
 def main():
     STL_DIR.mkdir(exist_ok=True)
-    builds = {
-        "honda_valve_cap_flat_top": lambda: build_flat(engraved=False),
-        "honda_valve_cap_flat_top_engraved": lambda: build_flat(engraved=True),
-        "honda_valve_cap_badge": build_badge,
-    }
     print("building:")
-    for name, fn in builds.items():
-        mesh = fn()
+    for brand, variant in BUILDS:
+        name = f"{brand}_valve_cap_{variant}"
+        mesh = build(brand, variant)
         mesh.export(STL_DIR / f"{name}.stl")
         report(name, mesh)
 
