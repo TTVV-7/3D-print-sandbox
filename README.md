@@ -1,6 +1,6 @@
 # Car-brand valve caps
 
-Schrader valve stem caps with a car maker's emblem on top. Eleven marks so
+Schrader valve stem caps with a car maker's emblem on top. Twelve marks so
 far, all off the same parametric cap body.
 
 | | |
@@ -28,6 +28,10 @@ All are `stl/<brand>_valve_cap_flat_top.stl`:
 | mitsubishi | 9.9 mm | solid | 0.71 mm |
 | volvo | 9.2 mm | 0.56 mm | 1.52 mm |
 | ford | 13.1 mm | solid | 0.46 mm |
+| ford_script | 20.6 mm | solid | 0.29 mm |
+
+`ford_script` is the only one on a **Ø22 mm body** rather than Ø14 — the real
+script does not survive a smaller cap, see below. Same thread, same height.
 
 Chevrolet and Mitsubishi are solid shapes rather than outlines, so "narrowest
 stroke" doesn't apply — their only fine detail is the pointed corners, which
@@ -76,36 +80,64 @@ nozzle at this size:
   under the point of the V.
 - **Volvo** is the iron mark only — the ring and arrow, no wordmark band.
 - **Jeep** is the seven-slot grille and headlights, not the wordmark.
-- **Ford** is block capitals, not the script — see below.
+- **Ford** comes in two versions — see below.
 
-### Ford, and why it isn't the script
+### The two Fords
 
-The Ford script needs a 0.38 mm stroke at 13 mm across. That is narrower than
-a single extrusion from a 0.4 mm nozzle, so no amount of care drawing the
-outline changes the outcome: the letterforms close up and it prints as a blob.
-Capitals at 0.46 mm actually come out.
+Both are built inside out from the other marks. Rather than lettering standing
+proud of the cap, the whole oval is raised and the letters are cut *through* it
+down to the flat top face. A filament change at that height gives a coloured
+oval with the letters in the body colour, which is how the badge really reads —
+and it replaces fragile standing letters with one solid pad.
 
-It is also built inside out from the others. Rather than the lettering standing
-proud of the cap, the whole oval is raised 0.6 mm and the letters are cut
-through it down to the flat top face. A filament change at that height gives a
-coloured oval with the letters in the body colour, which is how the badge
-really reads — and it replaces four fragile 0.5 mm-wide standing letters with
-one solid pad, which is far more robust. The O, R and D counters survive as
-small raised islands.
+**`ford`** — block capitals, Ø14 mm cap, 0.46 mm letters. Prints on a 0.4 mm
+nozzle like everything else here.
 
-`src/trace_text.py` pulls the glyph outlines straight out of a TTF with
-fontTools and flattens the curves — no rasterising and re-tracing, so the edges
-stay clean. `src/ford_wordmark.json` is "FORD" in Outfit Bold (SIL OFL), picked
-because it had the widest strokes of the fonts to hand at the size that fits.
-To use a different face:
+**`ford_script`** — the real Ford script and oval rings, traced from the actual
+logo artwork, on a Ø22 mm cap.
+
+The size difference is not a stylistic choice. The script is a copperplate hand
+whose upstrokes are hairlines. Measured on the real outline at a 13.1 mm oval:
+
+| | median channel | under 0.40 mm |
+|---|---|---|
+| script at 13.1 mm oval | 0.19 mm | 95% of the lettering |
+
+That is half a nozzle width. Fattening it does not rescue it either — widening
+the channels to a printable 0.45 mm starves the pad *between* the strokes down
+to 0.09 mm, so you trade one unprintable feature for the other. The only thing
+that helps is diameter, and the cap has to grow a long way:
+
+| Oval | Cap | Channel | Pad between | Verdict |
+|---|---|---|---|---|
+| 13.1 mm | Ø14 | 0.19 mm | 0.21 mm | will not resolve at all |
+| 20.6 mm | Ø22 | 0.29 mm | 0.33 mm | **shipped** — needs a 0.25 mm nozzle |
+| 28 mm | Ø30 | 0.41 mm | 0.45 mm | works on 0.4 mm, but that's a jar lid |
+
+So `ford_script` needs a **0.25 mm nozzle or finer**, at 0.1 mm layers. On a
+0.4 mm nozzle the script will fill in and you'll get a plain raised oval — use
+`ford` instead. If you want the 0.4 mm-nozzle version anyway, set `od` and
+`EMBLEM_W` for `ford_script` to the bottom row and re-run; nothing else needs
+to change, the thread stays the same.
+
+### Tracing lettering
+
+Two tracers feed these:
+
+- `src/trace_svg.py` takes an SVG logo. Subpaths are combined under the even-odd
+  rule — which is just an XOR of them, so arbitrarily nested rings come out
+  right (Ford's oval is four deep: rim, white ring, navy field, lettering). It
+  emits a solid `pad` and the `cuts` knocked out of it, which is exactly what
+  `PADS` wants.
+- `src/trace_text.py` takes a string and a TTF and pulls glyph outlines straight
+  out of the font with fontTools, flattening the curves rather than rasterising
+  and re-tracing. `src/ford_wordmark.json` is "FORD" in Outfit Bold (SIL OFL),
+  picked because it measured widest of the fonts to hand at the size that fits.
 
 ```
+python3 src/trace_svg.py logo.svg src/ford_script.json
 python3 src/trace_text.py FORD /path/to/Font.ttf src/ford_wordmark.json
 ```
-
-If you find an SVG or GLB of the real script, `src/extract_outline.py` will
-trace it and `PADS` will cut it out the same way — it just won't print
-legibly at this diameter.
 
 ## The thread
 
@@ -201,9 +233,10 @@ Three things that bite:
 `build_flat()` checks the emblem fits inside the flat face and refuses to emit
 a cap if not.
 
-Marks built from lettering or fine illustration — Ford's script, Nissan's
-wordmark, Subaru's star cluster, any of the crests — aren't worth constructing
-by hand, and most wouldn't survive 13 mm anyway. `src/extract_outline.py` will
-trace one out of a `.glb` if you find a model for it.
+Marks built from lettering or fine illustration — Nissan's wordmark, Subaru's
+star cluster, any of the crests — aren't worth constructing by hand. Trace them
+instead: `src/trace_svg.py` from an SVG, `src/extract_outline.py` from a `.glb`.
+Check the measured stroke width before committing to a cap size; Ford above is
+the cautionary tale.
 
 These are manufacturer trademarks — caps for your own car, not for selling.

@@ -22,6 +22,7 @@ from shapely.ops import unary_union
 
 OUTLINE = Path(__file__).resolve().parent / "logo_outline.json"
 WORDMARK = Path(__file__).resolve().parent / "ford_wordmark.json"
+FORD_SCRIPT = Path(__file__).resolve().parent / "ford_script.json"
 QUAD = 64  # arc resolution
 
 
@@ -203,12 +204,39 @@ def _ford_oval():
     return _ellipse(0.0, 0.0, 1.0, OVAL_B)
 
 
+def _ford_script_json():
+    d = json.loads(FORD_SCRIPT.read_text())
+    pad = Polygon(d["pad"]["exterior"], d["pad"]["holes"])
+    cuts = [Polygon(c["exterior"], c["holes"]) for c in d["cuts"]]
+    k = 2.0 / (pad.bounds[2] - pad.bounds[0])
+    scale = lambda g: affinity.scale(g, k, k, origin=(0, 0))
+    return scale(pad), [scale(c) for c in cuts]
+
+
+def ford_script():
+    """The real Ford script and oval rings, traced from the logo.
+
+    This is the genuine artwork, not an interpretation -- and it is why it
+    needs a bigger cap than the rest.  The script is a copperplate hand whose
+    upstrokes are hairlines: at a 13.1 mm oval the channels measure 0.19 mm
+    median, half a nozzle width, and 95% of the lettering falls under 0.40 mm.
+    Fattening it does not help, because widening the channels to a printable
+    0.45 mm starves the pad *between* the strokes down to 0.09 mm -- you just
+    trade one unprintable feature for the other.  See FLAT_OVERRIDES.
+    """
+    return _ford_script_json()[1]
+
+
+def _ford_script_pad():
+    return _ford_script_json()[0]
+
+
 OVAL_B = 0.385   # Blue Oval is about 2.6:1
 WORD_W = 1.40   # word width in oval half-widths: 70% of the oval
 
 # Marks drawn as a solid pad with the strokes cut out of it, rather than as
 # strokes standing proud of the flat top.
-PADS = {"ford": _ford_oval}
+PADS = {"ford": _ford_oval, "ford_script": _ford_script_pad}
 
 LOGOS = {
     "honda": honda,
@@ -222,6 +250,7 @@ LOGOS = {
     "chevrolet": chevrolet,
     "volvo": volvo,
     "ford": ford,
+    "ford_script": ford_script,
 }
 
 

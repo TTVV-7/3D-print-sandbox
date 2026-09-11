@@ -41,15 +41,21 @@ THREAD_LEADIN = 0.9         # 45 deg chamfer at the mouth of the bore
 # ---------------------------------------------------------------------------
 # Cap bodies
 # ---------------------------------------------------------------------------
-FLUTE_COUNT = 18            # knurling: straight flutes, no seams, prints clean
-FLUTE_DEPTH = 0.45
+FLUTE_DEPTH = 0.45          # knurling: straight flutes, no seams, prints clean
 
 FLAT = dict(
     od=14.0, height=12.5, bore_depth=9.3,
     chamfer_bottom=0.8, chamfer_top=0.35,
-    flute_band=(1.0, 11.4),
+    flute_band=(1.0, 11.4), flutes=18,
     emblem_rise=0.6, emblem_sink=0.5,
 )
+
+# The real Ford script cannot resolve on a 14 mm cap at any nozzle (see
+# logos.ford_script), so it gets a bigger body.  Same thread, same height --
+# only the diameter and the flute count change.
+FLAT_OVERRIDES = {
+    "ford_script": dict(od=22.0, flutes=26, emblem_rise=0.7),
+}
 
 # Emblem width per brand, in mm.  The limit is the flat top face: od/2 minus
 # the top chamfer = 6.65 mm of radius.  Honda's mark is a wide rounded
@@ -59,7 +65,7 @@ FLAT = dict(
 EMBLEM_W = {
     "honda": 11.9, "bmw": 13.1, "mercedes": 13.1, "toyota": 13.1,
     "audi": 13.1, "volkswagen": 13.1, "jeep": 13.1, "chevrolet": 12.8,
-    "mitsubishi": 9.9, "volvo": 9.2, "ford": 13.1,
+    "mitsubishi": 9.9, "volvo": 9.2, "ford": 13.1, "ford_script": 20.6,
 }
 # Mitsubishi and Volvo look narrow in that table but are not: their extreme
 # points are not horizontally opposed, so they still reach the full 6.55 mm
@@ -87,6 +93,7 @@ BUILDS = [
     ("chevrolet", "flat_top"),
     ("volvo", "flat_top"),
     ("ford", "flat_top"),
+    ("ford_script", "flat_top"),
 ]
 
 # Mesh resolution
@@ -227,7 +234,7 @@ def emblem_prisms(strokes, z_base, thickness):
 # ---------------------------------------------------------------------------
 # bodies
 # ---------------------------------------------------------------------------
-def fluted_body(od, height, chamfer_bottom, chamfer_top, flute_band):
+def fluted_body(od, height, chamfer_bottom, chamfer_top, flute_band, flutes):
     r_out = od / 2.0
     z_lo, z_hi = flute_band
     ramp = 0.45
@@ -239,7 +246,7 @@ def fluted_body(od, height, chamfer_bottom, chamfer_top, flute_band):
         if chamfer_top and z > height - chamfer_top:
             r -= z - (height - chamfer_top)
         w = np.clip(min((z - z_lo) / ramp, (z_hi - z) / ramp), 0.0, 1.0)
-        return r - FLUTE_DEPTH * w * (0.5 + 0.5 * np.cos(FLUTE_COUNT * thetas))
+        return r - FLUTE_DEPTH * w * (0.5 + 0.5 * np.cos(flutes * thetas))
 
     knots = [0.0, chamfer_bottom, z_lo - ramp, z_lo, z_hi, z_hi + ramp, height]
     if chamfer_top:
@@ -262,7 +269,7 @@ def bored(body, bore_depth, r_thread_major):
 # variants
 # ---------------------------------------------------------------------------
 def build_flat(brand, engraved=False):
-    c = FLAT
+    c = {**FLAT, **FLAT_OVERRIDES.get(brand, {})}
     r_thread = THREAD_MAJOR_D / 2.0 + THREAD_CLEARANCE
 
     strokes = logos.load(brand, EMBLEM_W[brand])
@@ -274,7 +281,7 @@ def build_flat(brand, engraved=False):
                          f"{limit:.2f} mm flat top -- shrink EMBLEM_W")
 
     body = fluted_body(c["od"], c["height"], c["chamfer_bottom"],
-                       c["chamfer_top"], c["flute_band"])
+                       c["chamfer_top"], c["flute_band"], c["flutes"])
     body = bored(body, c["bore_depth"], r_thread)
 
     if engraved:
@@ -298,7 +305,7 @@ def build_badge(brand):
     c = BADGE
     r_thread = THREAD_MAJOR_D / 2.0 + THREAD_CLEARANCE
     body = fluted_body(c["od"], c["body_height"], c["chamfer_bottom"], 0.0,
-                       c["flute_band"])
+                       c["flute_band"], FLAT["flutes"])
 
     strokes = logos.load(brand, c["emblem_w"])
     islands = logos.parts(logos.merged(strokes))
