@@ -106,7 +106,7 @@ def health():
     t = time.time()
     with BUILD:
         parts, info = cards.build("fob", "Self Test")
-    return dict(ok=info["watertight"], font=info["font"],
+    return dict(ok=info["watertight"], font=cards.default_font(),
                 built=f"{info['w']} x {info['h']} mm fob in {time.time() - t:.2f}s",
                 python=__import__("sys").version.split()[0])
 
@@ -131,7 +131,11 @@ class Handler(BaseHTTPRequestHandler):
         if path in ("/", "/index.html"):
             self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
         elif path in ("/api/model", "/model"):
-            self._send(200, json.dumps(health()).encode(), "application/json")
+            try:
+                self._send(200, json.dumps(health()).encode(), "application/json")
+            except Exception as exc:         # say what broke, rather than just 500
+                self._send(500, json.dumps({"ok": False, "error": repr(exc)}).encode(),
+                           "application/json")
         else:
             self._send(404, b"not found", "text/plain")
 
