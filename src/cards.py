@@ -256,27 +256,23 @@ def qr_matrix(text):
 def qr_polys(rows, module):
     """The dark modules of a QR code as raised shapes, centred on the origin.
 
-    Consecutive dark modules in a row become one rectangle, and every rectangle
-    is grown by a hair so that neighbours in adjacent rows overlap rather than
-    merely touch -- two boxes that share only an edge or a corner make an
-    unwelded seam, and the boolean engine wants volume in common.
+    Each dark module is grown by a twentieth of itself and the lot is merged in
+    2-D, so neighbours -- side by side or corner to corner -- become one shape
+    with a real overlap rather than a shared edge or a shared point.  Shared
+    edges and points are what break extrusion: a ring that touches itself is
+    not a valid polygon, and overlapping them by a hair in 3-D instead leaves
+    slivers that collapse into degenerate triangles the moment a slicer merges
+    close vertices on import.  A 5% bleed costs the light gaps a tenth of a
+    module, which a scanner does not notice on a dark-on-light print.
     """
     n = len(rows)
     half = n * module / 2.0
-    eps = 0.005
-    out = []
-    for r, row in enumerate(rows):
-        c = 0
-        while c < n:
-            if not row[c]:
-                c += 1
-                continue
-            c0 = c
-            while c < n and row[c]:
-                c += 1
-            out.append(box(c0 * module - half - eps, half - (r + 1) * module - eps,
-                           c * module - half + eps, half - r * module + eps))
-    return out
+    bleed = module * 0.05
+    squares = [box(c * module - half - bleed, half - (r + 1) * module - bleed,
+                   (c + 1) * module - half + bleed, half - r * module + bleed)
+               for r, row in enumerate(rows) for c, dark in enumerate(row) if dark]
+    merged = unary_union(squares)
+    return list(merged.geoms) if merged.geom_type == "MultiPolygon" else [merged]
 
 
 def logo_polys(svg, height, max_w):
