@@ -46,6 +46,12 @@ FONT_SEARCH = [
     "C:/Windows/Fonts/arialbd.ttf",
 ]
 
+# How far the lettering and the mark stand off the faces.  0.6 mm is enough to
+# read and to take a colour change; 1.2 mm is enough to *feel*, which is the
+# point of a thing that lives in a pocket.  The slicer sees it as a few more
+# layers of the accent colour before the body starts, nothing else changes.
+RISE = 1.2
+
 # The NFC tag the pocket is cut for.  Default is a rectangular NTAG213
 # sticker; measure yours, the sizes vary a lot between sellers.
 TAG = dict(w=35.0, h=22.0, thick=0.5, clearance=0.4, corner=1.5)
@@ -53,7 +59,7 @@ TAG = dict(w=35.0, h=22.0, thick=0.5, clearance=0.4, corner=1.5)
 CARD = dict(
     label="card",
     w=85.6, h=54.0, corner=3.18,    # CR80: the outline of a credit card
-    thick=2.2, split_thick=2.6, rise=0.6,
+    thick=2.2, split_thick=2.6,
     margin=5.0, grow=False,
     hole=None,
     border=0.9, border_inset=3.0,
@@ -65,7 +71,7 @@ CARD = dict(
 FOB = dict(
     label="fob",
     w=62.0, h=34.0, corner=4.0,
-    thick=2.8, split_thick=3.2, rise=0.6,
+    thick=2.8, split_thick=3.2,
     margin=3.6, grow=True,          # widened and deepened to fit the tag pocket
     hole=dict(d=4.6, wall=2.2),     # split-ring hole, centred wall + d/2 from the edge
     border=0.0, border_inset=0.0,
@@ -368,30 +374,119 @@ def prisms(polys, z0, thickness):
     return out
 
 
+def union(meshes):
+    return meshes[0] if len(meshes) == 1 else boolean("union", meshes)
+
+
+def layout(parts, gap=6.0):
+    """[(part, (dx, dy, dz)), ...]: the parts side by side along x, on z = 0."""
+    out, x = [], 0.0
+    for part in parts:
+        lo, hi = part["mesh"].bounds
+        out.append((part, (x - lo[0], -(lo[1] + hi[1]) / 2.0, -lo[2])))
+        x += hi[0] - lo[0] + gap
+    return out
+
+
 def plate(parts, gap=6.0):
-    """The parts laid out side by side on one build plate, as a single mesh.
+    """The parts laid out on one build plate, as a single mesh.
 
     They are disjoint solids, so this is a concatenation rather than a boolean
     -- every slicer reads it as a multi-part object.
     """
-    out, x = [], 0.0
-    for _, mesh in parts:
-        mesh = mesh.copy()
-        lo, hi = mesh.bounds
-        mesh.apply_translation((x - lo[0], -(lo[1] + hi[1]) / 2.0, -lo[2]))
+    out = []
+    for part, shift in layout(parts, gap):
+        mesh = part["mesh"].copy()
+        mesh.apply_translation(shift)
         out.append(mesh)
-        x += hi[0] - lo[0] + gap
     return trimesh.util.concatenate(out) if len(out) > 1 else out[0]
 
 
+def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0):
+    """The parts as a 3MF, body and raised features as separate coloured
+    components of one object each, so the slicer opens it already knowing the
+    lettering is the other filament.
+
+    Written by hand rather than through trimesh's exporter, because what
+    matters here is the structure -- one object per part, two components per
+    object, two base materials -- and that is easier to get exactly right in
+    forty lines of XML than to coax out of a general-purpose scene writer.
+    """
+    import io
+    import zipfile
+
+    def mesh_xml(oid, mesh, pindex, name):
+        v = "".join(f'<vertex x="{x:.4f}" y="{y:.4f}" z="{z:.4f}"/>'
+                    for x, y, z in mesh.vertices)
+        t = "".join(f'<triangle v1="{a}" v2="{b}" v3="{c}"/>' for a, b, c in mesh.faces)
+        return (f'<object id="{oid}" type="model" name="{name}" pid="1" pindex="{pindex}">'
+                f'<mesh><vertices>{v}</vertices><triangles>{t}</triangles></mesh></object>')
+
+    objects, items, oid = [], [], 2          # id 1 is the material list
+    for part, (dx, dy, dz) in layout(parts, gap):
+        label = part["name"] or "card"
+        ids = []
+        for mesh, pindex, what in ((part["body"], 0, "body"), (part["relief"], 1, "raised")):
+            if mesh is None:
+                continue
+            objects.append(mesh_xml(oid, mesh, pindex, f"{label} {what}"))
+            ids.append(oid)
+            oid += 1
+        comps = "".join(f'<component objectid="{i}"/>' for i in ids)
+        objects.append(f'<object id="{oid}" type="model" name="{label}">'
+                       f'<components>{comps}</components></object>')
+        items.append(f'<item objectid="{oid}" '
+                     f'transform="1 0 0 0 1 0 0 0 1 {dx:.4f} {dy:.4f} {dz:.4f}"/>')
+        oid += 1
+
+    model = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<model unit="millimeter" xml:lang="en-US" '
+        'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">'
+        '<resources><basematerials id="1">'
+        f'<base name="Body" displaycolor="{colours[0]}"/>'
+        f'<base name="Raised" displaycolor="{colours[1]}"/>'
+        f'</basematerials>{"".join(objects)}</resources>'
+        f'<build>{"".join(items)}</build></model>')
+    types = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>'
+        '</Types>')
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Target="/3D/3dmodel.model" Id="rel0" '
+        'Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>'
+        '</Relationships>')
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", types)
+        z.writestr("_rels/.rels", rels)
+        z.writestr("3D/3dmodel.model", model)
+    return buf.getvalue()
+
+
 def build(kind, name="", company="", phone="", font=None, tag=None,
-          tap_text="TAP HERE", tag_mode="pocket", lid=0.6, border=True):
+          tap_text="TAP HERE", tag_mode="pocket", lid=0.6, border=True, rise=RISE):
     """One card or fob as printable parts, plus the numbers worth knowing.
 
-    Returns ([(suffix, mesh), ...], info) -- one part for the solid modes, two
-    for "split".  Every part comes out lying down, relief face at z = 0, which
-    is how to print it: lettering face-down gets the build-plate finish, and
-    nothing has to bridge over the tag cavity.
+    Returns ([part, ...], info).  Each part is a dict:
+
+      name    "" for a solid body, "front" / "back" for the halves of a split one
+      body    the slab, with its cavity, hole and register pins
+      relief  the lettering and the mark, as a separate solid (None if there
+              is nothing raised on this part)
+      mesh    the two welded into one, for STL
+
+    Keeping body and relief apart is what lets export_3mf() hand the slicer
+    two colours; the STL gets the welded mesh and a colour-change height.
+
+    Every part comes out lying down, relief face at z = 0, which is how to
+    print it: lettering face-down gets the build-plate finish, and nothing has
+    to bridge over the tag cavity.
 
     tag_mode picks how the tag goes in:
 
@@ -409,6 +504,7 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     if not border:
         spec["border"] = 0.0
     split = tag_mode == "split"
+    rise = max(0.2, float(rise))
 
     pocket_w = t["w"] + t["clearance"]
     pocket_h = t["h"] + t["clearance"]
@@ -439,19 +535,12 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     # is mirrored -- which is exactly what turning the card over does to it.
     front = [affinity.scale(p, -1.0, 1.0, origin=(0, 0)) for p in front]
 
-    rise = spec["rise"]
     z_body, z_back = rise, rise + thick     # the front face and back face of the slab
     outline = rounded_rect(w, h, spec["corner"])
 
-    solids = prisms([outline], z_body, thick)
-    solids += prisms(front, 0.0, rise + 0.01)
-    solids += prisms(marks, z_back - 0.01, rise + 0.01)
-    solid = boolean("union", solids)
-
     if split:                   # cavity straddling the joint, half in each part
         z_mid = z_body + thick / 2.0
-        cavity = (z_mid - depth / 2.0, depth)
-        pause_z = None
+        cavity, pause_z = (z_mid - depth / 2.0, depth), None
     elif tag_mode == "embed":
         cavity, pause_z = (z_back - lid - depth, depth), z_back - lid
     else:
@@ -463,32 +552,42 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
         d = spec["hole"]["d"]
         hole = rounded_rect(d, d, d / 2.0, -w / 2.0 + spec["hole"]["wall"] + d / 2.0, 0.0)
         cuts += prisms([hole], -1.0, z_back + rise + 2.0)
-    mesh = boolean("difference", [solid, *cuts])
+    slab = boolean("difference", [*prisms([outline], z_body, thick), *cuts])
+
+    # The raised work is its own solid, overlapping the slab by a hair so the
+    # STL weld has something to bite on and the slicer sees no seam.
+    front_relief = union(prisms(front, 0.0, rise + 0.01)) if front else None
+    back_relief = union(prisms(marks, z_back - 0.01, rise + 0.01)) if marks else None
 
     pins = []
     if split:
         blocked = pocket if hole is None else unary_union([pocket, hole])
         pins = register_pins(outline, blocked, w, h)
-        parts = halve(mesh, z_mid, pins, w, h)
+        parts = halve(slab, front_relief, back_relief, z_mid, pins, w, h)
     else:
-        parts = [("", mesh)]
+        reliefs = [m for m in (front_relief, back_relief) if m is not None]
+        parts = [dict(name="", body=slab, relief=union(reliefs) if reliefs else None)]
+    for part in parts:
+        part["mesh"] = (part["body"] if part["relief"] is None
+                        else boolean("union", [part["body"], part["relief"]]))
 
     arcs = marks[:-n_tap] if n_tap else marks
     info = dict(
         kind=kind, w=round(w, 2), h=round(h, 2), thick=thick, rise=rise,
-        parts=[p or kind for p, _ in parts], pins=len(pins),
+        parts=[p["name"] or kind for p in parts], pins=len(pins),
         part_thick=round(rise + (thick / 2.0 if split else thick), 2),
-        assembled=round(2 * rise + thick if split else rise + thick + rise, 2),
+        assembled=round(2 * rise + thick, 2),
         pocket=[round(pocket_w, 2), round(pocket_h, 2), round(depth, 2)],
         tag_mode=tag_mode, lines=measured,
         mark_stroke=round(narrowest(arcs), 2),
         tap_stroke=round(narrowest(marks[-n_tap:]), 2) if n_tap else None,
         pause_z=None if pause_z is None else round(pause_z, 2),
-        volume=round(sum(m.volume for _, m in parts) / 1000.0, 2),
-        watertight=all(m.is_watertight and m.is_winding_consistent for _, m in parts),
+        volume=round(sum(p["mesh"].volume for p in parts) / 1000.0, 2),
+        watertight=all(p["mesh"].is_watertight and p["mesh"].is_winding_consistent
+                       for p in parts),
         font=Path(font).name,
     )
-    info["total_z"] = round(max(m.bounds[1][2] for _, m in parts), 2)
+    info["total_z"] = round(max(p["mesh"].bounds[1][2] for p in parts), 2)
     # Where the filament changes go.  Both halves of a split body print relief
     # down, so they take one change each and there is no second one.
     info["change_up"] = round(rise, 2)
@@ -501,8 +600,11 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     return parts, info
 
 
-def halve(mesh, z_mid, pins, w, h):
-    """Cut the body at the glue joint and hand the front half the pins.
+def halve(slab, front_relief, back_relief, z_mid, pins, w, h):
+    """Cut the slab at the glue joint and hand the front half the pins.
+
+    The relief needs no cutting: the front lettering lies wholly below the
+    joint and the back mark wholly above it, so each simply goes with its half.
 
     The back half is then turned over about Y, so both parts print relief-down
     with their mating faces up -- pins print as stubs rather than as holes
@@ -514,21 +616,29 @@ def halve(mesh, z_mid, pins, w, h):
     """
     span = rounded_rect(w + 10.0, h + 10.0, 0.0)
     lo = prisms([span], -1.0, z_mid + 1.0)
-    hi = prisms([span], z_mid, mesh.bounds[1][2] + 1.0)
+    hi = prisms([span], z_mid, slab.bounds[1][2] + 1.0)
 
     studs = [rounded_rect(PIN["d"], PIN["d"], PIN["d"] / 2.0, *c) for c in pins]
     bores = [rounded_rect(PIN["d"] + 2 * PIN["clearance"], PIN["d"] + 2 * PIN["clearance"],
                           PIN["d"] / 2.0 + PIN["clearance"], *c) for c in pins]
 
-    front = boolean("intersection", [mesh, *lo])
+    front = boolean("intersection", [slab, *lo])
     if studs:
         front = boolean("union", [front, *prisms(studs, z_mid - 0.3, PIN["height"] + 0.3)])
-    back = boolean("intersection", [mesh, *hi])
+    back = boolean("intersection", [slab, *hi])
     if bores:
         back = boolean("difference",
                        [back, *prisms(bores, z_mid - 0.01, PIN["height"] + 0.16)])
 
-    back.apply_transform(trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0]))
-    for part in (front, back):
-        part.apply_translation((0.0, 0.0, -part.bounds[0][2]))
-    return [("front", front), ("back", back)]
+    flip = trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0])
+    parts = [dict(name="front", body=front, relief=front_relief),
+             dict(name="back", body=back, relief=back_relief)]
+    for part in parts:
+        solids = [m for m in (part["body"], part["relief"]) if m is not None]
+        if part["name"] == "back":
+            for m in solids:
+                m.apply_transform(flip)
+        drop = min(m.bounds[0][2] for m in solids)
+        for m in solids:
+            m.apply_translation((0.0, 0.0, -drop))
+    return parts

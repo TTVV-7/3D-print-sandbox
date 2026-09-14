@@ -3,9 +3,9 @@
     python3 src/app.py            # then open http://127.0.0.1:8765
 
 Fill in name, company and phone, watch the part turn in the viewer, download
-the STL.  The preview colours the raised lettering and the contactless mark
-differently from the body, which is what you actually get out of the printer
-if you put a filament change in at the two heights it reports.
+it.  The 3MF carries the body and the raised lettering as separate coloured
+parts, so the slicer opens it set up for two filaments; the STL is one welded
+solid, and the preview's colour split is where its filament change goes.
 
 Standard library only -- no framework, nothing to install beyond what
 src/cards.py already needs.  It listens on the loopback address; this is a tool
@@ -13,6 +13,7 @@ for the machine it runs on, not a service to put on a network.
 """
 import argparse
 import json
+import re
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -24,32 +25,49 @@ ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "web" / "index.html"
 
 # manifold is fast but there is no reason to have four keystrokes' worth of
-# booleans running at once.
+# booleans running at once.  The last few builds are kept, so asking for the
+# 3MF of what is on screen does not rebuild it.
 BUILD = threading.Lock()
+RECENT = {}
+GEOMETRY = ("kind", "name", "company", "phone", "tap", "tag_w", "tag_h",
+            "tag_thick", "tag_mode", "border", "rise", "font")
+HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
 def model(params):
-    """(stl bytes, info) for one set of form values."""
+    """(bytes, info, content type) for one set of form values."""
     def num(key, default):
         try:
             return float(params.get(key) or default)
         except (TypeError, ValueError):
             return default
 
-    tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
-               thick=num("tag_thick", cards.TAG["thick"]))
+    key = json.dumps({k: params.get(k) for k in GEOMETRY}, sort_keys=True)
     with BUILD:
-        parts, info = cards.build(
-            params.get("kind", "card"),
-            name=params.get("name", ""), company=params.get("company", ""),
-            phone=params.get("phone", ""), tag=tag,
-            tap_text=params.get("tap", "TAP HERE"),
-            tag_mode=params.get("tag_mode", "pocket"),
-            border=bool(params.get("border", True)),
-            font=params.get("font") or None)
+        if key not in RECENT:
+            tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
+                       thick=num("tag_thick", cards.TAG["thick"]))
+            RECENT[key] = cards.build(
+                params.get("kind", "card"),
+                name=params.get("name", ""), company=params.get("company", ""),
+                phone=params.get("phone", ""), tag=tag,
+                tap_text=params.get("tap", "TAP HERE"),
+                tag_mode=params.get("tag_mode", "pocket"),
+                border=bool(params.get("border", True)),
+                rise=num("rise", cards.RISE),
+                font=params.get("font") or None)
+            while len(RECENT) > 8:
+                del RECENT[next(iter(RECENT))]
+        parts, info = RECENT[key]
+
+    if params.get("format") == "3mf":
+        colours = tuple(c if isinstance(c, str) and HEX.match(c) else d
+                        for c, d in ((params.get("body"), "#cfd3d6"),
+                                     (params.get("accent"), "#d9a441")))
+        return cards.export_3mf(parts, colours), info, "model/3mf"
     # A split body comes back as two parts; they go out as one plate, which is
     # one file to slice and one thing to show in the viewer.
-    return cards.plate(parts).export(file_type="stl"), info
+    return cards.plate(parts).export(file_type="stl"), info, "model/stl"
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -79,14 +97,13 @@ class Handler(BaseHTTPRequestHandler):
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         try:
             params = json.loads(body or b"{}")
-            stl, info = model(params)
+            data, info, ctype = model(params)
         except Exception as exc:             # a tag that will not fit, mostly
             payload = json.dumps({"error": str(exc)}).encode()
             return self._send(400, payload, "application/json")
         print(f"  {info['kind']:5s} {info['w']:5.1f} x {info['h']:5.1f} mm  "
-              f"{info['volume']:5.2f} cm^3  {len(stl) / 1024:6.0f} kB")
-        self._send(200, stl, "model/stl",
-                   [("X-Card-Info", json.dumps(info))])
+              f"{info['volume']:5.2f} cm^3  {ctype[6:]:3s} {len(data) / 1024:6.0f} kB")
+        self._send(200, data, ctype, [("X-Card-Info", json.dumps(info))])
 
 
 def serve(host="127.0.0.1", port=8765, open_browser=True):

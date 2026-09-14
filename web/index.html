@@ -35,6 +35,8 @@
   .hint code { background: #12151a; padding: 0 4px; border-radius: 3px; }
   .swatches { display: flex; gap: 10px; }
   .swatches label { flex: 1; }
+  input[type=range] { width: 100%; margin: 6px 0 0; accent-color: var(--accent); }
+  label b { color: var(--ink); font-weight: 600; float: right; }
   input[type=color] {
     width: 100%; height: 30px; margin-top: 4px; padding: 0; background: none;
     border: 1px solid var(--line); border-radius: 6px;
@@ -88,6 +90,11 @@
     </select>
   </label>
   <div class="check"><input type="checkbox" id="border" checked> <span>Raised border (card only)</span></div>
+  <label>Relief height <b id="rise_v">1.2 mm</b>
+    <input type="range" id="rise" min="0.4" max="2.5" step="0.1" value="1.2">
+  </label>
+  <p class="hint">How far the lettering stands off the face. 0.6 mm reads; 1.2 mm you can feel
+     with a thumb; past 2 mm the thin strokes start to snag.</p>
 
   <fieldset>
     <legend>Tap side</legend>
@@ -118,12 +125,13 @@
   </fieldset>
 
   <fieldset>
-    <legend>Preview colours</legend>
+    <legend>Colours</legend>
     <div class="swatches">
       <label>Body <input type="color" id="c_body" value="#cfd3d6"></label>
       <label>Raised <input type="color" id="c_accent" value="#d9a441"></label>
     </div>
-    <p class="hint">Filament colours, not part of the STL. The split is exactly where the
+    <p class="hint">Written into the 3MF as two materials, so the slicer opens it with the
+       lettering already on the second filament. The STL is one solid; its split is where the
        colour change goes.</p>
   </fieldset>
 </aside>
@@ -136,7 +144,8 @@
       the STL download still work.</div>
     <div id="buttons">
       <button id="flip">Flip</button>
-      <button id="save" class="go" disabled>Download STL</button>
+      <button id="save_stl" disabled>STL</button>
+      <button id="save" class="go" disabled>Download 3MF</button>
     </div>
   </div>
   <div id="specs">building&hellip;</div>
@@ -146,7 +155,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const FIELDS = ["name", "company", "phone", "kind", "tap", "tag_w", "tag_h",
-                "tag_thick", "tag_mode"];
+                "tag_thick", "tag_mode", "rise"];
 const specs = $("specs");
 
 /* ---------------------------------------------------------------- maths --
@@ -400,14 +409,14 @@ async function rebuild() {
     if (mine !== seq) return;                      // a later keystroke got there first
     if (!res.ok) {
       specs.innerHTML = `<span class="err">${(await res.json()).error}</span>`;
-      $("save").disabled = true;
+      $("save").disabled = $("save_stl").disabled = true;
       return;
     }
     info = JSON.parse(res.headers.get("X-Card-Info"));
     stl = await res.arrayBuffer();
     if (gl) upload(stl);
     readout();
-    $("save").disabled = false;
+    $("save").disabled = $("save_stl").disabled = false;
   } catch (e) {
     specs.innerHTML = `<span class="err">${e.message} &mdash; is src/app.py still running?</span>`;
   }
@@ -424,15 +433,38 @@ $("kind").addEventListener("change", () => {
 for (const c of ["c_body", "c_accent"])
   $(c).addEventListener("input", () => { if (gl && stl) upload(stl); });
 $("flip").addEventListener("click", () => { yawTo += Math.PI; });
-$("save").addEventListener("click", () => {
-  const stem = ($("name").value || $("company").value || "card")
+$("rise").addEventListener("input", () => { $("rise_v").textContent = `${$("rise").value} mm`; });
+
+function stem() {
+  const base = ($("name").value || $("company").value || "card")
     .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "card";
+  return `${base}_${$("kind").value}` + ($("tag_mode").value === "split" ? "_halves" : "");
+}
+
+function save(bytes, type, name) {
   const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([stl], { type: "model/stl" }));
-  a.download = `${stem}_${$("kind").value}` +
-               ($("tag_mode").value === "split" ? "_halves.stl" : ".stl");
+  a.href = URL.createObjectURL(new Blob([bytes], { type }));
+  a.download = name;
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+$("save_stl").addEventListener("click", () => save(stl, "model/stl", `${stem()}.stl`));
+$("save").addEventListener("click", async () => {
+  const params = Object.fromEntries(FIELDS.map(f => [f, $(f).value]));
+  params.border = $("border").checked;
+  params.format = "3mf";
+  params.body = $("c_body").value;
+  params.accent = $("c_accent").value;
+  const res = await fetch("/model", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    specs.innerHTML = `<span class="err">${(await res.json()).error}</span>`;
+    return;
+  }
+  save(await res.arrayBuffer(), "model/3mf", `${stem()}.3mf`);
 });
 
 rebuild();

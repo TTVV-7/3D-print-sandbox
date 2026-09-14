@@ -4,8 +4,11 @@
                              --company "Bluewater Realty" \
                              --phone "(555) 214-8890"
 
-writes stl/jane_doe_card.stl and stl/jane_doe_fob.stl.  --preview also renders
-them.  src/app.py is the same thing with a browser front end.
+writes stl/jane_doe_card.3mf and .stl, and the same for the fob.  The 3MF has
+the body and the raised lettering as separate coloured parts, so the slicer
+opens it already set up for two filaments; the STL is one welded solid plus a
+colour-change height.  --preview also renders them.  src/app.py is the same
+thing with a browser front end.
 
 Measure your NFC tags and pass --tag WxH: the pocket is cut to fit, and the
 fob grows if it has to.  Everything else worth changing lives in src/cards.py.
@@ -66,6 +69,12 @@ def main():
     ap.add_argument("--tap", default="TAP HERE",
                     help="wording under the contactless mark; '|' splits lines, "
                          "empty leaves just the arcs")
+    ap.add_argument("--rise", type=float, default=cards.RISE,
+                    help=f"how far the lettering stands off the face, mm "
+                         f"(default {cards.RISE:g})")
+    ap.add_argument("--colours", default="#cfd3d6,#d9a441", metavar="BODY,RAISED",
+                    help="hex colours written into the 3MF, body then raised")
+    ap.add_argument("--format", default="both", choices=["3mf", "stl", "both"])
     ap.add_argument("--no-border", action="store_true", help="drop the raised card border")
     ap.add_argument("--font", default=None, help="path to a TTF; a bold sans works best")
     ap.add_argument("--out", default=str(ROOT / "stl"), help="where to write the STLs")
@@ -82,6 +91,10 @@ def main():
         except ValueError:
             ap.error(f"--tag wants WxH in mm, e.g. 35x22 -- got {args.tag!r}")
 
+    colours = tuple(c.strip() for c in args.colours.split(","))
+    if len(colours) != 2 or not all(re.fullmatch(r"#[0-9a-fA-F]{6}", c) for c in colours):
+        ap.error(f"--colours wants two hex colours like #cfd3d6,#d9a441 -- got {args.colours!r}")
+
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     kinds = ["card", "fob"] if args.kind == "both" else [args.kind]
@@ -89,20 +102,26 @@ def main():
     for kind in kinds:
         parts, info = cards.build(
             kind, args.name, args.company, args.phone, font=args.font, tag=tag,
-            tap_text=args.tap, tag_mode=args.tag_mode, border=not args.no_border)
+            tap_text=args.tap, tag_mode=args.tag_mode, border=not args.no_border,
+            rise=args.rise)
         stem = f"{slug(args.name or args.company)}_{kind}"
-        names = []
-        for suffix, part in parts:
-            names.append(f"{stem}_{suffix}" if suffix else stem)
-            part.export(out / f"{names[-1]}.stl")
-        report(", ".join(f"{n}.stl" for n in names), info)
+        names, written = [], []
+        for part in parts:
+            names.append(f"{stem}_{part['name']}" if part["name"] else stem)
+            if args.format != "3mf":
+                part["mesh"].export(out / f"{names[-1]}.stl")
+                written.append(f"{names[-1]}.stl")
+        if args.format != "stl":
+            (out / f"{stem}.3mf").write_bytes(cards.export_3mf(parts, colours))
+            written.insert(0, f"{stem}.3mf")
+        report(", ".join(written), info)
         if args.preview:
             import numpy as np
             import trimesh
             import render
             shots = ROOT / "previews"
             shots.mkdir(exist_ok=True)
-            for name, part in zip(names, (m for _, m in parts)):
+            for name, part in zip(names, (p["mesh"] for p in parts)):
                 flipped = part.copy()
                 flipped.apply_transform(
                     trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0]))

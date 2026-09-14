@@ -31,10 +31,16 @@ python3 src/app.py
 ```
 
 opens `http://127.0.0.1:8765`.  Type in the boxes and the part rebuilds as you
-go, about half a second a time; **Download STL** saves it.  The preview paints
-the raised lettering in a second colour, which is not decoration -- it is
-exactly what you get if you put a filament change in at the two heights the
-readout gives you.
+go, about half a second a time.  **Download 3MF** saves it with the body and
+the raised lettering as two separate parts in the two colours you picked, so
+Bambu Studio, PrusaSlicer or Orca open it already knowing which is which -- pick
+a filament for each and print.  **STL** saves one welded solid instead, for
+anything that does not read 3MF; the preview's colour split is then exactly
+where its filament change goes, at the heights the readout gives you.
+
+A slider sets how far the lettering stands off the face.  The default is
+1.2 mm, which is enough to feel with a thumb; 0.6 mm reads fine and is cheaper
+on the second colour, and past 2 mm the thinnest strokes start to snag.
 
 There is also a box to paste a listing link into, which counts the bytes an
 NDEF record would take and says which NTAGs it fits.  It only counts -- nothing
@@ -54,8 +60,9 @@ python3 src/gen_cards.py --name "Jane Doe" \
                          --phone "(555) 214-8890"
 ```
 
-writes `stl/jane_doe_card.stl` and `stl/jane_doe_fob.stl`, and reports the
-lettering sizes, the stroke widths, the pocket and the colour-change heights.
+writes `stl/jane_doe_card.3mf` and `.stl`, the same for the fob, and reports
+the lettering sizes, the stroke widths, the pocket and the colour-change
+heights.  `--rise 2`, `--colours "#1f2a44,#e8c15a"`, `--format 3mf`,
 `--tag 38x19`, `--tag-mode embed|split`, `--tap "SCAN ME"`, `--font`,
 `--preview` and the rest are in `--help`.
 
@@ -65,25 +72,24 @@ lettering sizes, the stroke widths, the pocket and the colour-change heights.
 |---|---|---|
 | Outline | 85.6 x 54 mm, r3.18 -- CR80, the size of a credit card | 62 x 34 mm, r4, with a Ø4.6 mm split-ring hole |
 | Thickness | 2.2 mm | 2.8 mm |
-| Relief | 0.6 mm, both faces | 0.6 mm, both faces |
+| Relief | 1.2 mm both faces, adjustable | 1.2 mm both faces, adjustable |
 | Name / company / phone caps | 7.2 / 4.4 / 5.4 mm | 5.6 / 3.4 / 4.4 mm |
 | Raised border | yes | no |
-| Uses | ~10 cm³ | ~5.5 cm³ |
+| Uses | ~10.5 cm³ | ~5.6 cm³ |
 
 A line that is too long shrinks to fit rather than running off the edge, so a
 long brokerage name comes out smaller, not broken.  Past a point that stops
 being printable, so any of the three fields can carry a `|` where it should
 break instead -- `--company "Coast & Key|Property Group"` sets two lines at
 full size, which on a fob is the difference between 0.50 mm strokes and
-0.36 mm ones.  The fob grows if the tag
-pocket needs more room than 62 x 34 mm leaves it; the card does not, and says
-so instead.
+0.36 mm ones.  The fob grows if the tag pocket needs more room than 62 x 34 mm
+leaves it; the card does not, and says so instead.
 
 Lettering is pulled straight out of a TTF by `src/trace_text.py` -- glyph
 outlines as curves, flattened, not rasterised and re-traced.  The default is
 whichever of Liberation Sans Bold, DejaVu Sans Bold or Arial Bold is on the
 machine; `--font` takes any other.  A heavy sans is the right answer, because
-every stroke has to survive as a 0.6 mm-tall bar of plastic.
+every stroke has to survive as a 1.2 mm-tall bar of plastic.
 
 ## The tag, and the arcs
 
@@ -123,8 +129,8 @@ Left, as the two halves sit on the plate; right, the faces that get glued.
 Everything on the joint is mirrored between the halves, so they register.
 
 - The body is **0.4 mm thicker** than the solid version to pay for the cavity:
-  a card is 2.6 mm of slab, so 1.9 mm per printed part including its relief and
-  3.8 mm glued up.  A fob is 3.2 mm, so 2.2 mm and 4.4 mm.
+  a card is 2.6 mm of slab, so 2.5 mm per printed part including its 1.2 mm of
+  relief, and 5.0 mm glued up.  A fob is 3.2 mm, so 2.8 mm and 5.6 mm.
 - **Three register pins, not four.**  Ø2.4 x 0.6 mm studs on the front half,
   0.15 mm-clearance sockets on the back.  Three corners of a rectangle make an
   L, and an L does not map onto itself under any flip or half-turn -- so the
@@ -133,7 +139,7 @@ Everything on the joint is mirrored between the halves, so they register.
   room for pins, in which case the reported count comes back 0 and you line the
   halves up on the outline instead.
 - Both halves print **relief down**, so each takes **one** filament change at
-  Z = 0.60 mm rather than two.
+  the relief height (Z = 1.20 mm by default) rather than two.
 - Glue it with plastic cement or thin CA on the flat border outside the cavity,
   not in it -- the tag does not want to be soaked.  Clamp it under a book.
 
@@ -162,19 +168,22 @@ lettering gets the build-plate finish instead of being four thin top layers,
 and the pocket opens upward so nothing has to bridge over it.  No supports
 either way.
 
-- **Layer height 0.12-0.20 mm.**  The relief is 0.6 mm, so that is three to
-  five layers of lettering.
+- **Layer height 0.12-0.20 mm.**  The relief is 1.2 mm, so that is six to ten
+  layers of lettering -- fine, it is all perimeters.
 - **Thin-wall detection on.**  At these sizes the smaller lines run 0.5-0.65 mm
   wide -- printable, but only if the slicer does not decide to drop them.  The
   generator prints the measured width of every line, and warns when one is
   under 0.8 mm.  If you want them fatter, shorten the text or raise the cap
   heights in `src/cards.py`.
-- **Two colours without a multi-material printer:** filament changes at the
-  heights reported for the part -- Z = 0.60 mm and Z = 2.80 mm for a solid card,
-  0.60 and 3.40 for a fob.  Start in the accent colour, swap to the body colour
+- **Two colours on a multi-material printer:** open the 3MF.  The body and
+  the raised work are separate parts with separate materials; assign a
+  filament to each.
+- **Two colours without one:** print the STL with filament changes at the
+  heights reported for the part -- Z = 1.20 mm and Z = 3.40 mm for a solid card,
+  1.20 and 4.00 for a fob.  Start in the accent colour, swap to the body colour
   at the first, swap back at the second, and both faces come out with coloured
-  lettering on a plain body.  One change at 0.60 mm alone gets you the front.
-  Split halves take one change each, both at 0.60 mm.
+  lettering on a plain body.  One change at 1.20 mm alone gets you the front.
+  Split halves take one change each, both at the relief height.
 - **Material:** PLA is fine for something that lives in a wallet.  PETG if it
   is going to sit on a dashboard in the sun.
 - 3-4 perimeters, 20%+ infill.  A card is about 10 cm³ and a few minutes.
@@ -182,10 +191,14 @@ either way.
 ## Changing things
 
 `src/cards.py` holds the lot: `CARD` and `FOB` carry every dimension, `TAG` the
-default tag, `MIN_STROKE` the printability threshold the warnings use.  Both
-bodies are prismatic, so everything is a shapely polygon extruded between two
-heights and handed to one boolean -- add a logo by returning more polygons from
-`front_face()`.
+default tag, `RISE` the relief height, `MIN_STROKE` the printability threshold
+the warnings use.  Both bodies are prismatic, so everything is a shapely polygon
+extruded between two heights -- add a logo by returning more polygons from
+`front_face()`.  The slab and the raised work are kept as separate solids and
+only welded for the STL; that separation is what the 3MF's two colours are.
+`export_3mf()` writes the file by hand -- one object per part, two components
+per object, two base materials -- because the structure is the whole point and
+forty lines of XML put it exactly where the slicers look.
 
 Three things that bite, the same three the valve caps ran into:
 
