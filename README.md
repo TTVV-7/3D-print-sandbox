@@ -1,3 +1,167 @@
+# 3D print sandbox
+
+Two parametric things live here so far.  Both are plain Python -- shapely for
+the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
+
+- **[Realtor NFC cards](#realtor-nfc-cards)** -- name, company and phone on the
+  front; a pocket for an NFC tag and the contactless arcs on the back.  Comes
+  with a browser front end.
+- **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
+  with a car maker's emblem on top.  Twelve marks.
+
+---
+
+# Realtor NFC cards
+
+Three fields in, a two-sided card or keyring fob out: the contact details
+raised on the front, a pocket for an NFC tag and a "tap here" mark on the back.
+Tapping a phone to it opens whatever you wrote on the tag -- a listing, a
+booking page, a vCard.
+
+| | |
+|---|---|
+| ![card front](previews/nfc_card_front.png) | ![card back](previews/nfc_card_back.png) |
+| ![fob front](previews/nfc_fob_front.png) | ![fob back](previews/nfc_fob_back.png) |
+
+## The app
+
+```
+pip install numpy trimesh manifold3d shapely mapbox_earcut networkx pillow fonttools
+python3 src/app.py
+```
+
+opens `http://127.0.0.1:8765`.  Type in the boxes and the part rebuilds as you
+go, about half a second a time; **Download STL** saves it.  The preview paints
+the raised lettering in a second colour, which is not decoration -- it is
+exactly what you get if you put a filament change in at the two heights the
+readout gives you.
+
+The server is standard library only and the viewer is hand-written WebGL, so
+there is no framework to install, nothing fetched from a CDN, and it works with
+the network off.  It listens on the loopback address; it is a tool for the
+machine it runs on, not a service to put on a network.
+
+The same thing from a terminal:
+
+```
+python3 src/gen_cards.py --name "Jane Doe" \
+                         --company "Bluewater Realty" \
+                         --phone "(555) 214-8890"
+```
+
+writes `stl/jane_doe_card.stl` and `stl/jane_doe_fob.stl`, and reports the
+lettering sizes, the stroke widths, the pocket and the colour-change heights.
+`--tag 38x19`, `--tag-mode embed`, `--tap "SCAN ME"`, `--font`, `--preview` and
+the rest are in `--help`.
+
+## The two bodies
+
+| | Card | Fob |
+|---|---|---|
+| Outline | 85.6 x 54 mm, r3.18 -- CR80, the size of a credit card | 62 x 34 mm, r4, with a Ø4.6 mm split-ring hole |
+| Thickness | 2.2 mm | 2.8 mm |
+| Relief | 0.6 mm, both faces | 0.6 mm, both faces |
+| Name / company / phone caps | 7.2 / 4.4 / 5.4 mm | 5.6 / 3.4 / 4.4 mm |
+| Raised border | yes | no |
+| Uses | ~10 cm³ | ~5.5 cm³ |
+
+A line that is too long shrinks to fit rather than running off the edge, so a
+long brokerage name comes out smaller, not broken.  Past a point that stops
+being printable, so any of the three fields can carry a `|` where it should
+break instead -- `--company "Coast & Key|Property Group"` sets two lines at
+full size, which on a fob is the difference between 0.50 mm strokes and
+0.36 mm ones.  The fob grows if the tag
+pocket needs more room than 62 x 34 mm leaves it; the card does not, and says
+so instead.
+
+Lettering is pulled straight out of a TTF by `src/trace_text.py` -- glyph
+outlines as curves, flattened, not rasterised and re-traced.  The default is
+whichever of Liberation Sans Bold, DejaVu Sans Bold or Arial Bold is on the
+machine; `--font` takes any other.  A heavy sans is the right answer, because
+every stroke has to survive as a 0.6 mm-tall bar of plastic.
+
+## The tag, and the arcs
+
+The pocket is cut to the tag you actually bought: `--tag WxH` plus
+`--tag-thick`, with 0.4 mm of slack all round and a floor at least 1 mm thick
+under it.  Default is 35 x 22 x 0.5 mm, a common rectangular NTAG213 sticker.
+**Measure yours** -- sellers' "25 mm" tags are anything but consistent.
+
+Two ways to fit it:
+
+| `--tag-mode` | What it does | Trade |
+|---|---|---|
+| `pocket` (default) | Recess open at the back; peel the sticker and press it in when the print comes off the plate. | Visible, and you can replace the tag later. |
+| `embed` | The same recess roofed over with 0.6 mm of plastic. | Invisible and unpeelable, but you have to pause the print at the height it reports and drop the tag in. |
+
+The mark beside the pocket is the four-arc contactless symbol -- the "wifi on
+its side" everyone already reads as *tap here*.  It is built from arcs in
+`cards.contactless()` rather than traced, so the stroke width is a number you
+can turn up: 1.20 mm on the card and 0.87 mm on the fob, two to three nozzle
+widths, which prints cleanly.  The NFC Forum's N-Mark and the EMVCo
+indicator are registered marks and these plain arcs are neither.
+
+Some notes on the tags themselves:
+
+- **Nothing here writes the tag.**  Do that with a phone -- NFC Tools or
+  similar -- writing a URL record, and lock it afterwards if you are handing
+  them out.
+- An **NTAG213 holds 144 bytes**, so about 130 characters of URL.  A listing
+  link is usually longer than that: point it at a short link you control, which
+  you can also re-point when the listing sells.
+- Plastic is transparent at 13.56 MHz, so 1.5 mm of card over the tag costs you
+  nothing.  **Metal-filled, carbon-fibre and conductive filaments are not** --
+  they will kill the read.  Plain PLA, PETG, ABS and ASA are all fine.
+
+## Printing
+
+The STL comes out **front face down**, which is how to print it: the front
+lettering gets the build-plate finish instead of being four thin top layers,
+and the pocket opens upward so nothing has to bridge over it.  No supports
+either way.
+
+- **Layer height 0.12-0.20 mm.**  The relief is 0.6 mm, so that is three to
+  five layers of lettering.
+- **Thin-wall detection on.**  At these sizes the smaller lines run 0.5-0.65 mm
+  wide -- printable, but only if the slicer does not decide to drop them.  The
+  generator prints the measured width of every line, and warns when one is
+  under 0.8 mm.  If you want them fatter, shorten the text or raise the cap
+  heights in `src/cards.py`.
+- **Two colours without a multi-material printer:** two filament changes, at
+  the heights reported for the part -- Z = 0.60 mm and Z = 2.80 mm for a card,
+  0.60 and 3.40 for a fob.  Start in the accent colour, swap to the body colour
+  at the first, swap back at the second, and both faces come out with coloured
+  lettering on a plain body.  One change at 0.60 mm alone gets you the front.
+- **Material:** PLA is fine for something that lives in a wallet.  PETG if it
+  is going to sit on a dashboard in the sun.
+- 3-4 perimeters, 20%+ infill.  A card is about 10 cm³ and a few minutes.
+
+## Changing things
+
+`src/cards.py` holds the lot: `CARD` and `FOB` carry every dimension, `TAG` the
+default tag, `MIN_STROKE` the printability threshold the warnings use.  Both
+bodies are prismatic, so everything is a shapely polygon extruded between two
+heights and handed to one boolean -- add a logo by returning more polygons from
+`front_face()`.
+
+Three things that bite, the same three the valve caps ran into:
+
+- Hand the boolean engine the strokes *separately* rather than a shapely union
+  of them.  A union of touching shapes is "valid", but its boundary touches
+  itself and extruding that is not watertight.
+- The front face is laid out as you read it and then **mirrored**, because it
+  ends up pointing at the build plate.  Anything that has to dodge the fob's
+  ring hole has to dodge it on the other side -- `content_box(mirrored=True)`.
+- `2 * area / perimeter` is the stroke-width estimate.  It reads low on
+  letterforms with counters, whose perimeter runs well ahead of their area, so
+  treat the reported number as a floor.
+
+Personal cards are kept out of git: `stl/*_card.stl` and `stl/*_fob.stl` are
+ignored, so `gen_cards.py` can write straight into `stl/` without the repo
+filling up with other people's phone numbers.
+
+---
+
 # Car-brand valve caps
 
 Schrader valve stem caps with a car maker's emblem on top. Twelve marks so
