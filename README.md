@@ -65,7 +65,7 @@ machine it runs on, not a service to put on a network.
 
 ### Hosting it
 
-The repo deploys to Vercel as it stands: `api/model.py` hands Vercel the same
+The repo deploys to Vercel as it stands: `api/index.py` hands Vercel the same
 `Handler` the local server uses, `public/` is the page, `requirements.txt` the
 dependencies and `vercel.json` the one function's time limit.  It lives at
 **https://3-d-print-sandbox.vercel.app** -- the Vercel project is linked to
