@@ -66,8 +66,11 @@ machine it runs on, not a service to put on a network.
 ### Hosting it
 
 The repo deploys to Vercel as it stands: `api/model.py` hands Vercel the same
-`Handler` the local server uses, `public/` is the page, `requirements.txt` the
-dependencies and `vercel.json` the one function's time limit.  It lives at
+`Handler` the local server uses, `public/` is the page and `requirements.txt`
+the dependencies; `.vercelignore` keeps the valve-cap STLs out of the build.
+Zero-config, with one thing that is easy to get wrong: Vercel finds the
+handler by looking *inside* the entrypoint for a class defined there -- import
+one under the name and the file builds as nothing, silently.  It lives at
 **https://3-d-print-sandbox.vercel.app** -- the Vercel project is linked to
 this repo, so every push builds: the default branch goes to that address, any
 other branch gets a preview address of its own (which asks for a Vercel login;
