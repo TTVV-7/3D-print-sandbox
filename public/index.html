@@ -177,8 +177,11 @@
     <label class="field"><span>Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
     <label class="field"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
     <label class="field"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
+    <label class="field"><span>Role or slogan</span><input type="text" id="role" value="" autocomplete="off" placeholder="Undergraduate at xxx"></label>
+    <label class="field"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="you@example.com"></label>
     <p class="hint">A long line shrinks to fit. Past a point that stops being printable &mdash;
-       put a <code>|</code> where it should break instead, and both halves stay full size.</p>
+       put a <code>|</code> where it should break instead, and both halves stay full size.
+       Role and email are only used by the layouts that have a place for them.</p>
     <label class="field"><span>Logo (SVG)</span><input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
     <p class="hint" id="logo_note">Goes on the front beside the name. Flat fills only &mdash; strokes,
        gradients and text objects are ignored, so export the logo as outlines first. Each fill
@@ -194,6 +197,10 @@
     <label class="field"><span>Preset</span>
       <select id="preset"></select>
     </label>
+    <label class="field"><span>Layout</span>
+      <select id="layout"></select>
+    </label>
+    <label class="check"><input type="checkbox" id="placeholder"><span>Empty square where a logo would go</span></label>
     <label class="field"><span>Background pattern</span>
       <select id="look"></select>
     </label>
@@ -207,8 +214,9 @@
     </div>
     <p class="hint">Every colour is an inlay in one thin face layer &mdash; the first 0.6 mm of each
        half as it prints &mdash; so a multi-material printer does all its changes in three layers
-       and the rest of the part in the body colour. Primary is the name, phone and logo; secondary
-       the company line, rule and tap wording. The 3MF carries all four; the STL is one solid.</p>
+       and the rest of the part in the body colour. Primary is the name, phone and logo;
+       secondary the quieter lines and the tap wording. The 3MF carries all four; the STL is
+       one solid.</p>
     <div class="field"><span>Relief</span>
       <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
     </div>
@@ -296,15 +304,21 @@
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const FIELDS = ["name", "company", "phone", "kind", "tap", "tag_w", "tag_h",
-                "tag_thick", "tag_mode", "rise", "link", "batch", "bed", "look"];
+const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag_w",
+                "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
+                "look", "layout"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "";
 const specs = $("specs");
 
-/* The looks, as src/looks.py has them -- a pattern and four colours: body,
-   pattern, primary, secondary.  Kept here too so picking one is instant. */
+/* The looks, as src/looks.py has them -- a layout, a pattern and four colours:
+   body, pattern, primary, secondary.  Kept here too so picking one is instant. */
+const LAYOUTS = {
+  centred: "Centred — name, company, rule, phone, in the middle",
+  student: "Student — name top left, logo square top right, address bottom right",
+  corporate: "Corporate — mark and company top left, person bottom left",
+};
 const PATTERNS = {
   plain: "Plain — no pattern",
   cubes: "Cubes — isometric outlines in two corners",
@@ -313,20 +327,28 @@ const PATTERNS = {
   hexes: "Hexes — honeycomb in two corners",
   rings: "Rings — arcs out of two corners",
   dots: "Dots — a dot grid in two corners",
+  disc: "Disc — one big circle off the top-right corner",
+  hexband: "Hex band — solid hexagons along the bottom",
+  badge: "Badge — the disc and the hex band together",
 };
 const PRESETS = {
-  printlab: ["Print Lab — black, white lettering, cubes", "cubes", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
-  slate:    ["Slate — blue-grey, gold accent, stripes", "stripes", ["#2b3a4a", "#3d5063", "#ffffff", "#c9a227"]],
-  paper:    ["Paper — ivory, ink, coral, grid", "grid", ["#f2efe6", "#d9d3c4", "#1f1f1f", "#c8412b"]],
-  navy:     ["Navy — navy and gold, rings", "rings", ["#1f2a44", "#2c3a5c", "#e8c15a", "#cfd3d6"]],
-  forest:   ["Forest — green, cream, hexes", "hexes", ["#1d3b2a", "#2b5038", "#f4efe2", "#d9a441"]],
-  ember:    ["Ember — charcoal, orange, dots", "dots", ["#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0"]],
-  plain:    ["Plain — grey body, gold lettering, no pattern", "plain", ["#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441"]],
+  printlab:  ["Print Lab — black, white lettering, cubes", "cubes", "centred", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
+  student:   ["Student — dark card, name top left, address bottom right", "plain", "student", ["#1b2430", "#2a3644", "#f4f6f8", "#9fb0c0"]],
+  corporate: ["Corporate — navy, big disc, hexagons along the bottom", "badge", "corporate", ["#141d3a", "#22305c", "#ffffff", "#c8cede"]],
+  citrus:    ["Citrus — burnt orange, white lettering, hex band", "badge", "corporate", ["#c4561f", "#a54314", "#ffffff", "#f6cdb6"]],
+  slate:     ["Slate — blue-grey, gold accent, stripes", "stripes", "centred", ["#2b3a4a", "#3d5063", "#ffffff", "#c9a227"]],
+  paper:     ["Paper — ivory, ink, coral, grid", "grid", "centred", ["#f2efe6", "#d9d3c4", "#1f1f1f", "#c8412b"]],
+  navy:      ["Navy — navy and gold, rings", "rings", "centred", ["#1f2a44", "#2c3a5c", "#e8c15a", "#cfd3d6"]],
+  forest:    ["Forest — green, cream, hexes", "hexes", "centred", ["#1d3b2a", "#2b5038", "#f4efe2", "#d9a441"]],
+  ember:     ["Ember — charcoal, orange, dots", "dots", "centred", ["#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0"]],
+  plain:     ["Plain — grey body, gold lettering, no pattern", "plain", "centred", ["#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441"]],
 };
+for (const [k, v] of Object.entries(LAYOUTS)) $("layout").add(new Option(v, k));
 for (const [k, v] of Object.entries(PATTERNS)) $("look").add(new Option(v, k));
 for (const [k, v] of Object.entries(PRESETS)) $("preset").add(new Option(v[0], k));
 $("preset").add(new Option("Custom", "custom"));
 $("look").value = "cubes";
+$("layout").value = "centred";
 
 /* ---------------------------------------------------------------- maths --
    Column-major 4x4s, the layout GLSL wants, so they go straight into a
@@ -741,6 +763,7 @@ async function body(res) {
 function formParams() {
   const params = Object.fromEntries(FIELDS.map(f => [f, $(f).value]));
   params.border = $("border").checked;
+  params.placeholder = $("placeholder").checked ? "box" : "";
   params.gzip = CAN_INFLATE;
   params.qr = $("qr").checked;
   if (!params.qr) params.link = "";               // the link only shapes the part as a code
@@ -790,6 +813,7 @@ $("link").addEventListener("input", checkLink);
 for (const f of FIELDS) $(f).addEventListener("input", queue);
 $("border").addEventListener("change", queue);
 $("qr").addEventListener("change", queue);
+$("placeholder").addEventListener("change", queue);
 $("logo_file").addEventListener("change", async () => {
   const f = $("logo_file").files[0];
   logoText = f ? await f.text() : "";
@@ -831,10 +855,12 @@ $("preset").addEventListener("change", () => {
   const p = PRESETS[$("preset").value];
   if (!p) return;
   $("look").value = p[1];
-  p[2].forEach((c, i) => { $(COLOURS[i]).value = c; });
+  $("layout").value = p[2];
+  p[3].forEach((c, i) => { $(COLOURS[i]).value = c; });
   queue();
 });
-$("look").addEventListener("input", () => { $("preset").value = "custom"; });
+for (const id of ["look", "layout"])
+  $(id).addEventListener("input", () => { $("preset").value = "custom"; });
 $("flip").addEventListener("click", () => { yawTo += Math.PI; });
 $("rise").addEventListener("input", () => {
   $("rise_v").textContent = +$("rise").value ? `${$("rise").value} mm` : "flush";

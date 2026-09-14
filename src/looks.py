@@ -2,8 +2,9 @@
 
 The face of a card or fob is one thin coloured layer -- FACE mm deep in
 cards.py -- and everything visible on it is an inlay in that layer: the body
-colour, a pattern, the lettering.  A look is the pattern the face carries
-plus the four colours a multi-material printer puts in it:
+colour, a pattern, the lettering.  A look is the pattern the face carries,
+the layout the front is set in, and the four colours a multi-material printer
+puts in it:
 
     body       the slab, and the face wherever nothing else is
     pattern    the background decoration
@@ -118,6 +119,42 @@ def dots(w, h, pitch=4.4, r=0.85):
     return out
 
 
+def disc(w, h):
+    """One big solid circle out of the top-right corner, running off both
+    edges -- the shape a lot of printed cards use to carry a second colour."""
+    return [Point(w / 2.0 - 0.06 * w, h / 2.0 + 0.04 * h).buffer(0.62 * h, quad_segs=48)]
+
+
+def hexband(w, h, cell=3.0, rows=2, fill=0.88):
+    """Solid hexagons along the bottom edge, the upper row shorter than the
+    lower one, so the band steps down to the right.
+
+    `fill` is how much of its cell each hexagon takes.  It has to be under 1:
+    hexagons packed edge to edge union into one polygon whose boundary touches
+    itself, and extruding that is not a closed solid.  The gap is what the
+    printed version wants anyway -- and at 12% of 3 mm it is wider than a
+    nozzle, so it survives the slicer.
+    """
+    dx, dy = np.sqrt(3) * cell, 1.5 * cell
+    r = cell * fill
+    out = []
+    for j in range(rows):
+        y = -h / 2.0 + cell * 1.05 + j * dy
+        reach = (0.66 - 0.28 * j) * w
+        x = -w / 2.0 + cell
+        while x < -w / 2.0 + reach:
+            ang = np.radians(np.arange(6) * 60 + 30)
+            out.append(Polygon([(x + r * np.cos(a), y + r * np.sin(a)) for a in ang]))
+            x += dx
+    return out
+
+
+def badge(w, h):
+    """The disc and the band together: what the `corporate` layout is drawn
+    to sit on."""
+    return disc(w, h) + hexband(w, h)
+
+
 PATTERNS = {
     "plain": None,
     "cubes": cubes,
@@ -126,6 +163,9 @@ PATTERNS = {
     "hexes": hexes,
     "rings": rings,
     "dots": dots,
+    "disc": disc,
+    "hexband": hexband,
+    "badge": badge,
 }
 
 TITLES = {
@@ -136,6 +176,9 @@ TITLES = {
     "hexes": "Hexes -- honeycomb in two corners",
     "rings": "Rings -- arcs out of two corners",
     "dots": "Dots -- a dot grid in two corners",
+    "disc": "Disc -- one big circle off the top-right corner",
+    "hexband": "Hex band -- solid hexagons along the bottom",
+    "badge": "Badge -- the disc and the hex band together",
 }
 
 
@@ -155,7 +198,11 @@ def pattern(name, w, h, clip, halo=None):
     for p in parts:
         if p.geom_type != "Polygon" or p.area < MIN_PIECE:
             continue
-        # a clipped end can leave a wisp thinner than the stroke; measure it
+        # A clipped end can leave a wisp thinner than the stroke.  Measured on
+        # the stroke patterns only: a solid shape like the disc is far wider
+        # than STROKE everywhere, so the test would never fire on it, but a
+        # crescent of one cut by a halo can come out narrow and is worth
+        # dropping for the same reason.
         if 2.0 * p.area / p.length < STROKE * 0.4:
             continue
         out.append(p.simplify(0.005))
@@ -167,19 +214,29 @@ def pattern(name, w, h, clip, halo=None):
 # ---------------------------------------------------------------------------
 PRESETS = {
     "printlab": dict(title="Print Lab -- black, white lettering, cubes",
-                     pattern="cubes", colours=("#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a")),
+                     pattern="cubes", layout="centred",
+                     colours=("#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a")),
+    "student":  dict(title="Student -- dark card, name top left, address bottom right",
+                     pattern="plain", layout="student",
+                     colours=("#1b2430", "#2a3644", "#f4f6f8", "#9fb0c0")),
+    "corporate": dict(title="Corporate -- navy, big disc, hexagons along the bottom",
+                      pattern="badge", layout="corporate",
+                      colours=("#141d3a", "#22305c", "#ffffff", "#c8cede")),
+    "citrus":   dict(title="Citrus -- burnt orange, white lettering, hex band",
+                     pattern="badge", layout="corporate",
+                     colours=("#c4561f", "#a54314", "#ffffff", "#f6cdb6")),
     "slate":    dict(title="Slate -- blue-grey, gold accent, stripes",
-                     pattern="stripes", colours=("#2b3a4a", "#3d5063", "#ffffff", "#c9a227")),
+                     pattern="stripes", layout="centred", colours=("#2b3a4a", "#3d5063", "#ffffff", "#c9a227")),
     "paper":    dict(title="Paper -- ivory, ink, coral, grid",
-                     pattern="grid", colours=("#f2efe6", "#d9d3c4", "#1f1f1f", "#c8412b")),
+                     pattern="grid", layout="centred", colours=("#f2efe6", "#d9d3c4", "#1f1f1f", "#c8412b")),
     "navy":     dict(title="Navy -- navy and gold, rings",
-                     pattern="rings", colours=("#1f2a44", "#2c3a5c", "#e8c15a", "#cfd3d6")),
+                     pattern="rings", layout="centred", colours=("#1f2a44", "#2c3a5c", "#e8c15a", "#cfd3d6")),
     "forest":   dict(title="Forest -- green, cream, hexes",
-                     pattern="hexes", colours=("#1d3b2a", "#2b5038", "#f4efe2", "#d9a441")),
+                     pattern="hexes", layout="centred", colours=("#1d3b2a", "#2b5038", "#f4efe2", "#d9a441")),
     "ember":    dict(title="Ember -- charcoal, orange, dots",
-                     pattern="dots", colours=("#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0")),
+                     pattern="dots", layout="centred", colours=("#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0")),
     "plain":    dict(title="Plain -- grey body, gold lettering, no pattern",
-                     pattern="plain", colours=("#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441")),
+                     pattern="plain", layout="centred", colours=("#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441")),
 }
 DEFAULT = "printlab"
 

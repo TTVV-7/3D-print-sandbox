@@ -24,7 +24,8 @@ from pathlib import Path
 import numpy as np
 import trimesh
 from shapely import affinity
-from shapely.geometry import LineString, Polygon, box
+from shapely.geometry import LineString, Polygon
+from shapely.geometry import box as box_2d
 from shapely.ops import unary_union
 
 import looks
@@ -131,7 +132,7 @@ PIN = dict(d=2.4, height=0.6, clearance=0.15, inset=6.0)
 # ---------------------------------------------------------------------------
 def rounded_rect(w, h, r, cx=0.0, cy=0.0):
     r = max(0.0, min(r, w / 2.0, h / 2.0))
-    inner = box(cx - w / 2.0 + r, cy - h / 2.0 + r, cx + w / 2.0 - r, cy + h / 2.0 - r)
+    inner = box_2d(cx - w / 2.0 + r, cy - h / 2.0 + r, cx + w / 2.0 - r, cy + h / 2.0 - r)
     return inner.buffer(r, quad_segs=QUAD, join_style=1) if r else inner
 
 
@@ -212,13 +213,17 @@ def text_polys(text, font, cap_mm, max_w=None, tracking=0.0):
     return [affinity.translate(s, -(x0 + x1) / 2.0, -cap / 2.0) for s in shapes], width, cap
 
 
-def text_block(text, font, cap_mm, max_w, tracking=0.0, leading=1.45):
-    """Several lines of lettering, split on newlines or '|', centred as a block.
+def text_block(text, font, cap_mm, max_w, tracking=0.0, leading=1.45, align="center"):
+    """Several lines of lettering, split on newlines or '|', as one block
+    centred on the origin.
 
     Returns (polygons, width, height, cap).  All the lines are set at the cap
     height of the one that had to shrink most, so a two-line block reads as one
     thing rather than as two sizes -- which is the point of splitting a long
     brokerage name over two lines instead of letting it shrink to a smear.
+
+    `align` is how the lines sit within the block -- the block itself is always
+    centred on the origin, and place_block() is what moves it somewhere.
     """
     lines = [ln.strip() for ln in text.replace("|", "\n").split("\n") if ln.strip()]
     rows = [text_polys(ln, font, cap_mm, max_w=max_w, tracking=tracking) for ln in lines]
@@ -231,11 +236,30 @@ def text_block(text, font, cap_mm, max_w, tracking=0.0, leading=1.45):
                 for ln in lines if ln]
     step = cap * leading
     height = cap + step * (len(rows) - 1)
+    width = max(r[1] for r in rows)
     out = []
-    for i, (polys, _, _) in enumerate(rows):
+    for i, (polys, row_w, _) in enumerate(rows):
         y = height / 2.0 - cap / 2.0 - i * step
-        out += [affinity.translate(p, 0.0, y) for p in polys]
-    return out, max(r[1] for r in rows), height, cap
+        slack = (width - row_w) / 2.0
+        x = {"center": 0.0, "left": -slack, "right": slack}[align]
+        out += [affinity.translate(p, x, y) for p in polys]
+    return out, width, height, cap
+
+
+def place_block(text, font, cap_mm, max_w, x, y, align="left", anchor="top", **kw):
+    """A block of lettering anchored at (x, y) rather than centred on the
+    origin: `align` puts its left edge, centre or right edge on x, `anchor`
+    its top, middle or bottom on y.
+
+    Returns (polygons, width, height, cap) -- the caller wants the height to
+    know where the next thing goes.
+    """
+    polys, w, h, cap = text_block(text, font, cap_mm, max_w, align=align, **kw)
+    if not polys:
+        return [], 0.0, 0.0, 0.0
+    dx = {"left": w / 2.0, "center": 0.0, "right": -w / 2.0}[align]
+    dy = {"top": -h / 2.0, "middle": 0.0, "bottom": h / 2.0}[anchor]
+    return [affinity.translate(p, x + dx, y + dy) for p in polys], w, h, cap
 
 
 # ---------------------------------------------------------------------------
@@ -260,6 +284,46 @@ def contactless(height, arcs=4, span=52.0, width=0.13):
     strokes = [affinity.scale(s, k, k, origin=(0, 0)) for s in strokes]
     x0, y0, x1, y1 = extent(strokes)
     return [affinity.translate(s, -(x0 + x1) / 2.0, -(y0 + y1) / 2.0) for s in strokes]
+
+
+def chevrons(height, n=2, width=0.16, spread=0.58):
+    """`n` nested > marks, `height` tall, opening right -- the little "go to"
+    arrow that sits in front of an address on a card.
+
+    Built from a polyline rather than set from the font's own ">", for the
+    reason the contactless arcs are: the stroke width is then a number you can
+    turn up until it prints, rather than whatever the type designer chose.
+    """
+    marks = [LineString([(i * spread, 1.0), (i * spread + 0.72, 0.0),
+                         (i * spread, -1.0)])
+             .buffer(width / 2.0, cap_style=2, join_style=1, quad_segs=QUAD)
+             for i in range(n)]
+    x0, y0, x1, y1 = extent(marks)
+    k = height / (y1 - y0)
+    marks = [affinity.scale(m, k, k, origin=(0, 0)) for m in marks]
+    x0, y0, x1, y1 = extent(marks)
+    return [affinity.translate(m, -(x0 + x1) / 2.0, -(y0 + y1) / 2.0) for m in marks]
+
+
+def logo_box(size, font, label="Logo", thickness=0.9, cx=0.0, cy=0.0):
+    """An empty outlined square with a word in it, for a layout that has a
+    place for a logo and no logo to put there.
+
+    It is a placeholder in the literal sense: it shows where the artwork goes
+    and what size it can be, and you turn it off (or hand over an SVG) before
+    printing the real thing.
+    """
+    outer = rounded_rect(size, size, size * 0.06, cx, cy)
+    polys = [outer.difference(outer.buffer(-thickness))]
+    if label:
+        txt, _, _, _ = text_block(label, font, size * 0.21, size * 0.60)
+        polys += [affinity.translate(t, cx, cy) for t in txt]
+    return polys
+
+
+def hexagon(cx, cy, r):
+    ang = np.radians(np.arange(6) * 60 + 30)
+    return Polygon([(cx + r * np.cos(a), cy + r * np.sin(a)) for a in ang])
 
 
 # ---------------------------------------------------------------------------
@@ -296,7 +360,7 @@ def qr_polys(rows, module):
     n = len(rows)
     half = n * module / 2.0
     bleed = module * 0.05
-    squares = [box(c * module - half - bleed, half - (r + 1) * module - bleed,
+    squares = [box_2d(c * module - half - bleed, half - (r + 1) * module - bleed,
                    (c + 1) * module - half + bleed, half - r * module + bleed)
                for r, row in enumerate(rows) for c, dark in enumerate(row) if dark]
     merged = unary_union(squares)
@@ -375,55 +439,47 @@ def stack(rows, gaps, cx, cy):
     return out
 
 
-def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None,
-               colours=None):
-    """Name, company, rule and phone, stacked and centred in the content box;
-    with a logo, the logo takes the left of the box and the text the rest.
+def fit_logo(logo, height, max_w, colours, font, placeholder, cx, cy):
+    """The logo, scaled and centred on (cx, cy) -- or, with nothing to put
+    there, the placeholder a layout asked for.
 
-    A `design` -- an SVG, as a path or its text -- replaces all of that: its
-    filled shapes cover the whole face, scaled to fill the content box, each
-    fill in the file going to the colour slot it is nearest.  What is in it
-    is the designer's business; what it reports is the finest detail it
-    carries and so the nozzle it needs.
-
-    Returns (layers, measured, logo_info): `layers` maps slot names to
-    polygons -- name, phone and logo primary; company, rule and border
-    secondary.  Laid out as read; build() mirrors it, because this face ends
-    up pointing at the build plate.
+    Returns (layers, width, height, info): `info` is None for a placeholder,
+    which is not the designer's artwork and has no business reporting the
+    nozzle it needs.
     """
-    x0, x1, y0, y1 = content_box(spec, w, h, mirrored=True)
-    inner_w, inner_h = x1 - x0, y1 - y0
-    layers, measured, logo_info = {}, {}, None
-
-    def add(slot, polys):
-        layers.setdefault(slot, []).extend(polys)
-
-    def border():
-        if spec["border"]:
-            inset = spec["border_inset"]
-            add("secondary", [frame(w - 2 * inset, h - 2 * inset,
-                                    max(spec["corner"] - inset, 0.8), spec["border"])])
-
-    if design:
-        shapes, dw, dh = logo_polys(design, inner_h, inner_w, colours)
-        for slot, polys in shapes.items():
-            add(slot, [affinity.translate(p, (x0 + x1) / 2.0, (y0 + y1) / 2.0) for p in polys])
-        detail = finest([p for polys in shapes.values() for p in polys])
-        logo_info = dict(w=round(float(dw), 1), h=round(float(dh), 1),
-                         detail=round(float(detail), 2), nozzle=nozzle_for(detail),
-                         design=True, slots=sorted(shapes, key=SLOTS.index))
-        border()
-        return layers, measured, logo_info
-
     if logo:
-        want = logo_h or inner_h * 0.62
-        shapes, lw, lh = logo_polys(logo, want, inner_w * 0.36, colours)
-        for slot, polys in shapes.items():
-            add(slot, [affinity.translate(p, x0 + lw / 2.0, (y0 + y1) / 2.0) for p in polys])
+        shapes, lw, lh = logo_polys(logo, height, max_w, colours)
+        layers = {slot: [affinity.translate(p, cx, cy) for p in polys]
+                  for slot, polys in shapes.items()}
         detail = finest([p for polys in shapes.values() for p in polys])
-        logo_info = dict(w=round(float(lw), 1), h=round(float(lh), 1),
-                         detail=round(float(detail), 2), nozzle=nozzle_for(detail),
-                         slots=sorted(shapes, key=SLOTS.index))
+        return layers, lw, lh, dict(
+            w=round(float(lw), 1), h=round(float(lh), 1),
+            detail=round(float(detail), 2), nozzle=nozzle_for(detail),
+            slots=sorted(shapes, key=SLOTS.index))
+    if not placeholder:
+        return {}, 0.0, 0.0, None
+    size = min(height, max_w)
+    polys = ([hexagon(cx, cy, size / 2.0)] if placeholder == "hex"
+             else logo_box(size, font, cx=cx, cy=cy))
+    return {"primary": polys}, size, size, None
+
+
+def layout_centred(spec, w, h, box, fields, font, logo, logo_h, colours, placeholder):
+    """Name, company, rule and phone stacked and centred; with a logo, the
+    logo takes the left of the box and the text the rest.  The original, and
+    the one that copes best with a fob."""
+    x0, x1, y0, y1 = box
+    inner_w, inner_h = x1 - x0, y1 - y0
+    layers, measured = {}, {}
+    logo_info = None
+
+    if logo or placeholder:
+        want = logo_h or inner_h * 0.62
+        shapes, lw, lh, logo_info = fit_logo(
+            logo, want, inner_w * 0.36, colours, font, placeholder,
+            x0 + min(want, inner_w * 0.36) / 2.0, (y0 + y1) / 2.0)
+        for slot, polys in shapes.items():
+            layers.setdefault(slot, []).extend(polys)
         x0 += lw + 4.0
         inner_w = x1 - x0
 
@@ -432,7 +488,7 @@ def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None,
         if key == "rule":
             if not rows:
                 continue
-            shapes = [box(-inner_w * 0.22, -cap / 2.0, inner_w * 0.22, cap / 2.0)]
+            shapes = [box_2d(-inner_w * 0.22, -cap / 2.0, inner_w * 0.22, cap / 2.0)]
         else:
             if not fields.get(key):
                 continue
@@ -441,8 +497,7 @@ def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None,
                 tracking=0.0 if key == "name" else 0.02)
             if not shapes:
                 continue
-            measured[key] = dict(cap=round(cap, 2), stroke=round(narrowest(shapes), 2),
-                                 lines=fields[key].count("|") + fields[key].count("\n") + 1)
+            measured[key] = measure(key, shapes, cap, fields[key])
             cap = height
         if rows:
             gaps.append(spec["gaps"][min(len(rows) - 1, len(spec["gaps"]) - 1)])
@@ -452,9 +507,174 @@ def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None,
     placed = stack(rows, gaps, (x0 + x1) / 2.0, (y0 + y1) / 2.0)
     i = 0
     for (shapes, _), slot in zip(rows, slots):
-        add(slot, placed[i:i + len(shapes)])
+        layers.setdefault(slot, []).extend(placed[i:i + len(shapes)])
         i += len(shapes)
-    border()
+    return layers, measured, logo_info
+
+
+def layout_student(spec, w, h, box, fields, font, logo, logo_h, colours, placeholder):
+    """Name big at the top left, a logo square at the top right, two lines of
+    who-you-are under the name, and an address along the bottom right behind a
+    pair of chevrons.  The layout of a student or staff card."""
+    x0, x1, y0, y1 = box
+    W, H = x1 - x0, y1 - y0
+    layers, measured = {}, {}
+
+    def add(slot, polys):
+        layers.setdefault(slot, []).extend(polys)
+
+    size = logo_h or H * 0.30
+    shapes, lw, lh, logo_info = fit_logo(logo, size, min(size, W * 0.26), colours,
+                                         font, placeholder, 0.0, 0.0)
+    if shapes:
+        shift = (x1 - lw / 2.0, y1 - lh / 2.0)
+        for slot, polys in shapes.items():
+            add(slot, [affinity.translate(p, *shift) for p in polys])
+    text_w = (x1 - (lw + H * 0.09 if lw else 0.0)) - x0
+
+    y = y1
+    if fields.get("name"):
+        polys, _, bh, cap = place_block(fields["name"], font, H * 0.135, text_w,
+                                        x0, y, align="left", anchor="top")
+        if polys:
+            add("primary", polys)
+            measured["name"] = measure("name", polys, cap, fields["name"])
+            y -= bh + H * 0.13
+
+    for key, slot in (("role", "secondary"), ("company", "primary")):
+        if not fields.get(key):
+            continue
+        polys, _, bh, cap = place_block(fields[key], font, H * 0.085, W * 0.78,
+                                        x0, y, align="left", anchor="top",
+                                        tracking=0.01)
+        if polys:
+            add(slot, polys)
+            measured[key] = measure(key, polys, cap, fields[key])
+            y -= bh + H * 0.055
+
+    line = fields.get("email") or fields.get("phone")
+    if line:
+        txt, tw, th, cap = text_block(line, font, H * 0.07, W * 0.68, tracking=0.01)
+        if txt:
+            marks = chevrons(cap)
+            mx0, _, mx1, _ = extent(marks)
+            mw, gap = mx1 - mx0, cap * 0.55
+            left = x1 - (mw + gap + tw)
+            mid = y0 + th / 2.0
+            add("primary", [affinity.translate(m, left + mw / 2.0, mid) for m in marks])
+            add("secondary", [affinity.translate(t, left + mw + gap + tw / 2.0, mid)
+                              for t in txt])
+            measured["address"] = measure("address", txt, cap, line)
+    return layers, measured, logo_info
+
+
+def layout_corporate(spec, w, h, box, fields, font, logo, logo_h, colours, placeholder):
+    """A mark and the company across the top left, a slogan under it, and the
+    person down in the bottom left -- the layout that wants a big shape behind
+    it, so pair it with the `badge` pattern."""
+    x0, x1, y0, y1 = box
+    W, H = x1 - x0, y1 - y0
+    layers, measured = {}, {}
+
+    def add(slot, polys):
+        layers.setdefault(slot, []).extend(polys)
+
+    size = logo_h or H * 0.17
+    shapes, lw, lh, logo_info = fit_logo(logo, size, W * 0.16, colours, font,
+                                         placeholder or "hex", 0.0, 0.0)
+    left = x0
+    if shapes:
+        for slot, polys in shapes.items():
+            add(slot, [affinity.translate(p, x0 + lw / 2.0, y1 - lh / 2.0)
+                       for p in polys])
+        left = x0 + lw + H * 0.06
+
+    y = y1
+    if fields.get("company"):
+        polys, _, bh, cap = place_block(fields["company"], font, H * 0.155,
+                                        x1 - left, left, y, align="left", anchor="top")
+        if polys:
+            add("primary", polys)
+            measured["company"] = measure("company", polys, cap, fields["company"])
+            y -= bh + H * 0.04
+    if fields.get("role"):
+        polys, _, bh, cap = place_block(fields["role"], font, H * 0.075, x1 - left,
+                                        left, y, align="left", anchor="top",
+                                        tracking=0.04)
+        if polys:
+            add("secondary", polys)
+            measured["role"] = measure("role", polys, cap, fields["role"])
+
+    # The bottom eighth is left clear: this layout is drawn to sit on the
+    # `badge` pattern, and that is where its band of hexagons goes.
+    y = y0 + H * 0.13
+    for key, slot, cap_f in (("phone", "secondary", 0.085), ("name", "primary", 0.105)):
+        if not fields.get(key):
+            continue
+        polys, _, bh, cap = place_block(fields[key], font, H * cap_f, W * 0.62,
+                                        x0, y, align="left", anchor="bottom")
+        if polys:
+            add(slot, polys)
+            measured[key] = measure(key, polys, cap, fields[key])
+            y += bh + H * 0.04
+    return layers, measured, logo_info
+
+
+LAYOUTS = {
+    "centred": layout_centred,
+    "student": layout_student,
+    "corporate": layout_corporate,
+}
+
+LAYOUT_TITLES = {
+    "centred": "Centred -- name, company, rule, phone, stacked in the middle",
+    "student": "Student -- name top left, logo square top right, address bottom right",
+    "corporate": "Corporate -- mark and company top left, person bottom left",
+}
+
+
+def measure(key, shapes, cap, text):
+    return dict(cap=round(cap, 2), stroke=round(narrowest(shapes), 2),
+                lines=text.count("|") + text.count("\n") + 1)
+
+
+def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None,
+               colours=None, layout="centred", placeholder=None):
+    """The front of the part: whichever layout was asked for, plus the border.
+
+    A `design` -- an SVG, as a path or its text -- replaces all of it: its
+    filled shapes cover the whole face, scaled to fill the content box, each
+    fill in the file going to the colour slot it is nearest.
+
+    Returns (layers, measured, logo_info): `layers` maps slot names to
+    polygons.  Laid out as read; build() mirrors it, because this face ends up
+    pointing at the build plate.
+    """
+    box = content_box(spec, w, h, mirrored=True)
+    x0, x1, y0, y1 = box
+    layers, measured, logo_info = {}, {}, None
+
+    if design:
+        shapes, dw, dh = logo_polys(design, y1 - y0, x1 - x0, colours)
+        for slot, polys in shapes.items():
+            layers.setdefault(slot, []).extend(
+                affinity.translate(p, (x0 + x1) / 2.0, (y0 + y1) / 2.0) for p in polys)
+        detail = finest([p for polys in shapes.values() for p in polys])
+        logo_info = dict(w=round(float(dw), 1), h=round(float(dh), 1),
+                         detail=round(float(detail), 2), nozzle=nozzle_for(detail),
+                         design=True, slots=sorted(shapes, key=SLOTS.index))
+    else:
+        fn = LAYOUTS.get(layout)
+        if fn is None:
+            raise ValueError(f"no such layout: {layout}")
+        layers, measured, logo_info = fn(spec, w, h, box, fields, font, logo,
+                                         logo_h, colours, placeholder)
+
+    if spec["border"]:
+        inset = spec["border_inset"]
+        layers.setdefault("secondary", []).append(
+            frame(w - 2 * inset, h - 2 * inset,
+                  max(spec["corner"] - inset, 0.8), spec["border"]))
     return layers, measured, logo_info
 
 
@@ -783,7 +1003,8 @@ def flatten(polys):
 def build(kind, name="", company="", phone="", font=None, tag=None,
           tap_text="TAP HERE", tag_mode="split", lid=0.6, border=False, rise=RISE,
           link="", qr=False, logo=None, logo_h=None, chamfer=CHAMFER, label="",
-          design=None, look=None, colours=COLOURS):
+          design=None, look=None, colours=COLOURS, layout="centred", role="",
+          email="", placeholder=None):
     """One card or fob as printable parts, plus the numbers worth knowing.
 
     Returns ([part, ...], info).  Each part is a dict:
@@ -815,6 +1036,11 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
       pocket  an open recess in the back; stick the tag in afterwards.
       embed   the same recess roofed over with `lid` mm; bury the tag by
               pausing the print at the height this reports.
+
+    `layout` names one of LAYOUTS for the front -- where the name, the logo
+    and the rest go.  `role` and `email` are the extra lines the busier
+    layouts have room for; `placeholder` ("box" or "hex") draws a stand-in
+    where a layout expects a logo and none was given.
 
     `look` names a background pattern from looks.PATTERNS for the front;
     `colours` are the four the part will print in, used to sort a logo's or
@@ -863,9 +1089,9 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     c_eff = max(0.0, min(chamfer, spec["corner"] - 0.2, thick / 2.0 - 0.2))
     outline = rounded_rect(w, h, spec["corner"])
 
-    fields = dict(name=name, company=company, phone=phone)
-    front, measured, logo_info = front_face(spec, w, h, fields, font, logo, logo_h, design,
-                                            colours)
+    fields = dict(name=name, company=company, phone=phone, role=role, email=email)
+    front, measured, logo_info = front_face(spec, w, h, fields, font, logo, logo_h,
+                                            design, colours, layout, placeholder)
     pattern = []
     if look and not design:
         # The pattern fills the face inside the chamfer -- or inside the
@@ -955,6 +1181,7 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     info = dict(
         kind=kind, label=label, w=round(w, 2), h=round(h, 2), thick=thick, rise=rise,
         face=FACE, chamfer=round(c_eff, 2), look=look if pattern else None,
+        layout=None if design else layout,
         slots=used, part_slots={p["name"] or kind: sorted(p["slots"], key=SLOTS.index)
                                 for p in parts},
         parts=[p["name"] or kind for p in parts], pins=len(pins),
@@ -1062,7 +1289,11 @@ def parse_batch(text):
 
 
 def build_batch(rows, kind, **kw):
-    """Every row as its own part(s), labelled by name; one list, one plate."""
+    """Every row as its own part(s), labelled by name; one list, one plate.
+
+    Whatever a row does not carry -- a role, an email -- falls back to the
+    setting shared by the whole batch, so the columns stay as they were.
+    """
     parts, infos = [], []
     for i, row in enumerate(rows):
         p, info = build(kind, name=row["name"], company=row["company"], phone=row["phone"],

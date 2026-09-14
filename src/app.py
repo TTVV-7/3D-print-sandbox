@@ -38,9 +38,9 @@ PAGE = ROOT / "public" / "index.html"
 # 3MF of what is on screen does not rebuild it.
 BUILD = threading.Lock()
 RECENT = {}
-GEOMETRY = ("kind", "name", "company", "phone", "tap", "tag_w", "tag_h",
-            "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr", "logo",
-            "batch", "design", "look")
+GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
+            "tag_h", "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr",
+            "logo", "batch", "design", "look", "layout", "placeholder")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -114,13 +114,18 @@ def model(params):
             look = params.get("look") or "plain"
             if look not in looks.PATTERNS:
                 raise ValueError(f"no such pattern: {look}")
+            layout = params.get("layout") or "centred"
+            if layout not in cards.LAYOUTS:
+                raise ValueError(f"no such layout: {layout}")
+            placeholder = params.get("placeholder") or None
             settings = dict(
                 tag=tag, tap_text=params.get("tap", "TAP HERE"),
                 tag_mode=params.get("tag_mode", "split"),
                 border=bool(params.get("border", False)), rise=num("rise", cards.RISE),
                 font=params.get("font") or None, logo=logo, design=design,
                 qr=bool(params.get("qr")), link=params.get("link", ""),
-                look=look, colours=colours)
+                look=look, colours=colours, layout=layout, placeholder=placeholder,
+                role=params.get("role", ""), email=params.get("email", ""))
             kind = params.get("kind", "fob")
             if params.get("batch"):
                 rows = cards.parse_batch(params["batch"])

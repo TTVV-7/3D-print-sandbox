@@ -5,7 +5,7 @@ the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
 
 - **[NFC cards and fobs](#nfc-cards-and-fobs)** -- a keyring fob or a
   wallet card, printed as two halves with an NFC tag glued between them, in up
-  to four colours.  Comes with a browser front end.
+  to four colours, in one of three layouts.  Comes with a browser front end.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
 
@@ -13,8 +13,9 @@ the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
 
 # NFC cards and fobs
 
-Three fields in, a keyring fob or a business card out: name, company and phone
-on the front; a pocket for an NFC tag and the contactless arcs on the back.
+A few fields in, a keyring fob or a business card out: your details on the
+front, laid out by one of three layouts; a pocket for an NFC tag and the
+contactless arcs on the back.
 Tapping a phone to it opens whatever you wrote on the tag -- a listing, a
 booking page, a vCard -- and pointing a camera at the QR code does the same for
 phones that do not tap.
@@ -117,11 +118,13 @@ python3 src/gen_cards.py --name "Jane Doe" \
 
 writes `stl/jane_doe_fob.3mf` and the two halves as `.stl`, and reports the
 lettering sizes, the stroke widths, the cavity and where the colours are.
-`--kind card`, `--look navy`, `--colours "#1f2a44,#2c3a5c,#e8c15a,#cfd3d6"`,
-`--logo brand.svg`, `--design front.svg`, `--link URL --qr`,
-`--batch people.txt`, `--rise 1.2`, `--format 3mf`, `--tag 38x19`,
-`--tag-mode pocket|embed|split`, `--tap "SCAN ME"`, `--border`, `--chamfer 0`,
-`--font`, `--preview` and the rest are in `--help`.
+`--kind card`, `--look navy`, `--layout student`, `--role "Senior Agent"`,
+`--email jane@example.com`, `--logo-box`,
+`--colours "#1f2a44,#2c3a5c,#e8c15a,#cfd3d6"`, `--logo brand.svg`,
+`--design front.svg`, `--link URL --qr`, `--batch people.txt`, `--rise 1.2`,
+`--format 3mf`, `--tag 38x19`, `--tag-mode pocket|embed|split`,
+`--tap "SCAN ME"`, `--border`, `--chamfer 0`, `--font`, `--preview` and the rest
+are in `--help`.
 
 ## The face, and the four colours
 
@@ -145,24 +148,63 @@ with a filament change or two.
 
 ### The looks
 
-A **preset** is a pattern and four colours together.  Seven of them ship, in
-`src/looks.py`, and picking one sets all five controls; change any colour
-afterwards and the preset box says Custom.
+A **preset** is a layout, a pattern and four colours together.  Ten of them
+ship, in `src/looks.py`, and picking one sets every control below it; change
+any of them afterwards and the preset box says Custom.
 
-![the seven looks](previews/nfc_looks.png)
+![the ten looks](previews/nfc_looks.png)
 
-Left to right, top row: **Print Lab** (the default -- black, white lettering,
-isometric cubes), **Slate**, **Paper**, **Navy**; bottom row: **Forest**,
-**Ember**, **Plain**.
+Left to right, top row: **Print Lab** (the default), **Student**,
+**Corporate**, **Citrus**, **Slate**; bottom row: **Paper**, **Navy**,
+**Forest**, **Ember**, **Plain**.
 
-The patterns -- `cubes`, `stripes`, `grid`, `hexes`, `rings`, `dots`, or
-`plain` for none -- are built as geometry rather than drawn as pixels, so every
-line has a width you can read and print: `looks.STROKE` is 1.1 mm, two nozzle
-widths and a bit.  Each is clipped to the face inside the chamfer, and to a
-1.25 mm halo round everything else on it, so the lettering keeps its air and no
-stroke ends up thinner than it can be printed.  Anything left narrower than
-half a stroke, or smaller than `MIN_PIECE`, is dropped rather than printed as a
-speck.
+The patterns come in two kinds.  The line ones -- `cubes`, `stripes`, `grid`,
+`hexes`, `rings`, `dots` -- are strokes, and `looks.STROKE` is their width:
+1.1 mm, two nozzle widths and a bit.  The solid ones -- `disc` (a big circle
+off the top-right corner), `hexband` (hexagons along the bottom edge) and
+`badge` (both) -- are areas, and are what the `corporate` layout is drawn to
+sit on.  All of them are built as geometry rather than drawn as pixels, so
+every width is a number you can read and print.
+
+Each is clipped to the face inside the chamfer, and to a 1.25 mm halo round
+everything else on it, so the lettering keeps its air and stays legible where a
+big shape runs behind it.  Anything left narrower than half a stroke, or
+smaller than `MIN_PIECE`, is dropped rather than printed as a speck.  The
+hexagons in a band are drawn at 88% of their cell for the same reason the
+strokes are handed to the boolean separately: packed edge to edge they union
+into one polygon whose boundary touches itself, and that will not extrude.
+
+### The layouts
+
+A **layout** decides where the fields go on the front.  Three ship, and the
+fields they use differ, so `role` and `email` sit empty until a layout has a
+place for them.
+
+| `--layout` | What it is | Uses |
+|---|---|---|
+| `centred` | Name, company, a rule and phone stacked in the middle, with a logo to the left of them.  The one that copes with a fob. | name, company, phone, logo |
+| `student` | Name big at the top left, a logo square at the top right, two lines of who-you-are under the name, and an address along the bottom right behind a pair of chevrons. | name, role, company, email or phone, logo |
+| `corporate` | A mark and the company across the top left, a slogan under it, the person down in the bottom left.  Leaves its bottom eighth clear for a `badge` pattern. | company, role, name, phone, logo |
+
+The chevrons in front of the address are built from a polyline in
+`cards.chevrons()` rather than set from the font's own `>`, for the reason the
+contactless arcs are: the stroke width is then a number you can turn up until
+it prints.
+
+A layout that expects a logo and has not been given one can draw a
+**placeholder** instead -- `--logo-box`, or the checkbox in the app.  It is a
+placeholder in the literal sense, an empty square with the word Logo in it,
+showing where the artwork goes and how big it can be; hand over an SVG or turn
+it off before printing the real thing.  The `corporate` layout falls back to a
+plain hexagon, which is a mark rather than a note to yourself.
+
+Small type is what bites here.  A layout that fills a card puts three or four
+sizes on it, and the smallest of them -- an email address along the bottom --
+comes out around 2.5 mm tall with strokes near 0.4 mm.  That is an *inlay*, a
+cut in the face that another filament has to fill, so it wants a 0.4 mm nozzle
+at the outside and prints better on a 0.3.  The readout names every line it
+measures under 0.8 mm; believe it, and shorten the text or move up a body size
+rather than hoping.
 
 ### Colours in your own artwork
 
@@ -351,7 +393,9 @@ of it, `CHAMFER` the edge break, `QR_QUIET` and `QR_MIN_MODULE` the code's
 margins, `NOZZLES` the sizes the readout will name, `MIN_STROKE` the
 printability threshold the warnings use.  `src/looks.py` holds the patterns and
 the presets -- a new pattern is a function returning shapely polygons and a line
-in `PATTERNS`.
+in `PATTERNS`.  The layouts are `LAYOUTS` in `src/cards.py`: a new one is a
+function taking the content box and the fields and returning polygons by colour
+slot, plus a line in that dict and one in `LAYOUT_TITLES`.
 
 Both bodies are prismatic, so everything is a shapely polygon extruded between
 two heights.  Each colour is kept as its own solid, cut out of the body and

@@ -41,6 +41,8 @@ def report(name, info):
         print(f"      assembly two halves, {info['part_thick']:.1f} mm each including the "
               f"face, {info['pins']} register pins -- {info['assembled']:.1f} mm glued up "
               f"with the tag between them")
+    if info["layout"]:
+        print(f"      layout   {info['layout']}")
     if info["look"]:
         print(f"      pattern  {info['look']}, ~{info['pattern_stroke']:.2f} mm strokes")
     if info["logo"]:
@@ -72,6 +74,15 @@ def main():
     ap.add_argument("--name", default="", help="the realtor's name, the big line")
     ap.add_argument("--company", default="", help="brokerage, under the name")
     ap.add_argument("--phone", default="", help="phone number, under the rule")
+    ap.add_argument("--role", default="", help="the line under the name, or the slogan "
+                                               "under the company -- layouts that have "
+                                               "room for one")
+    ap.add_argument("--email", default="", help="address along the bottom of the layouts "
+                                                "that have a place for one")
+    ap.add_argument("--layout", default=None, choices=list(cards.LAYOUTS),
+                    help="where the fields go on the front (default: the look's own)")
+    ap.add_argument("--logo-box", dest="placeholder", action="store_const", const="box",
+                    help="draw an empty square where the logo would go")
     ap.add_argument("--kind", default="fob", choices=["card", "fob", "both"])
     ap.add_argument("--tag", default=None, metavar="WxH",
                     help=f"NFC tag size in mm (default "
@@ -120,8 +131,10 @@ def main():
     ap.add_argument("--preview", action="store_true", help="also render PNGs to previews/")
     args = ap.parse_args()
 
-    if not args.batch and not any([args.name, args.company, args.phone, args.design]):
-        ap.error("give at least one of --name / --company / --phone / --design, or --batch")
+    if not args.batch and not any([args.name, args.company, args.phone, args.role,
+                                   args.email, args.design]):
+        ap.error("give at least one of --name / --company / --phone / --role / --email "
+                 "/ --design, or --batch")
     if args.qr and not args.link and not args.batch:
         ap.error("--qr needs --link")
 
@@ -134,6 +147,7 @@ def main():
 
     preset = looks.PRESETS.get(args.look)
     look = preset["pattern"] if preset else args.look
+    layout = args.layout or (preset["layout"] if preset else "centred")
     colours = list(preset["colours"] if preset else cards.COLOURS)
     if args.colours:
         given = [c.strip() for c in args.colours.split(",")]
@@ -149,7 +163,8 @@ def main():
     common = dict(font=args.font, tag=tag, tap_text=args.tap, tag_mode=args.tag_mode,
                   border=args.border, rise=args.rise, chamfer=args.chamfer,
                   logo=args.logo, logo_h=args.logo_height, qr=args.qr,
-                  design=args.design, look=look, colours=colours)
+                  design=args.design, look=look, colours=colours, layout=layout,
+                  placeholder=args.placeholder)
 
     if args.batch:
         rows = cards.parse_batch(Path(args.batch).read_text())
@@ -175,7 +190,8 @@ def main():
     print("building:")
     for kind in kinds:
         parts, info = cards.build(
-            kind, args.name, args.company, args.phone, link=args.link, **common)
+            kind, args.name, args.company, args.phone, link=args.link,
+            role=args.role, email=args.email, **common)
         stem = f"{slug(args.name or args.company)}_{kind}"
         names, written = [], []
         for part in parts:
