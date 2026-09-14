@@ -33,13 +33,18 @@ def report(name, info):
           + (f", tap text ~{info['tap_stroke']:.2f} mm" if info["tap_stroke"] else ""))
     print(f"      pocket   {info['pocket'][0]:.1f} x {info['pocket'][1]:.1f} x "
           f"{info['pocket'][2]:.1f} mm deep ({info['tag_mode']})")
+    if info["tag_mode"] == "split":
+        print(f"      assembly two halves, {info['part_thick']:.1f} mm each including the "
+              f"relief, {info['pins']} register pins -- {info['assembled']:.1f} mm glued up "
+              f"with the tag between them")
     if info["thin"]:
         print(f"      note     {', '.join(info['thin'])} under {cards.MIN_STROKE} mm -- "
               f"turn on the slicer's thin-wall detection, or shorten the text")
     if info["pause_z"] is not None:
         print(f"      pause    the print at Z = {info['pause_z']:.2f} mm and drop the tag in")
-    print(f"      colour   change filament at Z = {info['change_up']:.2f} mm and again at "
-          f"Z = {info['change_back']:.2f} mm")
+    changes = " and ".join(f"Z = {z:.2f} mm" for z in info["changes"])
+    print(f"      colour   change filament at {changes}"
+          + (" (each half)" if info["tag_mode"] == "split" else ""))
 
 
 def main():
@@ -54,9 +59,10 @@ def main():
                          f"{cards.TAG['w']:g}x{cards.TAG['h']:g})")
     ap.add_argument("--tag-thick", type=float, default=cards.TAG["thick"],
                     help="NFC tag thickness in mm")
-    ap.add_argument("--tag-mode", default="pocket", choices=["pocket", "embed"],
+    ap.add_argument("--tag-mode", default="pocket", choices=["pocket", "embed", "split"],
                     help="pocket: open recess, drop the tag in afterwards.  "
-                         "embed: roofed over, pause the print and bury it")
+                         "embed: roofed over, pause the print and bury it.  "
+                         "split: two halves to glue with the tag between them")
     ap.add_argument("--tap", default="TAP HERE",
                     help="wording under the contactless mark; '|' splits lines, "
                          "empty leaves just the arcs")
@@ -81,22 +87,29 @@ def main():
     kinds = ["card", "fob"] if args.kind == "both" else [args.kind]
     print("building:")
     for kind in kinds:
-        mesh, info = cards.build(
+        parts, info = cards.build(
             kind, args.name, args.company, args.phone, font=args.font, tag=tag,
             tap_text=args.tap, tag_mode=args.tag_mode, border=not args.no_border)
         stem = f"{slug(args.name or args.company)}_{kind}"
-        mesh.export(out / f"{stem}.stl")
-        report(f"{stem}.stl", info)
+        names = []
+        for suffix, part in parts:
+            names.append(f"{stem}_{suffix}" if suffix else stem)
+            part.export(out / f"{names[-1]}.stl")
+        report(", ".join(f"{n}.stl" for n in names), info)
         if args.preview:
             import numpy as np
             import trimesh
             import render
             shots = ROOT / "previews"
             shots.mkdir(exist_ok=True)
-            front = mesh.copy()
-            front.apply_transform(trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0]))
-            render.render(front, shots / f"{stem}_front.png", elev=58, azim=-90, zoom=1.04)
-            render.render(mesh, shots / f"{stem}_back.png", elev=58, azim=-90, zoom=1.04)
+            for name, part in zip(names, (m for _, m in parts)):
+                flipped = part.copy()
+                flipped.apply_transform(
+                    trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0]))
+                render.render(flipped, shots / f"{name}_front.png",
+                              elev=58, azim=-90, zoom=1.04)
+                render.render(part, shots / f"{name}_back.png",
+                              elev=58, azim=-90, zoom=1.04)
 
 
 if __name__ == "__main__":

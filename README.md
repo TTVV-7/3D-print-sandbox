@@ -36,6 +36,11 @@ the raised lettering in a second colour, which is not decoration -- it is
 exactly what you get if you put a filament change in at the two heights the
 readout gives you.
 
+There is also a box to paste a listing link into, which counts the bytes an
+NDEF record would take and says which NTAGs it fits.  It only counts -- nothing
+here writes a tag.  In split mode the download is both halves on one plate, one
+file to slice; the command line writes them as two.
+
 The server is standard library only and the viewer is hand-written WebGL, so
 there is no framework to install, nothing fetched from a CDN, and it works with
 the network off.  It listens on the loopback address; it is a tool for the
@@ -51,8 +56,8 @@ python3 src/gen_cards.py --name "Jane Doe" \
 
 writes `stl/jane_doe_card.stl` and `stl/jane_doe_fob.stl`, and reports the
 lettering sizes, the stroke widths, the pocket and the colour-change heights.
-`--tag 38x19`, `--tag-mode embed`, `--tap "SCAN ME"`, `--font`, `--preview` and
-the rest are in `--help`.
+`--tag 38x19`, `--tag-mode embed|split`, `--tap "SCAN ME"`, `--font`,
+`--preview` and the rest are in `--help`.
 
 ## The two bodies
 
@@ -93,6 +98,7 @@ Two ways to fit it:
 |---|---|---|
 | `pocket` (default) | Recess open at the back; peel the sticker and press it in when the print comes off the plate. | Visible, and you can replace the tag later. |
 | `embed` | The same recess roofed over with 0.6 mm of plastic. | Invisible and unpeelable, but you have to pause the print at the height it reports and drop the tag in. |
+| `split` | Two half-thickness parts to glue together with the tag sandwiched between them. | No pause and no hole in either face, at the cost of a glue-up. See below. |
 
 The mark beside the pocket is the four-arc contactless symbol -- the "wifi on
 its side" everyone already reads as *tap here*.  It is built from arcs in
@@ -101,14 +107,50 @@ can turn up: 1.20 mm on the card and 0.87 mm on the fob, two to three nozzle
 widths, which prints cleanly.  The NFC Forum's N-Mark and the EMVCo
 indicator are registered marks and these plain arcs are neither.
 
+### Split halves
+
+`--tag-mode split` emits two parts instead of one -- `..._card_front.stl` and
+`..._card_back.stl` from the CLI, or both on one plate from the browser.  The
+cavity is cut half into each mating face, so the tag ends up on the neutral
+plane of the finished card with a millimetre of plastic either side, which is
+both the strongest arrangement and the only one where no part of the tag shows.
+
+| | |
+|---|---|
+| ![split plate](previews/nfc_card_split.png) | ![the joint](previews/nfc_card_split_joint.png) |
+
+Left, as the two halves sit on the plate; right, the faces that get glued.
+Everything on the joint is mirrored between the halves, so they register.
+
+- The body is **0.4 mm thicker** than the solid version to pay for the cavity:
+  a card is 2.6 mm of slab, so 1.9 mm per printed part including its relief and
+  3.8 mm glued up.  A fob is 3.2 mm, so 2.2 mm and 4.4 mm.
+- **Three register pins, not four.**  Ø2.4 x 0.6 mm studs on the front half,
+  0.15 mm-clearance sockets on the back.  Three corners of a rectangle make an
+  L, and an L does not map onto itself under any flip or half-turn -- so the
+  halves only go together one way, and you cannot glue the back on upside down
+  and find out when it sets.  A tag that fills the body wall to wall leaves no
+  room for pins, in which case the reported count comes back 0 and you line the
+  halves up on the outline instead.
+- Both halves print **relief down**, so each takes **one** filament change at
+  Z = 0.60 mm rather than two.
+- Glue it with plastic cement or thin CA on the flat border outside the cavity,
+  not in it -- the tag does not want to be soaked.  Clamp it under a book.
+
 Some notes on the tags themselves:
 
 - **Nothing here writes the tag.**  Do that with a phone -- NFC Tools or
   similar -- writing a URL record, and lock it afterwards if you are handing
   them out.
-- An **NTAG213 holds 144 bytes**, so about 130 characters of URL.  A listing
-  link is usually longer than that: point it at a short link you control, which
-  you can also re-point when the listing sells.
+- Capacity is rarely the problem.  An NDEF URI record costs the URL plus about
+  8 bytes, less the 12 characters of `https://www.` that a prefix code stands
+  in for.  A full realtor.ca listing link -- say the 80-character
+  `.../real-estate/29064675/3-21091-lougheed-highway-maple-ridge` -- is 76
+  bytes, and a 108-character agent link is 104.  **NTAG213 holds 144 bytes,
+  NTAG215 holds 504 and NTAG216 holds 888**, so the whole link fits on any of
+  them, with room on a 215 for a vCard beside it.  The app has a box to paste a
+  link into and check.  A short link you control is still worth having, because
+  you can re-point it when the listing sells.
 - Plastic is transparent at 13.56 MHz, so 1.5 mm of card over the tag costs you
   nothing.  **Metal-filled, carbon-fibre and conductive filaments are not** --
   they will kill the read.  Plain PLA, PETG, ABS and ASA are all fine.
@@ -127,11 +169,12 @@ either way.
   generator prints the measured width of every line, and warns when one is
   under 0.8 mm.  If you want them fatter, shorten the text or raise the cap
   heights in `src/cards.py`.
-- **Two colours without a multi-material printer:** two filament changes, at
-  the heights reported for the part -- Z = 0.60 mm and Z = 2.80 mm for a card,
+- **Two colours without a multi-material printer:** filament changes at the
+  heights reported for the part -- Z = 0.60 mm and Z = 2.80 mm for a solid card,
   0.60 and 3.40 for a fob.  Start in the accent colour, swap to the body colour
   at the first, swap back at the second, and both faces come out with coloured
   lettering on a plain body.  One change at 0.60 mm alone gets you the front.
+  Split halves take one change each, both at 0.60 mm.
 - **Material:** PLA is fine for something that lives in a wallet.  PETG if it
   is going to sit on a dashboard in the sun.
 - 3-4 perimeters, 20%+ infill.  A card is about 10 cm³ and a few minutes.

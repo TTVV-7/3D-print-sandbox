@@ -53,7 +53,7 @@ TAG = dict(w=35.0, h=22.0, thick=0.5, clearance=0.4, corner=1.5)
 CARD = dict(
     label="card",
     w=85.6, h=54.0, corner=3.18,    # CR80: the outline of a credit card
-    thick=2.2, rise=0.6,
+    thick=2.2, split_thick=2.6, rise=0.6,
     margin=5.0, grow=False,
     hole=None,
     border=0.9, border_inset=3.0,
@@ -65,7 +65,7 @@ CARD = dict(
 FOB = dict(
     label="fob",
     w=62.0, h=34.0, corner=4.0,
-    thick=2.8, rise=0.6,
+    thick=2.8, split_thick=3.2, rise=0.6,
     margin=3.6, grow=True,          # widened and deepened to fit the tag pocket
     hole=dict(d=4.6, wall=2.2),     # split-ring hole, centred wall + d/2 from the edge
     border=0.0, border_inset=0.0,
@@ -75,6 +75,10 @@ FOB = dict(
 )
 
 BODIES = {"card": CARD, "fob": FOB}
+
+# Register pins on the glue joint of a split body: enough to stop the two
+# halves sliding while the glue grabs, small enough to print as a clean stub.
+PIN = dict(d=2.4, height=0.6, clearance=0.15, inset=6.0)
 
 
 # ---------------------------------------------------------------------------
@@ -322,6 +326,29 @@ def back_face(spec, w, h, pocket_w, pocket_h, tap_text, font):
     return rounded_rect(pocket_w, pocket_h, TAG["corner"], *pocket_c), marks, len(tap)
 
 
+def register_pins(outline, blocked, w, h):
+    """Pin positions near the corners that clear the tag cavity and the hole.
+
+    Three of them, never four: three corners of a rectangle are an L, and an L
+    does not map onto itself under any flip or half-turn, so the halves only go
+    together one way round.  Four pins would let you glue the back on upside
+    down and find out afterwards.
+
+    Returns whatever survives, which may be nothing -- a fob whose cavity fills
+    it wall to wall has no room for pins, and gluing it flat is no worse.
+    """
+    room = outline.buffer(-(PIN["d"] / 2.0 + 1.2))
+    keep_out = blocked.buffer(1.2)
+    out = []
+    for sx in (-1, 1):
+        for sy in (-1, 1):
+            c = (sx * (w / 2.0 - PIN["inset"]), sy * (h / 2.0 - PIN["inset"]))
+            disc = rounded_rect(PIN["d"], PIN["d"], PIN["d"] / 2.0, *c)
+            if room.contains(disc) and not disc.intersects(keep_out):
+                out.append(c)
+    return out[:3]
+
+
 # ---------------------------------------------------------------------------
 # mesh
 # ---------------------------------------------------------------------------
@@ -341,38 +368,67 @@ def prisms(polys, z0, thickness):
     return out
 
 
+def plate(parts, gap=6.0):
+    """The parts laid out side by side on one build plate, as a single mesh.
+
+    They are disjoint solids, so this is a concatenation rather than a boolean
+    -- every slicer reads it as a multi-part object.
+    """
+    out, x = [], 0.0
+    for _, mesh in parts:
+        mesh = mesh.copy()
+        lo, hi = mesh.bounds
+        mesh.apply_translation((x - lo[0], -(lo[1] + hi[1]) / 2.0, -lo[2]))
+        out.append(mesh)
+        x += hi[0] - lo[0] + gap
+    return trimesh.util.concatenate(out) if len(out) > 1 else out[0]
+
+
 def build(kind, name="", company="", phone="", font=None, tag=None,
           tap_text="TAP HERE", tag_mode="pocket", lid=0.6, border=True):
-    """One card or fob as a watertight mesh, plus the numbers worth knowing.
+    """One card or fob as printable parts, plus the numbers worth knowing.
 
-    The part is built lying down with the *front face at z = 0*: the front
-    lettering occupies z 0..rise, the slab sits above it, and the tag pocket
-    opens upward.  That is also how to print it -- lettering face-down gets the
-    build-plate finish, and nothing has to bridge over the pocket.
+    Returns ([(suffix, mesh), ...], info) -- one part for the solid modes, two
+    for "split".  Every part comes out lying down, relief face at z = 0, which
+    is how to print it: lettering face-down gets the build-plate finish, and
+    nothing has to bridge over the tag cavity.
 
-    tag_mode "pocket" leaves the pocket open at the back, so the tag goes in
-    afterwards.  "embed" roofs it over with `lid` mm of plastic: that means
-    pausing the print to drop the tag in, but it buries the tag completely and
-    lets the contactless mark sit directly over it.
+    tag_mode picks how the tag goes in:
+
+      pocket  an open recess in the back; stick the tag in afterwards.
+      embed   the same recess roofed over with `lid` mm; bury the tag by
+              pausing the print at the height this reports.
+      split   two half-thickness parts to glue together with the tag sandwiched
+              between them, register pins on the joint.  The tag ends up on the
+              neutral plane with plastic either side, which is the strongest of
+              the three and the only one where nothing of the tag shows.
     """
     spec = {**BODIES[kind]}
     font = font or default_font()
     t = {**TAG, **(tag or {})}
     if not border:
         spec["border"] = 0.0
+    split = tag_mode == "split"
 
     pocket_w = t["w"] + t["clearance"]
     pocket_h = t["h"] + t["clearance"]
     depth = max(t["thick"] + 0.2, 0.6)
-    if depth + 1.0 > spec["thick"]:
-        raise ValueError(f"a {t['thick']:.1f} mm tag will not fit a {spec['thick']:.1f} mm "
-                         f"{spec['label']} and leave a floor under it")
+    thick = spec["split_thick"] if split else spec["thick"]
+    floor = (thick - depth) / 2.0 if split else thick - depth
+    if floor < 0.8:
+        key = "split_thick" if split else "thick"
+        want = depth + (1.6 if split else 0.8)
+        raise ValueError(f"a {t['thick']:.1f} mm tag leaves only {floor:.2f} mm of "
+                         f"{spec['label']} over it -- raise {key} to {want:.1f} mm or "
+                         f"more in cards.py")
 
     w, h = spec["w"], spec["h"]
     if spec["grow"]:            # the fob is sized by the tag, not the other way round
         x0, x1, _, _ = content_box(spec, w, h)
         sym_w = np.diff(extent(contactless(spec["symbol"]))[0::2])[0]
-        w += max(0.0, pocket_w + sym_w + 3.0 - (x1 - x0))
+        # 0.2 mm of slack: growing to exactly the width back_face() asks for
+        # leaves the fit test to decide on floating-point noise.
+        w += max(0.0, pocket_w + sym_w + 3.2 - (x1 - x0))
         h = max(h, pocket_h + 2 * spec["margin"])
 
     fields = dict(name=name, company=company, phone=phone)
@@ -383,39 +439,96 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     # is mirrored -- which is exactly what turning the card over does to it.
     front = [affinity.scale(p, -1.0, 1.0, origin=(0, 0)) for p in front]
 
-    rise, thick = spec["rise"], spec["thick"]
+    rise = spec["rise"]
     z_body, z_back = rise, rise + thick     # the front face and back face of the slab
+    outline = rounded_rect(w, h, spec["corner"])
 
-    solids = prisms([rounded_rect(w, h, spec["corner"])], z_body, thick)
+    solids = prisms([outline], z_body, thick)
     solids += prisms(front, 0.0, rise + 0.01)
     solids += prisms(marks, z_back - 0.01, rise + 0.01)
     solid = boolean("union", solids)
 
-    if tag_mode == "embed":
-        pocket_z, pocket_t, pause_z = z_back - lid - depth, depth, z_back - lid
+    if split:                   # cavity straddling the joint, half in each part
+        z_mid = z_body + thick / 2.0
+        cavity = (z_mid - depth / 2.0, depth)
+        pause_z = None
+    elif tag_mode == "embed":
+        cavity, pause_z = (z_back - lid - depth, depth), z_back - lid
     else:
-        pocket_z, pocket_t, pause_z = z_back - depth, depth + rise + 1.0, None
-    cuts = prisms([pocket], pocket_z, pocket_t)
+        cavity, pause_z = (z_back - depth, depth + rise + 1.0), None
+
+    cuts = prisms([pocket], *cavity)
+    hole = None
     if spec["hole"]:
         d = spec["hole"]["d"]
-        cx = -w / 2.0 + spec["hole"]["wall"] + d / 2.0
-        cuts += prisms([rounded_rect(d, d, d / 2.0, cx, 0.0)], -1.0, z_back + rise + 2.0)
+        hole = rounded_rect(d, d, d / 2.0, -w / 2.0 + spec["hole"]["wall"] + d / 2.0, 0.0)
+        cuts += prisms([hole], -1.0, z_back + rise + 2.0)
     mesh = boolean("difference", [solid, *cuts])
+
+    pins = []
+    if split:
+        blocked = pocket if hole is None else unary_union([pocket, hole])
+        pins = register_pins(outline, blocked, w, h)
+        parts = halve(mesh, z_mid, pins, w, h)
+    else:
+        parts = [("", mesh)]
 
     arcs = marks[:-n_tap] if n_tap else marks
     info = dict(
         kind=kind, w=round(w, 2), h=round(h, 2), thick=thick, rise=rise,
+        parts=[p or kind for p, _ in parts], pins=len(pins),
+        part_thick=round(rise + (thick / 2.0 if split else thick), 2),
+        assembled=round(2 * rise + thick if split else rise + thick + rise, 2),
         pocket=[round(pocket_w, 2), round(pocket_h, 2), round(depth, 2)],
         tag_mode=tag_mode, lines=measured,
         mark_stroke=round(narrowest(arcs), 2),
         tap_stroke=round(narrowest(marks[-n_tap:]), 2) if n_tap else None,
-        change_up=round(rise, 2), change_back=round(z_back, 2),
         pause_z=None if pause_z is None else round(pause_z, 2),
-        total_z=round(z_back + rise, 2), volume=round(mesh.volume / 1000.0, 2),
-        watertight=bool(mesh.is_watertight and mesh.is_winding_consistent),
+        volume=round(sum(m.volume for _, m in parts) / 1000.0, 2),
+        watertight=all(m.is_watertight and m.is_winding_consistent for _, m in parts),
         font=Path(font).name,
     )
+    info["total_z"] = round(max(m.bounds[1][2] for _, m in parts), 2)
+    # Where the filament changes go.  Both halves of a split body print relief
+    # down, so they take one change each and there is no second one.
+    info["change_up"] = round(rise, 2)
+    info["change_back"] = info["total_z"] + 1.0 if split else round(z_back, 2)
+    info["changes"] = [info["change_up"]] if split else [info["change_up"],
+                                                         info["change_back"]]
     info["thin"] = sorted(k for k, v in measured.items() if v["stroke"] < MIN_STROKE)
     if info["tap_stroke"] and info["tap_stroke"] < MIN_STROKE:
         info["thin"].append("tap text")
-    return mesh, info
+    return parts, info
+
+
+def halve(mesh, z_mid, pins, w, h):
+    """Cut the body at the glue joint and hand the front half the pins.
+
+    The back half is then turned over about Y, so both parts print relief-down
+    with their mating faces up -- pins print as stubs rather than as holes
+    needing support, and both halves read the right way up on the plate.  Y
+    rather than X because turning it the other way would leave the arcs upside
+    down on the build plate; either is the same solid, and either assembles the
+    same way, since the pins go back where they started when the half is turned
+    over again to glue it.
+    """
+    span = rounded_rect(w + 10.0, h + 10.0, 0.0)
+    lo = prisms([span], -1.0, z_mid + 1.0)
+    hi = prisms([span], z_mid, mesh.bounds[1][2] + 1.0)
+
+    studs = [rounded_rect(PIN["d"], PIN["d"], PIN["d"] / 2.0, *c) for c in pins]
+    bores = [rounded_rect(PIN["d"] + 2 * PIN["clearance"], PIN["d"] + 2 * PIN["clearance"],
+                          PIN["d"] / 2.0 + PIN["clearance"], *c) for c in pins]
+
+    front = boolean("intersection", [mesh, *lo])
+    if studs:
+        front = boolean("union", [front, *prisms(studs, z_mid - 0.3, PIN["height"] + 0.3)])
+    back = boolean("intersection", [mesh, *hi])
+    if bores:
+        back = boolean("difference",
+                       [back, *prisms(bores, z_mid - 0.01, PIN["height"] + 0.16)])
+
+    back.apply_transform(trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0]))
+    for part in (front, back):
+        part.apply_translation((0.0, 0.0, -part.bounds[0][2]))
+    return [("front", front), ("back", back)]

@@ -39,7 +39,7 @@ def model(params):
     tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
                thick=num("tag_thick", cards.TAG["thick"]))
     with BUILD:
-        mesh, info = cards.build(
+        parts, info = cards.build(
             params.get("kind", "card"),
             name=params.get("name", ""), company=params.get("company", ""),
             phone=params.get("phone", ""), tag=tag,
@@ -47,7 +47,9 @@ def model(params):
             tag_mode=params.get("tag_mode", "pocket"),
             border=bool(params.get("border", True)),
             font=params.get("font") or None)
-    return mesh.export(file_type="stl"), info
+    # A split body comes back as two parts; they go out as one plate, which is
+    # one file to slice and one thing to show in the viewer.
+    return cards.plate(parts).export(file_type="stl"), info
 
 
 class Handler(BaseHTTPRequestHandler):

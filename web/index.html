@@ -60,6 +60,8 @@
   }
   #specs b { color: var(--ink); font-weight: 600; }
   #specs .warn { color: var(--accent); }
+  .hint.ok { color: #7fbf8a; }
+  .hint.bad { color: var(--bad); }
   #specs .err { color: var(--bad); }
   @media (max-width: 760px) {
     body { flex-direction: column; height: auto; }
@@ -103,10 +105,16 @@
       <select id="tag_mode">
         <option value="pocket">Pocket &mdash; open recess, stick the tag in after</option>
         <option value="embed">Embedded &mdash; roofed over, pause the print</option>
+        <option value="split">Split &mdash; two halves, tag glued between them</option>
       </select>
     </label>
-    <p class="hint">An NTAG213 holds about 130 characters, so point it at a short link rather
-       than a long listing URL. Write it with a phone app; nothing here touches the tag.</p>
+    <p class="hint">Split gives you two parts on one plate, each with half the cavity and a
+       three-pin key so they only go together one way. The tag ends up on the neutral plane
+       with plastic either side.</p>
+    <label>Link, to check it fits <input type="text" id="link" autocomplete="off"
+           placeholder="https://www.realtor.ca/real-estate/..."></label>
+    <p class="hint" id="linkfit">Nothing here writes the tag &mdash; that is a phone job
+       (NFC Tools and the like). This just counts the bytes it would take.</p>
   </fieldset>
 
   <fieldset>
@@ -333,13 +341,44 @@ const rgb = hex => [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16) / 255)
 const mm = v => (+v).toFixed(1);
 const list = a => a.length < 2 ? a[0] : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`;
 
+/* An NDEF URI record: a TLV wrapper, a 4-byte record header, a one-byte code
+   standing in for a common scheme prefix, the rest of the URI, a terminator. */
+const TAGS = { NTAG213: 144, NTAG215: 504, NTAG216: 888 };
+const PREFIXES = ["https://www.", "http://www.", "https://", "http://"];
+
+function ndefBytes(url) {
+  const p = PREFIXES.find(x => url.startsWith(x)) || "";
+  return 8 + new TextEncoder().encode(url.slice(p.length)).length;
+}
+
+function checkLink() {
+  const url = $("link").value.trim();
+  const el = $("linkfit");
+  if (!url) {
+    el.className = "hint";
+    el.innerHTML = "Nothing here writes the tag &mdash; that is a phone job (NFC Tools and " +
+                   "the like). This just counts the bytes it would take.";
+    return;
+  }
+  const n = ndefBytes(url);
+  const fits = Object.entries(TAGS).filter(([, cap]) => n <= cap);
+  el.className = fits.length ? "hint ok" : "hint bad";
+  el.innerHTML = fits.length
+    ? `<b>${n} bytes</b> &mdash; fits ${list(fits.map(([k, cap]) => `${k} (${cap - n} spare)`))}.`
+    : `<b>${n} bytes</b> &mdash; too long for every NTAG. Use a short link.`;
+}
+
 function readout() {
   const line = (k, v) => `<span>${k} <b>${v}</b></span>`;
   specs.innerHTML = [
     line("size", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.total_z)} mm`),
-    line("uses", `${info.volume.toFixed(2)} cm&sup3;`),
-    line("pocket", `${mm(info.pocket[0])} &times; ${mm(info.pocket[1])} &times; ${mm(info.pocket[2])} deep`),
-    line("colour change at", `${mm(info.change_up)} and ${mm(info.change_back)} mm`),
+    info.parts.length > 1
+      ? line("two halves", `${mm(info.part_thick)} mm each, ${info.pins} pins, ` +
+                           `${mm(info.assembled)} mm glued up`)
+      : line("uses", `${info.volume.toFixed(2)} cm&sup3;`),
+    line("cavity", `${mm(info.pocket[0])} &times; ${mm(info.pocket[1])} &times; ${mm(info.pocket[2])} deep`),
+    line("colour change at", info.changes.map(mm).join(" and ") + " mm" +
+                             (info.parts.length > 1 ? ", each half" : "")),
     info.pause_z !== null ? line("pause the print at", `${mm(info.pause_z)} mm`) : "",
     info.thin.length
       ? `<span class="warn">${list(info.thin)} thinner than 0.8 mm &mdash; turn on
@@ -376,6 +415,7 @@ async function rebuild() {
 
 const queue = () => { clearTimeout(pending); pending = setTimeout(rebuild, 300); };
 
+$("link").addEventListener("input", checkLink);
 for (const f of FIELDS) $(f).addEventListener("input", queue);
 $("border").addEventListener("change", queue);
 $("kind").addEventListener("change", () => {
@@ -389,7 +429,8 @@ $("save").addEventListener("click", () => {
     .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "card";
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([stl], { type: "model/stl" }));
-  a.download = `${stem}_${$("kind").value}.stl`;
+  a.download = `${stem}_${$("kind").value}` +
+               ($("tag_mode").value === "split" ? "_halves.stl" : ".stl");
   a.click();
   URL.revokeObjectURL(a.href);
 });
