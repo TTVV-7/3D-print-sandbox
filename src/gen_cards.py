@@ -182,4 +182,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except FileNotFoundError as exc:
+        raise SystemExit(f"gen_cards.py: {exc}")
