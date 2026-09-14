@@ -339,9 +339,14 @@ def stack(rows, gaps, cx, cy):
     return out
 
 
-def front_face(spec, w, h, fields, font, logo=None, logo_h=None):
+def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None):
     """Name, company, rule and phone, stacked and centred in the content box;
     with a logo, the logo takes the left of the box and the text the rest.
+
+    A `design` -- an SVG, as a path or its text -- replaces all of that: its
+    filled shapes are raised across the whole face, scaled to fill the content
+    box.  What is in it is the designer's business; what it reports is the
+    finest detail it carries and so the nozzle it needs.
 
     Laid out as read; build() mirrors it, because this face ends up pointing
     at the build plate.
@@ -349,6 +354,19 @@ def front_face(spec, w, h, fields, font, logo=None, logo_h=None):
     x0, x1, y0, y1 = content_box(spec, w, h, mirrored=True)
     inner_w, inner_h = x1 - x0, y1 - y0
     polys, measured, logo_info = [], {}, None
+
+    if design:
+        shapes, dw, dh = logo_polys(design, inner_h, inner_w)
+        polys = [affinity.translate(p, (x0 + x1) / 2.0, (y0 + y1) / 2.0) for p in shapes]
+        detail = finest(shapes)
+        logo_info = dict(w=round(float(dw), 1), h=round(float(dh), 1),
+                         detail=round(float(detail), 2), nozzle=nozzle_for(detail),
+                         design=True)
+        if spec["border"]:
+            inset = spec["border_inset"]
+            polys.append(frame(w - 2 * inset, h - 2 * inset,
+                               max(spec["corner"] - inset, 0.8), spec["border"]))
+        return polys, measured, logo_info
 
     if logo:
         want = logo_h or inner_h * 0.62
@@ -663,7 +681,8 @@ def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0, row_w=None):
 
 def build(kind, name="", company="", phone="", font=None, tag=None,
           tap_text="TAP HERE", tag_mode="pocket", lid=0.6, border=True, rise=RISE,
-          link="", qr=False, logo=None, logo_h=None, chamfer=CHAMFER, label=""):
+          link="", qr=False, logo=None, logo_h=None, chamfer=CHAMFER, label="",
+          design=None):
     """One card or fob as printable parts, plus the numbers worth knowing.
 
     Returns ([part, ...], info).  Each part is a dict:
@@ -692,8 +711,9 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
               the three and the only one where nothing of the tag shows.
 
     `logo` is an SVG, as a path or its text, raised on the front beside the
-    name.  `link` with `qr=True` raises a QR code for it on the back.  Both
-    report the nozzle they need in info["nozzle"].
+    name; `design` is an SVG that *is* the front, lettering and all.  `link`
+    with `qr=True` raises a QR code for it on the back.  All three report the
+    nozzle they need in info["nozzle"].
     """
     spec = {**BODIES[kind]}
     font = font or default_font()
@@ -731,7 +751,7 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
         h = max(h, need_h + 2 * spec["margin"] + 0.2)
 
     fields = dict(name=name, company=company, phone=phone)
-    front, measured, logo_info = front_face(spec, w, h, fields, font, logo, logo_h)
+    front, measured, logo_info = front_face(spec, w, h, fields, font, logo, logo_h, design)
     pocket, marks, code, n_tap, n_arcs, qr_info = back_face(
         spec, w, h, pocket_w, pocket_h, tap_text, font, rows)
     # Both faces are laid out the way you read them.  The back ends up facing

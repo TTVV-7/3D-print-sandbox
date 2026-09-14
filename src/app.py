@@ -35,7 +35,7 @@ BUILD = threading.Lock()
 RECENT = {}
 GEOMETRY = ("kind", "name", "company", "phone", "tap", "tag_w", "tag_h",
             "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr", "logo",
-            "batch")
+            "batch", "design")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -52,14 +52,16 @@ def model(params):
         if key not in RECENT:
             tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
                        thick=num("tag_thick", cards.TAG["thick"]))
-            logo = params.get("logo") or None       # the SVG's text, from the file picker
-            if logo and not logo.lstrip().startswith("<"):
-                raise ValueError("the logo has to be an SVG file")
+            logo = params.get("logo") or None       # the SVGs' text, from the file pickers
+            design = params.get("design") or None
+            for what, svg in (("logo", logo), ("design", design)):
+                if svg and not svg.lstrip().startswith("<"):
+                    raise ValueError(f"the {what} has to be an SVG file")
             settings = dict(
                 tag=tag, tap_text=params.get("tap", "TAP HERE"),
                 tag_mode=params.get("tag_mode", "pocket"),
                 border=bool(params.get("border", True)), rise=num("rise", cards.RISE),
-                font=params.get("font") or None, logo=logo,
+                font=params.get("font") or None, logo=logo, design=design,
                 qr=bool(params.get("qr")), link=params.get("link", ""))
             kind = params.get("kind", "card")
             if params.get("batch"):

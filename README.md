@@ -46,7 +46,10 @@ on the second colour, and past 2 mm the thinnest strokes start to snag.
 
 The link box counts the bytes an NDEF record would take and says which NTAGs
 it fits; tick **QR code** and the same link is raised on the back as a code.
-An SVG in the **Logo** picker goes on the front beside the name.  Whenever a
+An SVG in the **Logo** picker goes on the front beside the name; an SVG in the
+**Full front design** picker *is* the front -- your own artwork, lettering and
+all, scaled to fill the face, with the name, company and phone fields left
+only to name the file.  Whenever a
 code or a logo is on the part, the readout names the **nozzle it needs** --
 see below.  Nothing here writes a tag.
 
@@ -60,7 +63,10 @@ them as two.
 
 The server is standard library only and the viewer is hand-written WebGL, so
 there is no framework to install, nothing fetched from a CDN, and it works with
-the network off.  It listens on the loopback address; it is a tool for the
+the network off.  The controls are open-source pieces from
+[Uiverse.io](https://uiverse.io) (MIT) -- the buttons by gharsh11032000, the
+inputs by adamgiebl, the checkboxes by Praashoo7, the loader by anand_4957 --
+kept as their authors wrote them and credited in the page's stylesheet.  It listens on the loopback address; it is a tool for the
 machine it runs on, not a service to put on a network.
 
 ### Hosting it
@@ -188,7 +194,12 @@ Everything on the joint is mirrored between the halves, so they register.
 ### Logo, QR code, and the nozzle they need
 
 `--logo brand.svg` raises the logo on the front, to the left of the name, at
-62% of the face height (`--logo-height` to change).  `trace_svg.shapes()`
+62% of the face height (`--logo-height` to change).  `--design front.svg`
+goes further and replaces the front entirely -- name, company, phone and logo
+-- with the artwork, scaled to fill the face inside the margin.  Set your card
+up in Illustrator or Inkscape at 85.6 x 54 mm, convert the text to outlines,
+and hand it over; the readout then says the finest thing in it and the nozzle
+that needs.  `trace_svg.shapes()`
 reads it: paths, rects, circles, ellipses and polygons, filled; subpaths
 within one element combine even-odd (so a letter keeps its counter), separate
 elements union (so overlapping shapes read as "and", not as a hole).  Strokes,
