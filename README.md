@@ -67,12 +67,18 @@ machine it runs on, not a service to put on a network.
 
 The repo deploys to Vercel as it stands: `api/model.py` hands Vercel the same
 `Handler` the local server uses, `public/` is the page, `requirements.txt` the
-dependencies and `vercel.json` the one function's time limit.  Link the repo to
-a Vercel project and every push builds; the URL then works from any phone or
-laptop with nothing installed.  Two things follow from running on a function:
-the STL preview comes back gzipped (a batch plate would otherwise hit the
-response ceiling), and a batch of more than a few dozen QR cards will run past
-the 60-second limit -- split it, or run that one locally.
+dependencies and `vercel.json` the one function's time limit.  It lives at
+**https://3-d-print-sandbox.vercel.app** -- the Vercel project is linked to
+this repo, so every push builds: the default branch goes to that address, any
+other branch gets a preview address of its own (which asks for a Vercel login;
+the production one is public).  The URL then works from any phone or laptop
+with nothing installed.
+
+Two things follow from running on a function: the STL preview comes back
+gzipped (a batch plate would otherwise hit the response ceiling), the first
+request after a quiet spell takes a few seconds while Python and the geometry
+libraries load, and a batch of more than a few dozen QR cards will run past the
+60-second limit -- split it, or run that one locally.
 
 The same thing from a terminal:
 
