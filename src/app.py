@@ -30,7 +30,8 @@ PAGE = ROOT / "web" / "index.html"
 BUILD = threading.Lock()
 RECENT = {}
 GEOMETRY = ("kind", "name", "company", "phone", "tap", "tag_w", "tag_h",
-            "tag_thick", "tag_mode", "border", "rise", "font")
+            "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr", "logo",
+            "batch")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -47,27 +48,46 @@ def model(params):
         if key not in RECENT:
             tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
                        thick=num("tag_thick", cards.TAG["thick"]))
-            RECENT[key] = cards.build(
-                params.get("kind", "card"),
-                name=params.get("name", ""), company=params.get("company", ""),
-                phone=params.get("phone", ""), tag=tag,
-                tap_text=params.get("tap", "TAP HERE"),
+            logo = params.get("logo") or None       # the SVG's text, from the file picker
+            if logo and not logo.lstrip().startswith("<"):
+                raise ValueError("the logo has to be an SVG file")
+            settings = dict(
+                tag=tag, tap_text=params.get("tap", "TAP HERE"),
                 tag_mode=params.get("tag_mode", "pocket"),
-                border=bool(params.get("border", True)),
-                rise=num("rise", cards.RISE),
-                font=params.get("font") or None)
+                border=bool(params.get("border", True)), rise=num("rise", cards.RISE),
+                font=params.get("font") or None, logo=logo,
+                qr=bool(params.get("qr")), link=params.get("link", ""))
+            kind = params.get("kind", "card")
+            if params.get("batch"):
+                rows = cards.parse_batch(params["batch"])
+                if not rows:
+                    raise ValueError("the batch box is empty")
+                parts, infos = cards.build_batch(rows, kind, **settings)
+                info = {**infos[0], "batch": len(rows), "label": "",
+                        "nozzle": (None if any(i["nozzle"] is None for i in infos
+                                               if i["logo"] or i["qr"])
+                                   else min([i["nozzle"] for i in infos if i["nozzle"]],
+                                            default=None)),
+                        "volume": round(sum(i["volume"] for i in infos), 2),
+                        "watertight": all(i["watertight"] for i in infos)}
+                RECENT[key] = parts, info
+            else:
+                RECENT[key] = cards.build(
+                    kind, name=params.get("name", ""), company=params.get("company", ""),
+                    phone=params.get("phone", ""), **settings)
             while len(RECENT) > 8:
                 del RECENT[next(iter(RECENT))]
         parts, info = RECENT[key]
 
+    # A batch, or a split body, is several parts; they go out as one plate --
+    # one file to slice and one thing to show in the viewer.
+    row_w = num("bed", 220.0) if params.get("batch") else None
     if params.get("format") == "3mf":
         colours = tuple(c if isinstance(c, str) and HEX.match(c) else d
                         for c, d in ((params.get("body"), "#cfd3d6"),
                                      (params.get("accent"), "#d9a441")))
-        return cards.export_3mf(parts, colours), info, "model/3mf"
-    # A split body comes back as two parts; they go out as one plate, which is
-    # one file to slice and one thing to show in the viewer.
-    return cards.plate(parts).export(file_type="stl"), info, "model/stl"
+        return cards.export_3mf(parts, colours, row_w=row_w), info, "model/3mf"
+    return cards.plate(parts, row_w=row_w).export(file_type="stl"), info, "model/stl"
 
 
 class Handler(BaseHTTPRequestHandler):

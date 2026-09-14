@@ -23,6 +23,13 @@
   fieldset { border: 0; border-top: 1px solid var(--line); margin: 18px 0 0; padding: 14px 0 0; }
   legend { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .09em; padding: 0; }
   label { display: block; margin-top: 12px; font-size: 12px; color: var(--dim); }
+  textarea {
+    width: 100%; margin-top: 4px; padding: 8px 10px; background: #12151a; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px; font: 12px/1.45 ui-monospace, monospace;
+    resize: vertical;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input[type=file] { margin-top: 6px; font-size: 12px; color: var(--dim); width: 100%; }
   input[type=text], select {
     width: 100%; margin-top: 4px; padding: 8px 10px; background: #12151a; color: var(--ink);
     border: 1px solid var(--line); border-radius: 6px; font: inherit;
@@ -83,6 +90,10 @@
   <p class="hint">A long line shrinks to fit. Past a point that stops being printable &mdash;
      put a <code>|</code> where it should break instead, and both halves stay full size.</p>
 
+  <label>Logo (SVG) <input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
+  <p class="hint" id="logo_note">Raised on the front beside the name. Flat fills only &mdash;
+     strokes, gradients and text objects in the file are ignored, so export the logo as
+     outlines first.</p>
   <label>Body
     <select id="kind">
       <option value="card">Card &mdash; 85.6 &times; 54 mm, wallet size</option>
@@ -118,10 +129,26 @@
     <p class="hint">Split gives you two parts on one plate, each with half the cavity and a
        three-pin key so they only go together one way. The tag ends up on the neutral plane
        with plastic either side.</p>
-    <label>Link, to check it fits <input type="text" id="link" autocomplete="off"
+    <label>Link <input type="text" id="link" autocomplete="off"
            placeholder="https://www.realtor.ca/real-estate/..."></label>
     <p class="hint" id="linkfit">Nothing here writes the tag &mdash; that is a phone job
-       (NFC Tools and the like). This just counts the bytes it would take.</p>
+       (NFC Tools and the like). This counts the bytes it would take.</p>
+    <div class="check"><input type="checkbox" id="qr"> <span>QR code for the link on the back</span></div>
+    <p class="hint">For phones that don't tap. A shorter link is a coarser code, and a
+       coarser code prints on a bigger nozzle &mdash; the readout says which. Scanners want
+       dark modules on a light ground, so print the raised colour darker than the body.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Batch</legend>
+    <label>One person per line
+      <textarea id="batch" rows="5" spellcheck="false"
+        placeholder="Jane Doe, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
+    </label>
+    <p class="hint">Name, company, phone, link &mdash; commas or tabs, so a spreadsheet pastes
+       straight in. Company and link may be blank. While there is anything here, the preview
+       and the downloads are the whole batch on one plate, sharing the settings above.</p>
+    <label>Plate width <input type="text" id="bed" value="220" inputmode="decimal"></label>
   </fieldset>
 
   <fieldset>
@@ -155,7 +182,8 @@
 "use strict";
 const $ = id => document.getElementById(id);
 const FIELDS = ["name", "company", "phone", "kind", "tap", "tag_w", "tag_h",
-                "tag_thick", "tag_mode", "rise"];
+                "tag_thick", "tag_mode", "rise", "link", "batch", "bed"];
+let logoText = "";
 const specs = $("specs");
 
 /* ---------------------------------------------------------------- maths --
@@ -379,7 +407,13 @@ function checkLink() {
 
 function readout() {
   const line = (k, v) => `<span>${k} <b>${v}</b></span>`;
+  const needs = (info.logo || info.qr)
+    ? (info.nozzle
+        ? line("nozzle", `${info.nozzle} mm or finer`)
+        : `<span class="err">too fine for any nozzle &mdash; shorter link, or a simpler logo</span>`)
+    : "";
   specs.innerHTML = [
+    info.batch ? line("batch", `${info.batch} people, ${info.parts.length > 1 ? "two parts" : "one part"} each`) : "",
     line("size", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.total_z)} mm`),
     info.parts.length > 1
       ? line("two halves", `${mm(info.part_thick)} mm each, ${info.pins} pins, ` +
@@ -389,6 +423,9 @@ function readout() {
     line("colour change at", info.changes.map(mm).join(" and ") + " mm" +
                              (info.parts.length > 1 ? ", each half" : "")),
     info.pause_z !== null ? line("pause the print at", `${mm(info.pause_z)} mm`) : "",
+    info.logo ? line("logo", `${mm(info.logo.w)} &times; ${mm(info.logo.h)} mm, detail ${info.logo.detail} mm`) : "",
+    info.qr ? line("qr", `${info.qr.modules} modules at ${info.qr.module} mm, ${mm(info.qr.size)} mm square`) : "",
+    needs,
     info.thin.length
       ? `<span class="warn">${list(info.thin)} thinner than 0.8 mm &mdash; turn on
          thin-wall detection, or break the line with a |</span>` : "",
@@ -397,9 +434,17 @@ function readout() {
 
 let pending = null, seq = 0;
 
-async function rebuild() {
+function formParams() {
   const params = Object.fromEntries(FIELDS.map(f => [f, $(f).value]));
   params.border = $("border").checked;
+  params.qr = $("qr").checked;
+  if (!params.qr) params.link = "";               // the link only shapes the part as a code
+  params.logo = logoText;
+  return params;
+}
+
+async function rebuild() {
+  const params = formParams();
   const mine = ++seq;
   try {
     const res = await fetch("/model", {
@@ -427,6 +472,14 @@ const queue = () => { clearTimeout(pending); pending = setTimeout(rebuild, 300);
 $("link").addEventListener("input", checkLink);
 for (const f of FIELDS) $(f).addEventListener("input", queue);
 $("border").addEventListener("change", queue);
+$("qr").addEventListener("change", queue);
+$("logo_file").addEventListener("change", async () => {
+  const f = $("logo_file").files[0];
+  logoText = f ? await f.text() : "";
+  $("logo_note").textContent = f ? `${f.name}, ${(f.size / 1024).toFixed(1)} kB.` :
+    "Raised on the front beside the name.";
+  queue();
+});
 $("kind").addEventListener("change", () => {
   $("border").disabled = $("kind").value !== "card";
 });
@@ -436,6 +489,7 @@ $("flip").addEventListener("click", () => { yawTo += Math.PI; });
 $("rise").addEventListener("input", () => { $("rise_v").textContent = `${$("rise").value} mm`; });
 
 function stem() {
+  if ($("batch").value.trim()) return `batch_${$("kind").value}`;
   const base = ($("name").value || $("company").value || "card")
     .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "card";
   return `${base}_${$("kind").value}` + ($("tag_mode").value === "split" ? "_halves" : "");
@@ -451,8 +505,7 @@ function save(bytes, type, name) {
 
 $("save_stl").addEventListener("click", () => save(stl, "model/stl", `${stem()}.stl`));
 $("save").addEventListener("click", async () => {
-  const params = Object.fromEntries(FIELDS.map(f => [f, $(f).value]));
-  params.border = $("border").checked;
+  const params = formParams();
   params.format = "3mf";
   params.body = $("c_body").value;
   params.accent = $("c_accent").value;

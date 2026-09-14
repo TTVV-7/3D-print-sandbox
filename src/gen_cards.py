@@ -40,6 +40,17 @@ def report(name, info):
         print(f"      assembly two halves, {info['part_thick']:.1f} mm each including the "
               f"relief, {info['pins']} register pins -- {info['assembled']:.1f} mm glued up "
               f"with the tag between them")
+    if info["logo"]:
+        L = info["logo"]
+        print(f"      logo     {L['w']:.1f} x {L['h']:.1f} mm, finest detail ~{L['detail']:.2f} mm")
+    if info["qr"]:
+        Q = info["qr"]
+        print(f"      qr       {Q['modules']} modules at {Q['module']:.2f} mm, "
+              f"{Q['size']:.1f} mm square")
+    if info["logo"] or info["qr"]:
+        print(f"      nozzle   " + (f"{info['nozzle']:.2f} mm or finer" if info["nozzle"]
+                                   else "none prints this cleanly -- shorter link, or a "
+                                        "simpler logo"))
     if info["thin"]:
         print(f"      note     {', '.join(info['thin'])} under {cards.MIN_STROKE} mm -- "
               f"turn on the slicer's thin-wall detection, or shorten the text")
@@ -76,13 +87,29 @@ def main():
                     help="hex colours written into the 3MF, body then raised")
     ap.add_argument("--format", default="both", choices=["3mf", "stl", "both"])
     ap.add_argument("--no-border", action="store_true", help="drop the raised card border")
+    ap.add_argument("--chamfer", type=float, default=cards.CHAMFER,
+                    help=f"45-degree break on the outer edges, mm (default {cards.CHAMFER:g})")
+    ap.add_argument("--logo", default=None, metavar="FILE.svg",
+                    help="brokerage logo, raised on the front beside the name")
+    ap.add_argument("--logo-height", type=float, default=None,
+                    help="logo height in mm (default: 62%% of the face)")
+    ap.add_argument("--link", default="", help="the URL the tag will carry")
+    ap.add_argument("--qr", action="store_true",
+                    help="also raise a QR code for --link on the back")
+    ap.add_argument("--batch", default=None, metavar="FILE",
+                    help="one person per line -- name, company, phone, link -- tab or "
+                         "comma separated; writes every card onto one plate")
+    ap.add_argument("--bed", type=float, default=220.0,
+                    help="plate width the batch wraps at, mm (default 220)")
     ap.add_argument("--font", default=None, help="path to a TTF; a bold sans works best")
     ap.add_argument("--out", default=str(ROOT / "stl"), help="where to write the STLs")
     ap.add_argument("--preview", action="store_true", help="also render PNGs to previews/")
     args = ap.parse_args()
 
-    if not any([args.name, args.company, args.phone]):
-        ap.error("give at least one of --name / --company / --phone")
+    if not args.batch and not any([args.name, args.company, args.phone]):
+        ap.error("give at least one of --name / --company / --phone, or --batch")
+    if args.qr and not args.link and not args.batch:
+        ap.error("--qr needs --link")
 
     tag = dict(thick=args.tag_thick)
     if args.tag:
@@ -98,12 +125,35 @@ def main():
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     kinds = ["card", "fob"] if args.kind == "both" else [args.kind]
+    common = dict(font=args.font, tag=tag, tap_text=args.tap, tag_mode=args.tag_mode,
+                  border=not args.no_border, rise=args.rise, chamfer=args.chamfer,
+                  logo=args.logo, logo_h=args.logo_height, qr=args.qr)
+
+    if args.batch:
+        rows = cards.parse_batch(Path(args.batch).read_text())
+        print(f"building {len(rows)} people:")
+        for kind in kinds:
+            parts, infos = cards.build_batch(rows, kind, link=args.link, **common)
+            for info in infos:
+                report(info["label"], info)
+            stem = f"batch_{kind}"
+            written = []
+            if args.format != "stl":
+                (out / f"{stem}.3mf").write_bytes(
+                    cards.export_3mf(parts, colours, row_w=args.bed))
+                written.append(f"{stem}.3mf")
+            if args.format != "3mf":
+                cards.plate(parts, row_w=args.bed).export(out / f"{stem}.stl")
+                written.append(f"{stem}.stl")
+            plate = cards.plate(parts, row_w=args.bed).extents
+            print(f"  -> {', '.join(written)}: {len(parts)} parts on a "
+                  f"{plate[0]:.0f} x {plate[1]:.0f} mm plate")
+        return
+
     print("building:")
     for kind in kinds:
         parts, info = cards.build(
-            kind, args.name, args.company, args.phone, font=args.font, tag=tag,
-            tap_text=args.tap, tag_mode=args.tag_mode, border=not args.no_border,
-            rise=args.rise)
+            kind, args.name, args.company, args.phone, link=args.link, **common)
         stem = f"{slug(args.name or args.company)}_{kind}"
         names, written = [], []
         for part in parts:

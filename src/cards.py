@@ -24,6 +24,7 @@ from shapely import affinity
 from shapely.geometry import LineString, box
 from shapely.ops import unary_union
 
+import trace_svg
 import trace_text
 
 QUAD = 32                    # arc resolution, as in logos.py
@@ -51,6 +52,23 @@ FONT_SEARCH = [
 # point of a thing that lives in a pocket.  The slicer sees it as a few more
 # layers of the accent colour before the body starts, nothing else changes.
 RISE = 1.2
+
+# A 45-degree break on the outer edges of both faces.  A card this thick with
+# a square edge feels like a coaster; 0.6 mm takes the corner off without
+# eating into the border.  Set to 0 for a square edge.
+CHAMFER = 0.6
+
+# Optional raised QR code on the back, pointing at the same link as the tag.
+# Modules are merged into row-runs before extruding, so each raised shape is
+# as fat as the code allows.  Anything under QR_MIN_MODULE has no nozzle we
+# would name that could print it -- use a shorter link instead.
+QR_QUIET = 2               # modules of clear body round the code; spec says 4, 2 scans fine off a matte print
+QR_MIN_MODULE = 0.5
+
+# Nozzles people actually own, largest first.  A raised feature prints clean
+# when two extrusion lines fit across it, so the nozzle a feature needs is the
+# biggest one no more than half its width.
+NOZZLES = (0.6, 0.5, 0.4, 0.3, 0.25, 0.2)
 
 # The NFC tag the pocket is cut for.  Default is a rectangular NTAG213
 # sticker; measure yours, the sizes vary a lot between sellers.
@@ -217,6 +235,72 @@ def contactless(height, arcs=4, span=52.0, width=0.13):
 
 
 # ---------------------------------------------------------------------------
+# what needs which nozzle
+# ---------------------------------------------------------------------------
+def nozzle_for(feature):
+    """The largest common nozzle that prints a raised feature `feature` mm wide
+    cleanly, i.e. with two lines across it; None if none of them would."""
+    return next((n for n in NOZZLES if 2 * n <= feature + 1e-9), None)
+
+
+# ---------------------------------------------------------------------------
+# QR code and logo
+# ---------------------------------------------------------------------------
+def qr_matrix(text):
+    """Rows of booleans for `text`, at the lowest error correction: a raised
+    print has all the contrast in the world, and every level up costs modules."""
+    import segno
+    return [list(r) for r in segno.make(text, error="l", micro=False).matrix]
+
+
+def qr_polys(rows, module):
+    """The dark modules of a QR code as raised shapes, centred on the origin.
+
+    Consecutive dark modules in a row become one rectangle, and every rectangle
+    is grown by a hair so that neighbours in adjacent rows overlap rather than
+    merely touch -- two boxes that share only an edge or a corner make an
+    unwelded seam, and the boolean engine wants volume in common.
+    """
+    n = len(rows)
+    half = n * module / 2.0
+    eps = 0.005
+    out = []
+    for r, row in enumerate(rows):
+        c = 0
+        while c < n:
+            if not row[c]:
+                c += 1
+                continue
+            c0 = c
+            while c < n and row[c]:
+                c += 1
+            out.append(box(c0 * module - half - eps, half - (r + 1) * module - eps,
+                           c * module - half + eps, half - r * module + eps))
+    return out
+
+
+def logo_polys(svg, height, max_w):
+    """A logo's filled shapes, scaled to `height` (or narrower than `max_w`,
+    whichever bites first) and centred on the origin."""
+    polys = trace_svg.shapes(svg)
+    x0, y0, x1, y1 = extent(polys)
+    k = min(height / (y1 - y0), max_w / (x1 - x0))
+    polys = [affinity.scale(p, k, k, origin=(0, 0)) for p in polys]
+    x0, y0, x1, y1 = extent(polys)
+    polys = [affinity.translate(p, -(x0 + x1) / 2.0, -(y0 + y1) / 2.0) for p in polys]
+    return polys, x1 - x0, y1 - y0
+
+
+def finest(polys):
+    """The narrowest thing in a set of shapes, counting the holes: a counter
+    narrower than a nozzle fills in just as surely as a stroke narrower than
+    one smears."""
+    widths = [stroke_width(p) for p in polys]
+    widths += [stroke_width(Polygon(r)) for p in polys for r in p.interiors]
+    return min(widths) if widths else 0.0
+
+
+# ---------------------------------------------------------------------------
 # layout
 # ---------------------------------------------------------------------------
 def content_box(spec, w, h, mirrored=False):
@@ -247,46 +331,90 @@ def stack(rows, gaps, cx, cy):
     return out
 
 
-def front_face(spec, w, h, fields, font):
-    """Name, company, rule and phone, stacked and centred in the content box.
+def front_face(spec, w, h, fields, font, logo=None, logo_h=None):
+    """Name, company, rule and phone, stacked and centred in the content box;
+    with a logo, the logo takes the left of the box and the text the rest.
 
     Laid out as read; build() mirrors it, because this face ends up pointing
     at the build plate.
     """
     x0, x1, y0, y1 = content_box(spec, w, h, mirrored=True)
-    inner_w = x1 - x0
-    rows, gaps, measured = [], [], {}
+    inner_w, inner_h = x1 - x0, y1 - y0
+    polys, measured, logo_info = [], {}, None
+
+    if logo:
+        want = logo_h or inner_h * 0.62
+        shapes, lw, lh = logo_polys(logo, want, inner_w * 0.36)
+        polys += [affinity.translate(p, x0 + lw / 2.0, (y0 + y1) / 2.0) for p in shapes]
+        detail = finest(shapes)
+        logo_info = dict(w=round(float(lw), 1), h=round(float(lh), 1),
+                         detail=round(float(detail), 2), nozzle=nozzle_for(detail))
+        x0 += lw + 4.0
+        inner_w = x1 - x0
+
+    rows, gaps = [], []
     for key, cap in spec["rows"]:
         if key == "rule":
             if not rows:
                 continue
-            polys = [box(-inner_w * 0.22, -cap / 2.0, inner_w * 0.22, cap / 2.0)]
+            shapes = [box(-inner_w * 0.22, -cap / 2.0, inner_w * 0.22, cap / 2.0)]
         else:
             if not fields.get(key):
                 continue
-            polys, _, height, cap = text_block(
+            shapes, _, height, cap = text_block(
                 fields[key], font, cap, inner_w,
                 tracking=0.0 if key == "name" else 0.02)
-            if not polys:
+            if not shapes:
                 continue
-            measured[key] = dict(cap=round(cap, 2), stroke=round(narrowest(polys), 2),
+            measured[key] = dict(cap=round(cap, 2), stroke=round(narrowest(shapes), 2),
                                  lines=fields[key].count("|") + fields[key].count("\n") + 1)
             cap = height
         if rows:
             gaps.append(spec["gaps"][min(len(rows) - 1, len(spec["gaps"]) - 1)])
-        rows.append((polys, cap))
+        rows.append((shapes, cap))
 
-    polys = stack(rows, gaps, (x0 + x1) / 2.0, (y0 + y1) / 2.0)
+    polys += stack(rows, gaps, (x0 + x1) / 2.0, (y0 + y1) / 2.0)
     if spec["border"]:
         inset = spec["border_inset"]
         polys.append(frame(w - 2 * inset, h - 2 * inset,
                            max(spec["corner"] - inset, 0.8), spec["border"]))
-    return polys, measured
+    return polys, measured, logo_info
 
 
-def back_face(spec, w, h, pocket_w, pocket_h, tap_text, font):
-    """The tag pocket plus the contactless mark: beside the pocket when there
-    is room next to it, under it when there is not.
+def mark_block(spec, font, tap_text, zone_w, zone_h):
+    """The contactless arcs with the tap wording under them, fitted to a zone.
+
+    The arcs give way first: if the zone is too short for the arcs at full
+    size *and* a line of text, the arcs shrink until the text fits, down to
+    10 mm.  Below that the text goes instead -- it is the arcs that say "tap".
+    """
+    sym_h = min(spec["symbol"], zone_h)
+    tap, tap_h, tap_cap = [], 0.0, 0.0
+    if tap_text:
+        tap, _, tap_h, tap_cap = text_block(tap_text, font, spec["tap_cap"], zone_w,
+                                            tracking=0.06)
+        if tap:
+            room = zone_h - 1.8 - tap_h
+            if room >= 10.0:
+                sym_h = min(sym_h, room)
+            if tap_cap < 2.2 or room < 10.0:
+                tap, tap_h = [], 0.0
+    marks = contactless(sym_h)
+    mx0, _, mx1, _ = extent(marks)
+    block_h = sym_h + (1.8 + tap_h if tap else 0.0)
+    top = block_h / 2.0
+    out = [affinity.translate(p, 0.0, top - sym_h / 2.0) for p in marks]
+    out += [affinity.translate(p, 0.0, top - sym_h - 1.8 - tap_h / 2.0) for p in tap]
+    return out, max(mx1 - mx0, 0.0), block_h, len(tap), len(marks)
+
+
+def back_face(spec, w, h, pocket_w, pocket_h, tap_text, font, qr=None):
+    """The tag pocket, the contactless mark, and if there is a link the QR
+    code for it.
+
+    Without a code the mark sits beside the pocket when there is room and
+    under it when there is not.  With one, the code takes the right of the
+    face and the pocket and mark share the left, pocket on top.
 
     Laid out as seen from the back, which is also how it is built -- this face
     ends up pointing +Z.
@@ -294,42 +422,53 @@ def back_face(spec, w, h, pocket_w, pocket_h, tap_text, font):
     x0, x1, y0, y1 = content_box(spec, w, h)
     inner_w, inner_h = x1 - x0, y1 - y0
     gap = 3.0
+    qr_info = None
 
-    marks = contactless(spec["symbol"])
-    mx0, _, mx1, _ = extent(marks)
-    sym_w, sym_h = mx1 - mx0, spec["symbol"]
-
-    beside = inner_w - pocket_w - gap
-    if beside >= sym_w and pocket_h <= inner_h:
-        zone_w, zone_h = beside, inner_h
-        pocket_c = (x0 + pocket_w / 2.0, (y0 + y1) / 2.0)
-        block_c = (x1 - zone_w / 2.0, (y0 + y1) / 2.0)
-    elif pocket_w <= inner_w and pocket_h + gap + sym_h <= inner_h:
-        zone_w, zone_h = inner_w, inner_h - pocket_h - gap
-        pocket_c = ((x0 + x1) / 2.0, y1 - pocket_h / 2.0)
-        block_c = ((x0 + x1) / 2.0, y0 + zone_h / 2.0)
+    if qr:
+        n = len(qr)
+        zone_x0 = x0 + pocket_w + gap
+        zone_w = x1 - zone_x0
+        module = min(zone_w, inner_h) / (n + 2 * QR_QUIET)
+        if module < QR_MIN_MODULE:
+            raise ValueError(
+                f"a {n}-module code in the {zone_w:.0f} x {inner_h:.0f} mm the "
+                f"{spec['label']} has spare comes out at {module:.2f} mm a module, which "
+                f"nothing prints -- use a shorter link, or the fob, which grows to fit")
+        size = (n + 2 * QR_QUIET) * module
+        code = [affinity.translate(p, zone_x0 + zone_w / 2.0, (y0 + y1) / 2.0)
+                for p in qr_polys(qr, module)]
+        qr_info = dict(modules=n, module=round(module, 2), size=round(size, 1),
+                       nozzle=nozzle_for(module))
+        pocket_c = (x0 + pocket_w / 2.0, y1 - pocket_h / 2.0)
+        zone = (pocket_w, inner_h - pocket_h - gap)
+        block_c = (x0 + pocket_w / 2.0, y0 + zone[1] / 2.0)
+        if zone[1] < 10.0:
+            raise ValueError(f"no room under the pocket for the mark on the {spec['label']}")
     else:
-        raise ValueError(
-            f"a {pocket_w:.1f} x {pocket_h:.1f} mm pocket and a {sym_w:.0f} x "
-            f"{sym_h:.0f} mm mark do not both fit in the {inner_w:.1f} x "
-            f"{inner_h:.1f} mm back of the {spec['label']} -- use a smaller tag, "
-            f"or the fob, which grows to fit")
+        code = []
+        marks_probe = contactless(spec["symbol"])
+        mx0, _, mx1, _ = extent(marks_probe)
+        sym_w = mx1 - mx0
+        beside = inner_w - pocket_w - gap
+        if beside >= sym_w and pocket_h <= inner_h:
+            zone = (beside, inner_h)
+            pocket_c = (x0 + pocket_w / 2.0, (y0 + y1) / 2.0)
+            block_c = (x1 - beside / 2.0, (y0 + y1) / 2.0)
+        elif pocket_w <= inner_w and pocket_h + gap + spec["symbol"] <= inner_h:
+            zone = (inner_w, inner_h - pocket_h - gap)
+            pocket_c = ((x0 + x1) / 2.0, y1 - pocket_h / 2.0)
+            block_c = ((x0 + x1) / 2.0, y0 + zone[1] / 2.0)
+        else:
+            raise ValueError(
+                f"a {pocket_w:.1f} x {pocket_h:.1f} mm pocket and a {sym_w:.0f} x "
+                f"{spec['symbol']:.0f} mm mark do not both fit in the {inner_w:.1f} x "
+                f"{inner_h:.1f} mm back of the {spec['label']} -- use a smaller tag, "
+                f"or the fob, which grows to fit")
 
-    # Lettering that has had to shrink this far is neither readable nor
-    # printable, and the arcs say the same thing without it.
-    tap, tap_h = [], 0.0
-    if tap_text:
-        tap, _, tap_h, tap_cap = text_block(tap_text, font, spec["tap_cap"], zone_w,
-                                            tracking=0.06)
-        if tap and (tap_cap < 2.2 or sym_h + 1.8 + tap_h > zone_h):
-            tap, tap_h = [], 0.0
-
-    block_h = sym_h + (1.8 + tap_h if tap else 0.0)
-    bx, by = block_c
-    top = by + block_h / 2.0
-    marks = [affinity.translate(p, bx, top - sym_h / 2.0) for p in marks]
-    marks += [affinity.translate(p, bx, top - sym_h - 1.8 - tap_h / 2.0) for p in tap]
-    return rounded_rect(pocket_w, pocket_h, TAG["corner"], *pocket_c), marks, len(tap)
+    block, _, _, n_tap, n_arcs = mark_block(spec, font, tap_text, *zone)
+    marks = [affinity.translate(p, *block_c) for p in block]
+    return (rounded_rect(pocket_w, pocket_h, TAG["corner"], *pocket_c),
+            marks, code, n_tap, n_arcs, qr_info)
 
 
 def register_pins(outline, blocked, w, h):
@@ -378,31 +517,76 @@ def union(meshes):
     return meshes[0] if len(meshes) == 1 else boolean("union", meshes)
 
 
-def layout(parts, gap=6.0):
-    """[(part, (dx, dy, dz)), ...]: the parts side by side along x, on z = 0."""
-    out, x = [], 0.0
+def loft(lower, z0, upper, z1):
+    """Watertight solid between two rings with the same vertex count and order.
+
+    rounded_rect() and its inset are built the same way, so an outline and the
+    outline `c` mm inside it correspond vertex for vertex -- which is all a
+    chamfer is.
+    """
+    a = np.array(lower.exterior.coords)[:-1]
+    b = np.array(upper.exterior.coords)[:-1]
+    if len(a) != len(b):
+        raise ValueError("loft wants rings with the same vertex count")
+    n = len(a)
+    verts = np.vstack([np.column_stack([a, np.full(n, z0)]),
+                       np.column_stack([b, np.full(n, z1)]),
+                       [[0.0, 0.0, z0], [0.0, 0.0, z1]]])
+    i = np.arange(n)
+    j = (i + 1) % n
+    faces = np.vstack([np.column_stack([i, j, n + j]), np.column_stack([i, n + j, n + i]),
+                       np.column_stack([np.full(n, 2 * n), j, i]),
+                       np.column_stack([np.full(n, 2 * n + 1), n + i, n + j])])
+    mesh = trimesh.Trimesh(verts, faces, process=False)
+    if mesh.volume < 0:
+        mesh.invert()
+    return mesh
+
+
+def slab(w, h, r, z0, thick, chamfer):
+    """The body: a rounded-rectangle prism with its two outer edges broken."""
+    outer = rounded_rect(w, h, r)
+    c = min(chamfer, r - 0.2, thick / 2.0 - 0.2)
+    if c <= 0.05:
+        return prisms([outer], z0, thick)[0]
+    inner = rounded_rect(w - 2 * c, h - 2 * c, r - c)
+    return boolean("union", [
+        loft(inner, z0, outer, z0 + c),
+        *prisms([outer], z0 + c - 0.01, thick - 2 * c + 0.02),
+        loft(outer, z0 + thick - c, inner, z0 + thick),
+    ])
+
+
+def layout(parts, gap=6.0, row_w=None):
+    """[(part, (dx, dy, dz)), ...]: the parts side by side along x on z = 0,
+    wrapping into rows no wider than `row_w` -- a batch on one plate."""
+    out, x, y, row_h = [], 0.0, 0.0, 0.0
     for part in parts:
         lo, hi = part["mesh"].bounds
-        out.append((part, (x - lo[0], -(lo[1] + hi[1]) / 2.0, -lo[2])))
-        x += hi[0] - lo[0] + gap
+        pw, ph = hi[0] - lo[0], hi[1] - lo[1]
+        if row_w and x > 0 and x + pw > row_w:
+            x, y, row_h = 0.0, y - row_h - gap, 0.0
+        out.append((part, (x - lo[0], y - hi[1], -lo[2])))
+        x += pw + gap
+        row_h = max(row_h, ph)
     return out
 
 
-def plate(parts, gap=6.0):
+def plate(parts, gap=6.0, row_w=None):
     """The parts laid out on one build plate, as a single mesh.
 
     They are disjoint solids, so this is a concatenation rather than a boolean
     -- every slicer reads it as a multi-part object.
     """
     out = []
-    for part, shift in layout(parts, gap):
+    for part, shift in layout(parts, gap, row_w):
         mesh = part["mesh"].copy()
         mesh.apply_translation(shift)
         out.append(mesh)
     return trimesh.util.concatenate(out) if len(out) > 1 else out[0]
 
 
-def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0):
+def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0, row_w=None):
     """The parts as a 3MF, body and raised features as separate coloured
     components of one object each, so the slicer opens it already knowing the
     lettering is the other filament.
@@ -423,8 +607,8 @@ def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0):
                 f'<mesh><vertices>{v}</vertices><triangles>{t}</triangles></mesh></object>')
 
     objects, items, oid = [], [], 2          # id 1 is the material list
-    for part, (dx, dy, dz) in layout(parts, gap):
-        label = part["name"] or "card"
+    for part, (dx, dy, dz) in layout(parts, gap, row_w):
+        label = " ".join(x for x in (part.get("label", ""), part["name"]) if x) or "card"
         ids = []
         for mesh, pindex, what in ((part["body"], 0, "body"), (part["relief"], 1, "raised")):
             if mesh is None:
@@ -470,15 +654,16 @@ def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0):
 
 
 def build(kind, name="", company="", phone="", font=None, tag=None,
-          tap_text="TAP HERE", tag_mode="pocket", lid=0.6, border=True, rise=RISE):
+          tap_text="TAP HERE", tag_mode="pocket", lid=0.6, border=True, rise=RISE,
+          link="", qr=False, logo=None, logo_h=None, chamfer=CHAMFER, label=""):
     """One card or fob as printable parts, plus the numbers worth knowing.
 
     Returns ([part, ...], info).  Each part is a dict:
 
       name    "" for a solid body, "front" / "back" for the halves of a split one
       body    the slab, with its cavity, hole and register pins
-      relief  the lettering and the mark, as a separate solid (None if there
-              is nothing raised on this part)
+      relief  the lettering, the mark, the logo and the code, as one separate
+              solid (None if there is nothing raised on this part)
       mesh    the two welded into one, for STL
 
     Keeping body and relief apart is what lets export_3mf() hand the slicer
@@ -497,6 +682,10 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
               between them, register pins on the joint.  The tag ends up on the
               neutral plane with plastic either side, which is the strongest of
               the three and the only one where nothing of the tag shows.
+
+    `logo` is an SVG, as a path or its text, raised on the front beside the
+    name.  `link` with `qr=True` raises a QR code for it on the back.  Both
+    report the nozzle they need in info["nozzle"].
     """
     spec = {**BODIES[kind]}
     font = font or default_font()
@@ -505,6 +694,7 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
         spec["border"] = 0.0
     split = tag_mode == "split"
     rise = max(0.2, float(rise))
+    rows = qr_matrix(link) if (qr and link) else None
 
     pocket_w = t["w"] + t["clearance"]
     pocket_h = t["h"] + t["clearance"]
@@ -519,17 +709,23 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
                          f"more in cards.py")
 
     w, h = spec["w"], spec["h"]
-    if spec["grow"]:            # the fob is sized by the tag, not the other way round
+    if spec["grow"]:            # the fob is sized by what goes on its back
         x0, x1, _, _ = content_box(spec, w, h)
         sym_w = np.diff(extent(contactless(spec["symbol"]))[0::2])[0]
+        if rows:
+            code = (len(rows) + 2 * QR_QUIET) * 2 * NOZZLES[2]   # 0.8 mm modules: a 0.4 nozzle
+            need_w, need_h = pocket_w + 3.2 + code, max(pocket_h + 3.0 + spec["symbol"], code)
+        else:
+            need_w, need_h = pocket_w + 3.2 + sym_w, pocket_h
         # 0.2 mm of slack: growing to exactly the width back_face() asks for
         # leaves the fit test to decide on floating-point noise.
-        w += max(0.0, pocket_w + sym_w + 3.2 - (x1 - x0))
-        h = max(h, pocket_h + 2 * spec["margin"])
+        w += max(0.0, need_w - (x1 - x0))
+        h = max(h, need_h + 2 * spec["margin"] + 0.2)
 
     fields = dict(name=name, company=company, phone=phone)
-    front, measured = front_face(spec, w, h, fields, font)
-    pocket, marks, n_tap = back_face(spec, w, h, pocket_w, pocket_h, tap_text, font)
+    front, measured, logo_info = front_face(spec, w, h, fields, font, logo, logo_h)
+    pocket, marks, code, n_tap, n_arcs, qr_info = back_face(
+        spec, w, h, pocket_w, pocket_h, tap_text, font, rows)
     # Both faces are laid out the way you read them.  The back ends up facing
     # +Z and needs nothing done to it; the front faces the build plate, so it
     # is mirrored -- which is exactly what turning the card over does to it.
@@ -552,35 +748,42 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
         d = spec["hole"]["d"]
         hole = rounded_rect(d, d, d / 2.0, -w / 2.0 + spec["hole"]["wall"] + d / 2.0, 0.0)
         cuts += prisms([hole], -1.0, z_back + rise + 2.0)
-    slab = boolean("difference", [*prisms([outline], z_body, thick), *cuts])
+    body = boolean("difference", [slab(w, h, spec["corner"], z_body, thick, chamfer), *cuts])
 
     # The raised work is its own solid, overlapping the slab by a hair so the
     # STL weld has something to bite on and the slicer sees no seam.
     front_relief = union(prisms(front, 0.0, rise + 0.01)) if front else None
-    back_relief = union(prisms(marks, z_back - 0.01, rise + 0.01)) if marks else None
+    back_polys = marks + code
+    back_relief = union(prisms(back_polys, z_back - 0.01, rise + 0.01)) if back_polys else None
 
     pins = []
     if split:
         blocked = pocket if hole is None else unary_union([pocket, hole])
         pins = register_pins(outline, blocked, w, h)
-        parts = halve(slab, front_relief, back_relief, z_mid, pins, w, h)
+        parts = halve(body, front_relief, back_relief, z_mid, pins, w, h)
     else:
         reliefs = [m for m in (front_relief, back_relief) if m is not None]
-        parts = [dict(name="", body=slab, relief=union(reliefs) if reliefs else None)]
+        parts = [dict(name="", body=body, relief=union(reliefs) if reliefs else None)]
     for part in parts:
+        part["label"] = label
         part["mesh"] = (part["body"] if part["relief"] is None
                         else boolean("union", [part["body"], part["relief"]]))
 
-    arcs = marks[:-n_tap] if n_tap else marks
+    arcs = marks[:n_arcs]
+    tap = marks[n_arcs:]
+    needs = [x["nozzle"] for x in (qr_info, logo_info) if x]
     info = dict(
-        kind=kind, w=round(w, 2), h=round(h, 2), thick=thick, rise=rise,
+        kind=kind, label=label, w=round(w, 2), h=round(h, 2), thick=thick, rise=rise,
+        chamfer=round(min(chamfer, spec["corner"] - 0.2, thick / 2.0 - 0.2), 2),
         parts=[p["name"] or kind for p in parts], pins=len(pins),
         part_thick=round(rise + (thick / 2.0 if split else thick), 2),
         assembled=round(2 * rise + thick, 2),
         pocket=[round(pocket_w, 2), round(pocket_h, 2), round(depth, 2)],
-        tag_mode=tag_mode, lines=measured,
+        tag_mode=tag_mode, lines=measured, logo=logo_info, qr=qr_info,
+        # None here means a feature is too fine for any nozzle we would name.
+        nozzle=(None if any(n is None for n in needs) else min(needs)) if needs else None,
         mark_stroke=round(narrowest(arcs), 2),
-        tap_stroke=round(narrowest(marks[-n_tap:]), 2) if n_tap else None,
+        tap_stroke=round(narrowest(tap), 2) if tap else None,
         pause_z=None if pause_z is None else round(pause_z, 2),
         volume=round(sum(p["mesh"].volume for p in parts) / 1000.0, 2),
         watertight=all(p["mesh"].is_watertight and p["mesh"].is_winding_consistent
@@ -600,7 +803,7 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     return parts, info
 
 
-def halve(slab, front_relief, back_relief, z_mid, pins, w, h):
+def halve(body, front_relief, back_relief, z_mid, pins, w, h):
     """Cut the slab at the glue joint and hand the front half the pins.
 
     The relief needs no cutting: the front lettering lies wholly below the
@@ -616,16 +819,16 @@ def halve(slab, front_relief, back_relief, z_mid, pins, w, h):
     """
     span = rounded_rect(w + 10.0, h + 10.0, 0.0)
     lo = prisms([span], -1.0, z_mid + 1.0)
-    hi = prisms([span], z_mid, slab.bounds[1][2] + 1.0)
+    hi = prisms([span], z_mid, body.bounds[1][2] + 1.0)
 
     studs = [rounded_rect(PIN["d"], PIN["d"], PIN["d"] / 2.0, *c) for c in pins]
     bores = [rounded_rect(PIN["d"] + 2 * PIN["clearance"], PIN["d"] + 2 * PIN["clearance"],
                           PIN["d"] / 2.0 + PIN["clearance"], *c) for c in pins]
 
-    front = boolean("intersection", [slab, *lo])
+    front = boolean("intersection", [body, *lo])
     if studs:
         front = boolean("union", [front, *prisms(studs, z_mid - 0.3, PIN["height"] + 0.3)])
-    back = boolean("intersection", [slab, *hi])
+    back = boolean("intersection", [body, *hi])
     if bores:
         back = boolean("difference",
                        [back, *prisms(bores, z_mid - 0.01, PIN["height"] + 0.16)])
@@ -642,3 +845,36 @@ def halve(slab, front_relief, back_relief, z_mid, pins, w, h):
         for m in solids:
             m.apply_translation((0.0, 0.0, -drop))
     return parts
+
+
+# ---------------------------------------------------------------------------
+# batches
+# ---------------------------------------------------------------------------
+def parse_batch(text):
+    """One person per line: name, company, phone, link -- separated by tabs
+    (which is what pasting from a spreadsheet gives) or commas.  Company and
+    link may be left empty; a line starting with # is a comment."""
+    rows = []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        cells = [c.strip() for c in (line.split("\t") if "\t" in line else line.split(","))]
+        cells += [""] * (4 - len(cells))
+        name, company, phone, link = cells[:4]
+        if not name:
+            raise ValueError(f"no name on this line: {raw!r}")
+        rows.append(dict(name=name, company=company, phone=phone, link=link))
+    return rows
+
+
+def build_batch(rows, kind, **kw):
+    """Every row as its own part(s), labelled by name; one list, one plate."""
+    parts, infos = [], []
+    for row in rows:
+        p, info = build(kind, name=row["name"], company=row["company"], phone=row["phone"],
+                        link=row["link"] or kw.get("link", ""), label=row["name"],
+                        **{k: v for k, v in kw.items() if k != "link"})
+        parts += p
+        infos.append(info)
+    return parts, infos

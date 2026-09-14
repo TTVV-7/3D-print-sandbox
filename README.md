@@ -13,20 +13,22 @@ the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
 
 # Realtor NFC cards
 
-Three fields in, a two-sided card or keyring fob out: the contact details
-raised on the front, a pocket for an NFC tag and a "tap here" mark on the back.
-Tapping a phone to it opens whatever you wrote on the tag -- a listing, a
-booking page, a vCard.
+Three fields in, a two-sided card or keyring fob out: the contact details and
+the brokerage logo raised on the front; a pocket for an NFC tag, a "tap here"
+mark and a QR code for the same link on the back.  Tapping a phone to it opens
+whatever you wrote on the tag -- a listing, a booking page, a vCard -- and
+pointing a camera at it does the same for phones that do not tap.
 
 | | |
 |---|---|
 | ![card front](previews/nfc_card_front.png) | ![card back](previews/nfc_card_back.png) |
 | ![fob front](previews/nfc_fob_front.png) | ![fob back](previews/nfc_fob_back.png) |
+| ![a batch](previews/nfc_batch.png) | |
 
 ## The app
 
 ```
-pip install numpy trimesh manifold3d shapely mapbox_earcut networkx pillow fonttools
+pip install numpy trimesh manifold3d shapely mapbox_earcut networkx pillow fonttools segno svgpathtools
 python3 src/app.py
 ```
 
@@ -42,10 +44,19 @@ A slider sets how far the lettering stands off the face.  The default is
 1.2 mm, which is enough to feel with a thumb; 0.6 mm reads fine and is cheaper
 on the second colour, and past 2 mm the thinnest strokes start to snag.
 
-There is also a box to paste a listing link into, which counts the bytes an
-NDEF record would take and says which NTAGs it fits.  It only counts -- nothing
-here writes a tag.  In split mode the download is both halves on one plate, one
-file to slice; the command line writes them as two.
+The link box counts the bytes an NDEF record would take and says which NTAGs
+it fits; tick **QR code** and the same link is raised on the back as a code.
+An SVG in the **Logo** picker goes on the front beside the name.  Whenever a
+code or a logo is on the part, the readout names the **nozzle it needs** --
+see below.  Nothing here writes a tag.
+
+The **Batch** box takes one person per line -- name, company, phone, link --
+with commas or tabs between, so a column of a spreadsheet pastes straight in.
+While there is anything in it, the preview and both downloads are the whole
+batch laid out on one plate, wrapped to the plate width you give it, every card
+sharing the settings above it and each carrying its own link.  In split mode
+the download is likewise both halves on one plate; the command line writes
+them as two.
 
 The server is standard library only and the viewer is hand-written WebGL, so
 there is no framework to install, nothing fetched from a CDN, and it works with
@@ -62,9 +73,12 @@ python3 src/gen_cards.py --name "Jane Doe" \
 
 writes `stl/jane_doe_card.3mf` and `.stl`, the same for the fob, and reports
 the lettering sizes, the stroke widths, the pocket and the colour-change
-heights.  `--rise 2`, `--colours "#1f2a44,#e8c15a"`, `--format 3mf`,
-`--tag 38x19`, `--tag-mode embed|split`, `--tap "SCAN ME"`, `--font`,
-`--preview` and the rest are in `--help`.
+heights.  `--logo brand.svg`, `--link URL --qr`, `--batch people.txt`, `--rise 2`,
+`--colours "#1f2a44,#e8c15a"`, `--format 3mf`, `--tag 38x19`,
+`--tag-mode embed|split`, `--tap "SCAN ME"`, `--chamfer 0`, `--font`,
+`--preview` and the rest are in `--help`.  A batch file is the same lines the
+app's batch box takes; `--batch` writes `batch_card.3mf`, everyone on one
+plate.
 
 ## The two bodies
 
@@ -75,6 +89,7 @@ heights.  `--rise 2`, `--colours "#1f2a44,#e8c15a"`, `--format 3mf`,
 | Relief | 1.2 mm both faces, adjustable | 1.2 mm both faces, adjustable |
 | Name / company / phone caps | 7.2 / 4.4 / 5.4 mm | 5.6 / 3.4 / 4.4 mm |
 | Raised border | yes | no |
+| Edge | 0.6 mm chamfer, both faces | same |
 | Uses | ~10.5 cm³ | ~5.6 cm³ |
 
 A line that is too long shrinks to fit rather than running off the edge, so a
@@ -84,6 +99,13 @@ break instead -- `--company "Coast & Key|Property Group"` sets two lines at
 full size, which on a fob is the difference between 0.50 mm strokes and
 0.36 mm ones.  The fob grows if the tag pocket needs more room than 62 x 34 mm
 leaves it; the card does not, and says so instead.
+
+The outer edges carry a 45° chamfer of 0.6 mm on both faces -- it is what
+stops a 4.6 mm-thick card feeling like a coaster.  It is a true loft, not a
+stack of steps: `rounded_rect()` and the same rectangle inset by the chamfer
+are built the same way, so they correspond vertex for vertex and skin cleanly.
+`--chamfer 0` for a square edge.  In split mode only the outer faces get it;
+the glue joint stays square.
 
 Lettering is pulled straight out of a TTF by `src/trace_text.py` -- glyph
 outlines as curves, flattened, not rasterised and re-traced.  The default is
@@ -143,6 +165,44 @@ Everything on the joint is mirrored between the halves, so they register.
 - Glue it with plastic cement or thin CA on the flat border outside the cavity,
   not in it -- the tag does not want to be soaked.  Clamp it under a book.
 
+### Logo, QR code, and the nozzle they need
+
+`--logo brand.svg` raises the logo on the front, to the left of the name, at
+62% of the face height (`--logo-height` to change).  `trace_svg.shapes()`
+reads it: paths, rects, circles, ellipses and polygons, filled; subpaths
+within one element combine even-odd (so a letter keeps its counter), separate
+elements union (so overlapping shapes read as "and", not as a hole).  Strokes,
+gradients, text objects and transforms are ignored -- export the logo as flat
+outlines first, which every vector editor will do.
+
+`--link URL --qr` raises a QR code for the link on the back, on the right;
+the pocket and the mark move to the left, pocket over mark.  The code is sized
+to the room it has, and that is the whole game: **a shorter link is a coarser
+code, and a coarser code prints on a bigger nozzle.**
+
+| Link | Modules | Module on a card | Needs |
+|---|---|---|---|
+| `https://bit.ly/abc123` (22 chars) | 25 | 1.28 mm | 0.6 mm nozzle |
+| realtor.ca listing link (80 chars) | 37 | 0.91 mm | 0.4 mm nozzle |
+| realtor.ca agent link (108 chars) | 41 | 0.83 mm | 0.4 mm nozzle |
+
+The rule behind "needs" is that a raised feature prints clean when **two
+extrusion lines fit across it**, so the nozzle a feature needs is the largest
+common one no more than half its width.  The same rule is applied to the
+finest detail in the logo -- counting its holes, since a counter narrower than
+a nozzle fills in exactly as a stroke narrower than one smears -- and the
+readout reports the tighter of the two.  A code that would need modules under
+0.5 mm is refused rather than printed unreadable: use a shorter link, or the
+fob, which grows to fit its code at 0.8 mm a module.
+
+Two things about the code as printed: it is the *raised* modules that are
+dark to a scanner, so print the raised colour darker than the body (navy on
+white scans; white on navy is an inverted code, which some phones read and
+some do not).  And the quiet zone round it is two modules rather than the
+four the spec asks for -- two is plenty against a matte print, and four would
+cost the code a size.  The geometry is checked here by decoding it: the raised
+shapes, rasterised, read back as the link they were made from.
+
 Some notes on the tags themselves:
 
 - **Nothing here writes the tag.**  Do that with a phone -- NFC Tools or
@@ -170,6 +230,8 @@ either way.
 
 - **Layer height 0.12-0.20 mm.**  The relief is 1.2 mm, so that is six to ten
   layers of lettering -- fine, it is all perimeters.
+- **Nozzle.**  0.4 mm prints every card in this README; the readout says when
+  a code or a logo wants finer, and the table above says why.
 - **Thin-wall detection on.**  At these sizes the smaller lines run 0.5-0.65 mm
   wide -- printable, but only if the slicer does not decide to drop them.  The
   generator prints the measured width of every line, and warns when one is
@@ -191,8 +253,9 @@ either way.
 ## Changing things
 
 `src/cards.py` holds the lot: `CARD` and `FOB` carry every dimension, `TAG` the
-default tag, `RISE` the relief height, `MIN_STROKE` the printability threshold
-the warnings use.  Both bodies are prismatic, so everything is a shapely polygon
+default tag, `RISE` the relief height, `CHAMFER` the edge break, `QR_QUIET` and
+`QR_MIN_MODULE` the code's margins, `NOZZLES` the sizes the readout will name,
+`MIN_STROKE` the printability threshold the warnings use.  Both bodies are prismatic, so everything is a shapely polygon
 extruded between two heights -- add a logo by returning more polygons from
 `front_face()`.  The slab and the raised work are kept as separate solids and
 only welded for the STL; that separation is what the 3MF's two colours are.

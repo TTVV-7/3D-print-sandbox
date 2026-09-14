@@ -10,6 +10,9 @@ The result is split into a "pad" -- the outermost boundary, solid -- and the
 drawn: a solid field with the lettering and rings knocked out of it, which is
 also exactly what generate.py wants for a raised pad with cut-through strokes.
 
+shapes() is the other reading of the same file, for cards.py: the filled
+geometry as it would render, rather than a pad with cuts.
+
 Usage:  python3 src/trace_svg.py logo.svg src/ford_script.json
 """
 import json
@@ -18,7 +21,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import numpy as np
-from shapely.geometry import Polygon
+from shapely.geometry import Point, Polygon, box
+from shapely.ops import unary_union
 from svgpathtools import parse_path
 
 SAMPLES = 220   # points per subpath; the curves are short, this is plenty
@@ -34,6 +38,57 @@ def subpath_polygons(d):
         if poly.geom_type == "Polygon" and poly.area > 0:
             polys.append(poly)
     return polys
+
+
+def element_polygons(el):
+    """The polygons of one drawable element, whatever it is."""
+    tag = el.tag.rsplit("}", 1)[-1]
+    g = lambda k, d="0": float(el.get(k, d))
+    if tag == "path" and el.get("d"):
+        return subpath_polygons(el.get("d"))
+    if tag == "rect":
+        x, y, w, h = g("x"), g("y"), g("width"), g("height")
+        return [box(x, -(y + h), x + w, -y)]
+    if tag == "circle":
+        return [Point(g("cx"), -g("cy")).buffer(g("r"), quad_segs=48)]
+    if tag == "ellipse":
+        e = Point(0, 0).buffer(1.0, quad_segs=48)
+        from shapely import affinity
+        return [affinity.translate(affinity.scale(e, g("rx"), g("ry"), origin=(0, 0)),
+                                   g("cx"), -g("cy"))]
+    if tag == "polygon" and el.get("points"):
+        nums = [float(v) for v in el.get("points").replace(",", " ").split()]
+        poly = Polygon([(nums[i], -nums[i + 1]) for i in range(0, len(nums) - 1, 2)]).buffer(0)
+        return [poly] if poly.area > 0 else []
+    return []
+
+
+def shapes(svg):
+    """The filled geometry of an SVG logo, as a list of polygons, y up.
+
+    Within one element the subpaths are combined even-odd, which is how a
+    letter gets its counter and a house its door.  Between elements they are
+    *unioned*: two paths that overlap almost always mean "and", and reading
+    them even-odd would punch a hole where they cross.  Transforms are not
+    applied -- flatten the file first if it has them.  `svg` is a path, or the
+    file's text.
+    """
+    text = svg if svg.lstrip().startswith("<") else Path(svg).read_text()
+    root = ET.fromstring(text)
+    filled = []
+    for el in root.iter():
+        polys = sorted(element_polygons(el), key=lambda p: -p.area)
+        if not polys:
+            continue
+        shape = polys[0]
+        for p in polys[1:]:
+            shape = shape.symmetric_difference(p)
+        filled.append(shape)
+    if not filled:
+        raise ValueError("no paths, rects, circles or polygons in that SVG")
+    merged = unary_union(filled)
+    parts = list(merged.geoms) if merged.geom_type == "MultiPolygon" else [merged]
+    return [p for p in parts if p.area > 1e-9]
 
 
 def trace(svg_path):

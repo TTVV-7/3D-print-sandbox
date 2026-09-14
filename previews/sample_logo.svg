@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- roof + walls as one path, door as a nested subpath (a hole) -->
+  <path d="M50 8 L94 46 L82 46 L82 92 L18 92 L18 46 L6 46 Z M42 92 L42 62 L58 62 L58 92 Z"/>
+  <!-- chimney overlapping the roof: a separate element, should union, not XOR -->
+  <rect x="66" y="14" width="10" height="24"/>
+  <!-- a sun -->
+  <circle cx="14" cy="16" r="8"/>
+</svg>
