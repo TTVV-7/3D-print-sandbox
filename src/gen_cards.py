@@ -42,7 +42,8 @@ def report(name, info):
               f"with the tag between them")
     if info["logo"]:
         L = info["logo"]
-        print(f"      logo     {L['w']:.1f} x {L['h']:.1f} mm, finest detail ~{L['detail']:.2f} mm")
+        print(f"      {'design' if L.get('design') else 'logo':8s} {L['w']:.1f} x {L['h']:.1f} mm, "
+              f"finest detail ~{L['detail']:.2f} mm")
     if info["qr"]:
         Q = info["qr"]
         print(f"      qr       {Q['modules']} modules at {Q['module']:.2f} mm, "
@@ -93,6 +94,9 @@ def main():
                     help="brokerage logo, raised on the front beside the name")
     ap.add_argument("--logo-height", type=float, default=None,
                     help="logo height in mm (default: 62%% of the face)")
+    ap.add_argument("--design", default=None, metavar="FILE.svg",
+                    help="an SVG that is the whole front -- replaces name, company, "
+                         "phone and logo; the fields then only name the file")
     ap.add_argument("--link", default="", help="the URL the tag will carry")
     ap.add_argument("--qr", action="store_true",
                     help="also raise a QR code for --link on the back")
@@ -106,8 +110,8 @@ def main():
     ap.add_argument("--preview", action="store_true", help="also render PNGs to previews/")
     args = ap.parse_args()
 
-    if not args.batch and not any([args.name, args.company, args.phone]):
-        ap.error("give at least one of --name / --company / --phone, or --batch")
+    if not args.batch and not any([args.name, args.company, args.phone, args.design]):
+        ap.error("give at least one of --name / --company / --phone / --design, or --batch")
     if args.qr and not args.link and not args.batch:
         ap.error("--qr needs --link")
 
@@ -127,7 +131,8 @@ def main():
     kinds = ["card", "fob"] if args.kind == "both" else [args.kind]
     common = dict(font=args.font, tag=tag, tap_text=args.tap, tag_mode=args.tag_mode,
                   border=not args.no_border, rise=args.rise, chamfer=args.chamfer,
-                  logo=args.logo, logo_h=args.logo_height, qr=args.qr)
+                  logo=args.logo, logo_h=args.logo_height, qr=args.qr,
+                  design=args.design)
 
     if args.batch:
         rows = cards.parse_batch(Path(args.batch).read_text())
