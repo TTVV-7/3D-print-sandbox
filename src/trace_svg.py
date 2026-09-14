@@ -63,7 +63,60 @@ def element_polygons(el):
     return []
 
 
-def shapes(svg):
+NAMED = {
+    "black": "#000000", "white": "#ffffff", "red": "#ff0000", "green": "#008000",
+    "blue": "#0000ff", "yellow": "#ffff00", "orange": "#ffa500", "gray": "#808080",
+    "grey": "#808080", "silver": "#c0c0c0", "navy": "#000080", "gold": "#ffd700",
+    "purple": "#800080", "teal": "#008080", "maroon": "#800000", "lime": "#00ff00",
+    "cyan": "#00ffff", "aqua": "#00ffff", "magenta": "#ff00ff", "fuchsia": "#ff00ff",
+    "darkgray": "#a9a9a9", "darkgrey": "#a9a9a9", "lightgray": "#d3d3d3",
+    "lightgrey": "#d3d3d3", "dimgray": "#696969", "dimgrey": "#696969",
+}
+
+
+def parse_colour(value):
+    """An SVG colour as '#rrggbb', or None for anything that is not a plain
+    colour -- 'none', a gradient reference, currentColor."""
+    if not value:
+        return None
+    v = value.strip().lower()
+    if v in ("none", "transparent", "currentcolor", "inherit") or v.startswith("url("):
+        return None
+    if v in NAMED:
+        return NAMED[v]
+    if v.startswith("#"):
+        h = v[1:]
+        if len(h) in (3, 4):
+            h = "".join(c * 2 for c in h[:3])
+        if len(h) in (6, 8) and all(c in "0123456789abcdef" for c in h[:6]):
+            return "#" + h[:6]
+        return None
+    if v.startswith("rgb"):
+        nums = v[v.index("(") + 1:v.rindex(")")].replace("/", ",").split(",")[:3]
+        try:
+            chan = [round(float(n.strip().rstrip("%")) * (2.55 if "%" in n else 1.0))
+                    for n in nums]
+        except ValueError:
+            return None
+        return "#%02x%02x%02x" % tuple(max(0, min(255, c)) for c in chan)
+    return None
+
+
+def fill_of(el, inherited):
+    """The fill an element paints with: its own attribute or style, else
+    what it inherits.  'none' is kept distinct from 'not stated'."""
+    value = el.get("fill")
+    style = el.get("style") or ""
+    for decl in style.split(";"):
+        k, _, v = decl.partition(":")
+        if k.strip() == "fill":
+            value = v.strip()
+    if value is None:
+        return inherited
+    return "none" if value.strip().lower() == "none" else parse_colour(value)
+
+
+def shapes(svg, fills=False):
     """The filled geometry of an SVG logo, as a list of polygons, y up.
 
     Within one element the subpaths are combined even-odd, which is how a
@@ -72,23 +125,43 @@ def shapes(svg):
     them even-odd would punch a hole where they cross.  Transforms are not
     applied -- flatten the file first if it has them.  `svg` is a path, or the
     file's text.
+
+    With fills=True the result is [(fill, [polygons]), ...] instead, one
+    entry per distinct fill colour ('#rrggbb', or None where none was
+    stated), each merged the same way -- so a design drawn in several
+    colours can be printed in several.  Elements filled 'none' are skipped.
     """
     text = svg if svg.lstrip().startswith("<") else Path(svg).read_text()
     root = ET.fromstring(text)
-    filled = []
-    for el in root.iter():
-        polys = sorted(element_polygons(el), key=lambda p: -p.area)
-        if not polys:
-            continue
-        shape = polys[0]
-        for p in polys[1:]:
-            shape = shape.symmetric_difference(p)
-        filled.append(shape)
-    if not filled:
+    groups = {}
+
+    def walk(el, inherited):
+        tag = el.tag.rsplit("}", 1)[-1]
+        if tag in ("defs", "clipPath", "mask", "symbol", "pattern", "marker"):
+            return
+        fill = fill_of(el, inherited)
+        if fill != "none":
+            polys = sorted(element_polygons(el), key=lambda p: -p.area)
+            if polys:
+                shape = polys[0]
+                for p in polys[1:]:
+                    shape = shape.symmetric_difference(p)
+                groups.setdefault(fill, []).append(shape)
+        for child in el:
+            walk(child, fill)
+
+    walk(root, None)
+    if not groups:
         raise ValueError("no paths, rects, circles or polygons in that SVG")
-    merged = unary_union(filled)
-    parts = list(merged.geoms) if merged.geom_type == "MultiPolygon" else [merged]
-    return [p for p in parts if p.area > 1e-9]
+
+    def merge(filled):
+        merged = unary_union(filled)
+        parts = list(merged.geoms) if merged.geom_type == "MultiPolygon" else [merged]
+        return [p for p in parts if p.area > 1e-9]
+
+    if fills:
+        return [(fill, merge(filled)) for fill, filled in groups.items()]
+    return merge([s for filled in groups.values() for s in filled])
 
 
 def trace(svg_path):

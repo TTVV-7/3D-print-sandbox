@@ -5,10 +5,13 @@ Two bodies, both flat and prismatic:
   card - CR80 credit-card size, 85.6 x 54 mm, the one that lives in a wallet.
   fob  - a smaller keyring tag with a split-ring hole, the open-house handout.
 
-The front carries the name, company and phone raised off the face, so a single
-filament change prints the lettering in a second colour.  The back carries a
-pocket for an NFC tag and the four-arc contactless mark, raised the same way,
-telling whoever is holding it where to put their phone.
+The front carries the name, company and phone, the back a pocket for an NFC
+tag and the four-arc contactless mark telling whoever is holding it where to
+put their phone.  Everything visible is an inlay in one thin face layer, in up
+to four colours -- body, a background pattern, primary and secondary lettering
+-- so a multi-material printer does all its colour changes in the first few
+layers and prints the rest of the part in one.  Lettering can also stand off
+the face (`rise`) for a tactile card at the cost of more colour changes.
 
 Nothing here writes the tag -- that is a phone job (NFC Tools and friends).
 The print holds the tag and aims the tapper at it.
@@ -21,9 +24,10 @@ from pathlib import Path
 import numpy as np
 import trimesh
 from shapely import affinity
-from shapely.geometry import LineString, box
+from shapely.geometry import LineString, Polygon, box
 from shapely.ops import unary_union
 
+import looks
 import trace_svg
 import trace_text
 
@@ -52,11 +56,23 @@ FONT_SEARCH = [
     "C:/Windows/Fonts/arialbd.ttf",
 ]
 
-# How far the lettering and the mark stand off the faces.  0.6 mm is enough to
-# read and to take a colour change; 1.2 mm is enough to *feel*, which is the
-# point of a thing that lives in a pocket.  The slicer sees it as a few more
-# layers of the accent colour before the body starts, nothing else changes.
-RISE = 1.2
+# The face: one thin layer, FACE mm deep, that every colour lives in -- the
+# body colour where nothing else is, the pattern, the lettering, all flush
+# with each other like ink on a printed card.  Printed face down, that is the
+# first three layers at 0.2 mm; a multi-material printer does all its colour
+# changes there and prints the rest of the part in the body colour with none.
+FACE = 0.6
+
+# The four colours, in the order the 3MF's materials and the viewer use them.
+SLOTS = ("body", "pattern", "primary", "secondary")
+COLOURS = looks.PRESETS[looks.DEFAULT]["colours"]
+
+# How far the lettering and the mark stand off the face, on top of the inlay.
+# 0 is flush: a smooth card, every colour in the face layer.  1.2 mm is enough
+# to *feel*, at the cost of a colour change every layer the relief runs
+# through.  Whatever it is, the lettering roots through the face layer too, so
+# the face reads the same either way.
+RISE = 0.0
 
 # A 45-degree break on the outer edges of both faces.  A card this thick with
 # a square edge feels like a coaster; 0.6 mm takes the corner off without
@@ -287,16 +303,36 @@ def qr_polys(rows, module):
     return list(merged.geoms) if merged.geom_type == "MultiPolygon" else [merged]
 
 
-def logo_polys(svg, height, max_w):
+def logo_polys(svg, height, max_w, colours=None):
     """A logo's filled shapes, scaled to `height` (or narrower than `max_w`,
-    whichever bites first) and centred on the origin."""
-    polys = trace_svg.shapes(svg)
-    x0, y0, x1, y1 = extent(polys)
+    whichever bites first) and centred on the origin.
+
+    Returns (layers, width, height): `layers` maps a slot name to polygons.
+    With `colours` -- the four the card will print in -- each fill in the
+    file goes to the slot whose colour it is nearest, and shapes in the body
+    colour are dropped as background (a card drawn on a black rectangle
+    comes out as its lettering on the black body, at the rectangle's size,
+    which is what was meant).  Without, or when nothing survives, the whole
+    thing is primary.
+    """
+    groups = trace_svg.shapes(svg, fills=True)
+    every = [p for _, polys in groups for p in polys]
+    x0, y0, x1, y1 = extent(every)
     k = min(height / (y1 - y0), max_w / (x1 - x0))
-    polys = [affinity.scale(p, k, k, origin=(0, 0)) for p in polys]
-    x0, y0, x1, y1 = extent(polys)
-    polys = [affinity.translate(p, -(x0 + x1) / 2.0, -(y0 + y1) / 2.0) for p in polys]
-    return polys, x1 - x0, y1 - y0
+    cx, cy = (x0 + x1) / 2.0 * k, (y0 + y1) / 2.0 * k
+    fit = lambda p: affinity.translate(affinity.scale(p, k, k, origin=(0, 0)), -cx, -cy)
+
+    layers = {}
+    if colours:
+        for fill, polys in groups:
+            slot = looks.nearest_slot(fill, colours)
+            slot = SLOTS[slot] if slot is not None else "primary"
+            if slot == "body":
+                continue
+            layers.setdefault(slot, []).extend(fit(p) for p in polys)
+    if not layers:
+        layers = {"primary": [fit(p) for p in every]}
+    return layers, (x1 - x0) * k, (y1 - y0) * k
 
 
 def finest(polys):
@@ -339,46 +375,59 @@ def stack(rows, gaps, cx, cy):
     return out
 
 
-def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None):
+def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None,
+               colours=None):
     """Name, company, rule and phone, stacked and centred in the content box;
     with a logo, the logo takes the left of the box and the text the rest.
 
     A `design` -- an SVG, as a path or its text -- replaces all of that: its
-    filled shapes are raised across the whole face, scaled to fill the content
-    box.  What is in it is the designer's business; what it reports is the
-    finest detail it carries and so the nozzle it needs.
+    filled shapes cover the whole face, scaled to fill the content box, each
+    fill in the file going to the colour slot it is nearest.  What is in it
+    is the designer's business; what it reports is the finest detail it
+    carries and so the nozzle it needs.
 
-    Laid out as read; build() mirrors it, because this face ends up pointing
-    at the build plate.
+    Returns (layers, measured, logo_info): `layers` maps slot names to
+    polygons -- name, phone and logo primary; company, rule and border
+    secondary.  Laid out as read; build() mirrors it, because this face ends
+    up pointing at the build plate.
     """
     x0, x1, y0, y1 = content_box(spec, w, h, mirrored=True)
     inner_w, inner_h = x1 - x0, y1 - y0
-    polys, measured, logo_info = [], {}, None
+    layers, measured, logo_info = {}, {}, None
 
-    if design:
-        shapes, dw, dh = logo_polys(design, inner_h, inner_w)
-        polys = [affinity.translate(p, (x0 + x1) / 2.0, (y0 + y1) / 2.0) for p in shapes]
-        detail = finest(shapes)
-        logo_info = dict(w=round(float(dw), 1), h=round(float(dh), 1),
-                         detail=round(float(detail), 2), nozzle=nozzle_for(detail),
-                         design=True)
+    def add(slot, polys):
+        layers.setdefault(slot, []).extend(polys)
+
+    def border():
         if spec["border"]:
             inset = spec["border_inset"]
-            polys.append(frame(w - 2 * inset, h - 2 * inset,
-                               max(spec["corner"] - inset, 0.8), spec["border"]))
-        return polys, measured, logo_info
+            add("secondary", [frame(w - 2 * inset, h - 2 * inset,
+                                    max(spec["corner"] - inset, 0.8), spec["border"])])
+
+    if design:
+        shapes, dw, dh = logo_polys(design, inner_h, inner_w, colours)
+        for slot, polys in shapes.items():
+            add(slot, [affinity.translate(p, (x0 + x1) / 2.0, (y0 + y1) / 2.0) for p in polys])
+        detail = finest([p for polys in shapes.values() for p in polys])
+        logo_info = dict(w=round(float(dw), 1), h=round(float(dh), 1),
+                         detail=round(float(detail), 2), nozzle=nozzle_for(detail),
+                         design=True, slots=sorted(shapes, key=SLOTS.index))
+        border()
+        return layers, measured, logo_info
 
     if logo:
         want = logo_h or inner_h * 0.62
-        shapes, lw, lh = logo_polys(logo, want, inner_w * 0.36)
-        polys += [affinity.translate(p, x0 + lw / 2.0, (y0 + y1) / 2.0) for p in shapes]
-        detail = finest(shapes)
+        shapes, lw, lh = logo_polys(logo, want, inner_w * 0.36, colours)
+        for slot, polys in shapes.items():
+            add(slot, [affinity.translate(p, x0 + lw / 2.0, (y0 + y1) / 2.0) for p in polys])
+        detail = finest([p for polys in shapes.values() for p in polys])
         logo_info = dict(w=round(float(lw), 1), h=round(float(lh), 1),
-                         detail=round(float(detail), 2), nozzle=nozzle_for(detail))
+                         detail=round(float(detail), 2), nozzle=nozzle_for(detail),
+                         slots=sorted(shapes, key=SLOTS.index))
         x0 += lw + 4.0
         inner_w = x1 - x0
 
-    rows, gaps = [], []
+    rows, gaps, slots = [], [], []
     for key, cap in spec["rows"]:
         if key == "rule":
             if not rows:
@@ -398,13 +447,15 @@ def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None):
         if rows:
             gaps.append(spec["gaps"][min(len(rows) - 1, len(spec["gaps"]) - 1)])
         rows.append((shapes, cap))
+        slots.append("primary" if key in ("name", "phone") else "secondary")
 
-    polys += stack(rows, gaps, (x0 + x1) / 2.0, (y0 + y1) / 2.0)
-    if spec["border"]:
-        inset = spec["border_inset"]
-        polys.append(frame(w - 2 * inset, h - 2 * inset,
-                           max(spec["corner"] - inset, 0.8), spec["border"]))
-    return polys, measured, logo_info
+    placed = stack(rows, gaps, (x0 + x1) / 2.0, (y0 + y1) / 2.0)
+    i = 0
+    for (shapes, _), slot in zip(rows, slots):
+        add(slot, placed[i:i + len(shapes)])
+        i += len(shapes)
+    border()
+    return layers, measured, logo_info
 
 
 def mark_block(spec, font, tap_text, zone_w, zone_h):
@@ -494,7 +545,7 @@ def back_face(spec, w, h, pocket_w, pocket_h, tap_text, font, qr=None):
     block, _, _, n_tap, n_arcs = mark_block(spec, font, tap_text, *zone)
     marks = [affinity.translate(p, *block_c) for p in block]
     return (rounded_rect(pocket_w, pocket_h, TAG["corner"], *pocket_c),
-            marks, code, n_tap, n_arcs, qr_info)
+            dict(arcs=marks[:n_arcs], tap=marks[n_arcs:], code=code), qr_info)
 
 
 def register_pins(outline, blocked, w, h):
@@ -531,7 +582,10 @@ def prisms(polys, z0, thickness):
     """One solid per polygon; the caller hands them all to a single boolean."""
     out = []
     for i, poly in enumerate(polys):
-        mesh = trimesh.creation.extrude_polygon(poly.simplify(0), thickness)
+        # A micron of tolerance: enough to drop the doubled vertex a clip can
+        # leave behind, which earcut turns into an open mesh; nothing else
+        # here is drawn that finely.
+        mesh = trimesh.creation.extrude_polygon(poly.simplify(0.001), thickness)
         if not mesh.is_watertight:
             raise ValueError(f"shape {i} did not extrude to a closed solid")
         mesh.apply_translation((0.0, 0.0, z0))
@@ -583,18 +637,52 @@ def slab(w, h, r, z0, thick, chamfer):
     ])
 
 
-def layout(parts, gap=6.0, row_w=None):
-    """[(part, (dx, dy, dz)), ...]: the parts side by side along x on z = 0,
-    wrapping into rows no wider than `row_w` -- a batch on one plate."""
+def arrange(bounds, gap=6.0, row_w=None):
+    """Shifts that lay boxes side by side along x on z = 0, wrapping into
+    rows no wider than `row_w`.  `bounds` are (lo, hi) corner pairs."""
     out, x, y, row_h = [], 0.0, 0.0, 0.0
-    for part in parts:
-        lo, hi = part["mesh"].bounds
+    for lo, hi in bounds:
         pw, ph = hi[0] - lo[0], hi[1] - lo[1]
         if row_w and x > 0 and x + pw > row_w:
             x, y, row_h = 0.0, y - row_h - gap, 0.0
-        out.append((part, (x - lo[0], y - hi[1], -lo[2])))
+        out.append((x - lo[0], y - hi[1], -lo[2]))
         x += pw + gap
         row_h = max(row_h, ph)
+    return out
+
+
+def layout(parts, gap=6.0, row_w=None):
+    """[(part, (dx, dy, dz)), ...]: the parts side by side along x on z = 0,
+    wrapping into rows no wider than `row_w` -- a batch on one plate."""
+    shifts = arrange([tuple(part["mesh"].bounds) for part in parts], gap, row_w)
+    return list(zip(parts, shifts))
+
+
+def assembled_bounds(part):
+    """The corners of a part once it is put back where it sits in the
+    finished card."""
+    lo, hi = part["mesh"].bounds
+    corners = np.array([[x, y, z, 1.0] for x in (lo[0], hi[0])
+                        for y in (lo[1], hi[1]) for z in (lo[2], hi[2])])
+    moved = corners @ np.asarray(part["assembled"]).T
+    return moved[:, :3].min(axis=0), moved[:, :3].max(axis=0)
+
+
+def assembly(parts, gap=6.0, row_w=None):
+    """[(part, 4x4), ...]: each part's transform into the assembled card, the
+    cards laid out side by side the same way the plate is -- what the viewer
+    shows when it shows the thing glued up rather than the thing printed."""
+    cards = {}
+    for part in parts:
+        cards.setdefault(part.get("card", 0), []).append(part)
+    bounds = []
+    for members in cards.values():
+        b = [assembled_bounds(m) for m in members]
+        bounds.append((np.min([lo for lo, _ in b], axis=0), np.max([hi for _, hi in b], axis=0)))
+    out = []
+    for members, shift in zip(cards.values(), arrange(bounds, gap, row_w)):
+        move = trimesh.transformations.translation_matrix(shift)
+        out += [(m, move @ np.asarray(m["assembled"])) for m in members]
     return out
 
 
@@ -612,18 +700,20 @@ def plate(parts, gap=6.0, row_w=None):
     return trimesh.util.concatenate(out) if len(out) > 1 else out[0]
 
 
-def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0, row_w=None):
-    """The parts as a 3MF, body and raised features as separate coloured
-    components of one object each, so the slicer opens it already knowing the
-    lettering is the other filament.
+def export_3mf(parts, colours=COLOURS, gap=6.0, row_w=None):
+    """The parts as a 3MF, each colour slot a separate component of one
+    object per part, four base materials, so the slicer opens it already
+    knowing which filament goes where.
 
     Written by hand rather than through trimesh's exporter, because what
-    matters here is the structure -- one object per part, two components per
-    object, two base materials -- and that is easier to get exactly right in
-    forty lines of XML than to coax out of a general-purpose scene writer.
+    matters here is the structure -- one object per part, a component per
+    colour, the materials named -- and that is easier to get exactly right
+    in forty lines of XML than to coax out of a general-purpose scene writer.
     """
     import io
     import zipfile
+
+    colours = tuple(colours) + tuple(COLOURS[len(colours):])
 
     def mesh_xml(oid, mesh, pindex, name):
         v = "".join(f'<vertex x="{x:.4f}" y="{y:.4f}" z="{z:.4f}"/>'
@@ -636,10 +726,11 @@ def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0, row_w=None):
     for part, (dx, dy, dz) in layout(parts, gap, row_w):
         label = " ".join(x for x in (part.get("label", ""), part["name"]) if x) or "card"
         ids = []
-        for mesh, pindex, what in ((part["body"], 0, "body"), (part["relief"], 1, "raised")):
+        for pindex, slot in enumerate(SLOTS):
+            mesh = part["slots"].get(slot)
             if mesh is None:
                 continue
-            objects.append(mesh_xml(oid, mesh, pindex, f"{label} {what}"))
+            objects.append(mesh_xml(oid, mesh, pindex, f"{label} {slot}"))
             ids.append(oid)
             oid += 1
         comps = "".join(f'<component objectid="{i}"/>' for i in ids)
@@ -649,14 +740,14 @@ def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0, row_w=None):
                      f'transform="1 0 0 0 1 0 0 0 1 {dx:.4f} {dy:.4f} {dz:.4f}"/>')
         oid += 1
 
+    bases = "".join(f'<base name="{slot.capitalize()}" displaycolor="{c}"/>'
+                    for slot, c in zip(SLOTS, colours))
     model = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
         '<model unit="millimeter" xml:lang="en-US" '
         'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02">'
-        '<resources><basematerials id="1">'
-        f'<base name="Body" displaycolor="{colours[0]}"/>'
-        f'<base name="Raised" displaycolor="{colours[1]}"/>'
-        f'</basematerials>{"".join(objects)}</resources>'
+        f'<resources><basematerials id="1">{bases}</basematerials>'
+        f'{"".join(objects)}</resources>'
         f'<build>{"".join(items)}</build></model>')
     types = (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -679,41 +770,59 @@ def export_3mf(parts, colours=("#cfd3d6", "#d9a441"), gap=6.0, row_w=None):
     return buf.getvalue()
 
 
+def flatten(polys):
+    out = []
+    for p in polys:
+        if p.geom_type == "MultiPolygon":
+            out += [g for g in p.geoms if g.area > 1e-6]
+        elif p.geom_type == "Polygon" and p.area > 1e-6:
+            out.append(p)
+    return out
+
+
 def build(kind, name="", company="", phone="", font=None, tag=None,
-          tap_text="TAP HERE", tag_mode="pocket", lid=0.6, border=True, rise=RISE,
+          tap_text="TAP HERE", tag_mode="split", lid=0.6, border=False, rise=RISE,
           link="", qr=False, logo=None, logo_h=None, chamfer=CHAMFER, label="",
-          design=None):
+          design=None, look=None, colours=COLOURS):
     """One card or fob as printable parts, plus the numbers worth knowing.
 
     Returns ([part, ...], info).  Each part is a dict:
 
-      name    "" for a solid body, "front" / "back" for the halves of a split one
-      body    the slab, with its cavity, hole and register pins
-      relief  the lettering, the mark, the logo and the code, as one separate
-              solid (None if there is nothing raised on this part)
-      mesh    the two welded into one, for STL
+      name       "" for a solid body, "front" / "back" for the halves of a
+                 split one
+      slots      slot name -> solid, for the colours present on this part:
+                 "body" is the slab (with its cavity, hole and register pins,
+                 and the face cut away wherever another colour goes), the
+                 rest are the inlays -- and the raised work, when rise > 0
+      mesh       the lot welded into one, for STL
+      assembled  4x4 that puts the part back where it sits in the finished,
+                 glued-up card (identity for a solid body)
 
-    Keeping body and relief apart is what lets export_3mf() hand the slicer
-    two colours; the STL gets the welded mesh and a colour-change height.
+    Keeping the slots apart is what lets export_3mf() hand the slicer four
+    colours; the STL gets the welded mesh.
 
-    Every part comes out lying down, relief face at z = 0, which is how to
-    print it: lettering face-down gets the build-plate finish, and nothing has
-    to bridge over the tag cavity.
+    Every part comes out lying down, face at z = 0, which is how to print it:
+    face down gets the build-plate finish, and nothing has to bridge over the
+    tag cavity.
 
     tag_mode picks how the tag goes in:
 
+      split   two half-thickness parts to glue together with the tag
+              sandwiched between them, register pins on the joint.  The tag
+              ends up on the neutral plane with plastic either side, which is
+              the strongest of the three and the only one where nothing of
+              the tag shows.  The default.
       pocket  an open recess in the back; stick the tag in afterwards.
       embed   the same recess roofed over with `lid` mm; bury the tag by
               pausing the print at the height this reports.
-      split   two half-thickness parts to glue together with the tag sandwiched
-              between them, register pins on the joint.  The tag ends up on the
-              neutral plane with plastic either side, which is the strongest of
-              the three and the only one where nothing of the tag shows.
 
-    `logo` is an SVG, as a path or its text, raised on the front beside the
-    name; `design` is an SVG that *is* the front, lettering and all.  `link`
-    with `qr=True` raises a QR code for it on the back.  All three report the
-    nozzle they need in info["nozzle"].
+    `look` names a background pattern from looks.PATTERNS for the front;
+    `colours` are the four the part will print in, used to sort a logo's or
+    design's fills into slots.  `logo` is an SVG, as a path or its text, on
+    the front beside the name; `design` is an SVG that *is* the front,
+    lettering and all (and takes the place of the pattern).  `link` with
+    `qr=True` puts a QR code for it on the back.  All three report the nozzle
+    they need in info["nozzle"].
     """
     spec = {**BODIES[kind]}
     font = font or default_font()
@@ -721,8 +830,9 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     if not border:
         spec["border"] = 0.0
     split = tag_mode == "split"
-    rise = max(0.2, float(rise))
+    rise = max(0.0, float(rise))
     rows = qr_matrix(link) if (qr and link) else None
+    colours = tuple(colours or COLOURS)
 
     pocket_w = t["w"] + t["clearance"]
     pocket_h = t["h"] + t["clearance"]
@@ -750,25 +860,53 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
         w += max(0.0, need_w - (x1 - x0))
         h = max(h, need_h + 2 * spec["margin"] + 0.2)
 
+    c_eff = max(0.0, min(chamfer, spec["corner"] - 0.2, thick / 2.0 - 0.2))
+    outline = rounded_rect(w, h, spec["corner"])
+
     fields = dict(name=name, company=company, phone=phone)
-    front, measured, logo_info = front_face(spec, w, h, fields, font, logo, logo_h, design)
-    pocket, marks, code, n_tap, n_arcs, qr_info = back_face(
-        spec, w, h, pocket_w, pocket_h, tap_text, font, rows)
+    front, measured, logo_info = front_face(spec, w, h, fields, font, logo, logo_h, design,
+                                            colours)
+    pattern = []
+    if look and not design:
+        # The pattern fills the face inside the chamfer -- or inside the
+        # border, when there is one -- and stays a halo away from everything
+        # else on the face, so the lettering reads.
+        clip = outline.buffer(-(c_eff + 0.3))
+        if spec["border"]:
+            inset = spec["border_inset"] + spec["border"] + 1.2
+            clip = clip.intersection(rounded_rect(w - 2 * inset, h - 2 * inset,
+                                                  max(spec["corner"] - inset, 0.5)))
+        if spec["hole"]:
+            d = spec["hole"]["d"]
+            keep = rounded_rect(d, d, d / 2.0, w / 2.0 - spec["hole"]["wall"] - d / 2.0, 0.0)
+            clip = clip.difference(keep.buffer(1.4))    # mirrored side: the front is
+        ink = [p for polys in front.values() for p in polys]
+        halo = unary_union(ink).buffer(1.25) if ink else None
+        pattern = looks.pattern(look, w, h, clip, halo)
+        if pattern:
+            front["pattern"] = pattern
+    pocket, back, qr_info = back_face(spec, w, h, pocket_w, pocket_h, tap_text, font, rows)
+    back = {"primary": back["arcs"] + back["code"], "secondary": back["tap"]}
     # Both faces are laid out the way you read them.  The back ends up facing
     # +Z and needs nothing done to it; the front faces the build plate, so it
     # is mirrored -- which is exactly what turning the card over does to it.
-    front = [affinity.scale(p, -1.0, 1.0, origin=(0, 0)) for p in front]
+    front = {slot: [affinity.scale(p, -1.0, 1.0, origin=(0, 0)) for p in flatten(polys)]
+             for slot, polys in front.items() if polys}
+    back = {slot: flatten(polys) for slot, polys in back.items() if polys}
 
     z_body, z_back = rise, rise + thick     # the front face and back face of the slab
-    outline = rounded_rect(w, h, spec["corner"])
 
     if split:                   # cavity straddling the joint, half in each part
         z_mid = z_body + thick / 2.0
         cavity, pause_z = (z_mid - depth / 2.0, depth), None
+        joint = [round(float(pocket.centroid.x), 3), round(float(pocket.centroid.y), 3),
+                 round(float(z_mid), 3)]
     elif tag_mode == "embed":
         cavity, pause_z = (z_back - lid - depth, depth), z_back - lid
+        joint = None
     else:
         cavity, pause_z = (z_back - depth, depth + rise + 1.0), None
+        joint = None
 
     cuts = prisms([pocket], *cavity)
     hole = None
@@ -776,42 +914,62 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
         d = spec["hole"]["d"]
         hole = rounded_rect(d, d, d / 2.0, -w / 2.0 + spec["hole"]["wall"] + d / 2.0, 0.0)
         cuts += prisms([hole], -1.0, z_back + rise + 2.0)
+    # The face layer is cut out of the body wherever another colour goes, and
+    # that colour's solid fills the cut, overlapping the body by a hair below
+    # it so the STL weld has something to bite on.  Raised work is the same
+    # solid carried on past the face.
+    for polys in front.values():
+        cuts += prisms(polys, z_body - 1.0, 1.0 + FACE)
+    for polys in back.values():
+        cuts += prisms(polys, z_back - FACE, FACE + 1.0)
     body = boolean("difference", [slab(w, h, spec["corner"], z_body, thick, chamfer), *cuts])
 
-    # The raised work is its own solid, overlapping the slab by a hair so the
-    # STL weld has something to bite on and the slicer sees no seam.
-    front_relief = union(prisms(front, 0.0, rise + 0.01)) if front else None
-    back_polys = marks + code
-    back_relief = union(prisms(back_polys, z_back - 0.01, rise + 0.01)) if back_polys else None
+    front_solids = {slot: union(prisms(polys, z_body if slot == "pattern" else 0.0,
+                                       (FACE + 0.01) + (0.0 if slot == "pattern" else rise)))
+                    for slot, polys in front.items()}
+    back_solids = {slot: union(prisms(polys, z_back - FACE - 0.01, FACE + 0.01 + rise))
+                   for slot, polys in back.items()}
 
     pins = []
     if split:
         blocked = pocket if hole is None else unary_union([pocket, hole])
         pins = register_pins(outline, blocked, w, h)
-        parts = halve(body, front_relief, back_relief, z_mid, pins, w, h)
+        parts = halve(body, front_solids, back_solids, z_mid, pins, w, h)
     else:
-        reliefs = [m for m in (front_relief, back_relief) if m is not None]
-        parts = [dict(name="", body=body, relief=union(reliefs) if reliefs else None)]
+        slots = {"body": body}
+        for solids in (front_solids, back_solids):
+            for slot, mesh in solids.items():
+                slots[slot] = (mesh if slot not in slots
+                               else trimesh.util.concatenate([slots[slot], mesh]))
+        parts = [dict(name="", slots=slots, assembled=np.eye(4))]
     for part in parts:
         part["label"] = label
-        part["mesh"] = (part["body"] if part["relief"] is None
-                        else boolean("union", [part["body"], part["relief"]]))
+        part["card"] = 0
+        solids = [part["slots"][s] for s in SLOTS if s in part["slots"]]
+        part["mesh"] = solids[0] if len(solids) == 1 else boolean("union", solids)
 
-    arcs = marks[:n_arcs]
-    tap = marks[n_arcs:]
+    arcs = back.get("primary", [])
+    tap = back.get("secondary", [])
     needs = [x["nozzle"] for x in (qr_info, logo_info) if x]
+    used = sorted({s for p in parts for s in p["slots"]}, key=SLOTS.index)
     info = dict(
         kind=kind, label=label, w=round(w, 2), h=round(h, 2), thick=thick, rise=rise,
-        chamfer=round(min(chamfer, spec["corner"] - 0.2, thick / 2.0 - 0.2), 2),
+        face=FACE, chamfer=round(c_eff, 2), look=look if pattern else None,
+        slots=used, part_slots={p["name"] or kind: sorted(p["slots"], key=SLOTS.index)
+                                for p in parts},
         parts=[p["name"] or kind for p in parts], pins=len(pins),
         part_thick=round(rise + (thick / 2.0 if split else thick), 2),
         assembled=round(2 * rise + thick, 2),
         pocket=[round(pocket_w, 2), round(pocket_h, 2), round(depth, 2)],
         tag_mode=tag_mode, lines=measured, logo=logo_info, qr=qr_info,
+        # where the tag ends up, in the front half's own coordinates: what a
+        # preview needs to draw it sitting in the joint.  Split bodies only.
+        joint=joint, tag=[t["w"], t["h"], t["thick"]],
         # None here means a feature is too fine for any nozzle we would name.
         nozzle=(None if any(n is None for n in needs) else min(needs)) if needs else None,
         mark_stroke=round(narrowest(arcs), 2),
         tap_stroke=round(narrowest(tap), 2) if tap else None,
+        pattern_stroke=round(narrowest(pattern), 2) if pattern else None,
         pause_z=None if pause_z is None else round(pause_z, 2),
         volume=round(sum(p["mesh"].volume for p in parts) / 1000.0, 2),
         watertight=all(p["mesh"].is_watertight and p["mesh"].is_winding_consistent
@@ -819,31 +977,34 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
         font=Path(font).name,
     )
     info["total_z"] = round(max(p["mesh"].bounds[1][2] for p in parts), 2)
-    # Where the filament changes go.  Both halves of a split body print relief
-    # down, so they take one change each and there is no second one.
-    info["change_up"] = round(rise, 2)
-    info["change_back"] = info["total_z"] + 1.0 if split else round(z_back, 2)
-    info["changes"] = [info["change_up"]] if split else [info["change_up"],
-                                                         info["change_back"]]
+    # Where the colours are, for a part printed face down: every colour in
+    # the first `colour_z` mm of the part, the body colour alone above that.
+    # A split body has one face per half; a solid one has the back face too,
+    # in the last `colour_z` mm.
+    info["colour_z"] = round(rise + FACE, 2)
+    info["colour_bands"] = ([[0.0, info["colour_z"]]] if split else
+                            [[0.0, info["colour_z"]],
+                             [round(z_back - FACE, 2), info["total_z"]]])
     info["thin"] = sorted(k for k, v in measured.items() if v["stroke"] < MIN_STROKE)
     if info["tap_stroke"] and info["tap_stroke"] < MIN_STROKE:
         info["thin"].append("tap text")
     return parts, info
 
 
-def halve(body, front_relief, back_relief, z_mid, pins, w, h):
+def halve(body, front_solids, back_solids, z_mid, pins, w, h):
     """Cut the slab at the glue joint and hand the front half the pins.
 
-    The relief needs no cutting: the front lettering lies wholly below the
-    joint and the back mark wholly above it, so each simply goes with its half.
+    The inlays need no cutting: the front's lie wholly below the joint and
+    the back's wholly above it, so each simply goes with its half.
 
-    The back half is then turned over about Y, so both parts print relief-down
+    The back half is then turned over about Y, so both parts print face down
     with their mating faces up -- pins print as stubs rather than as holes
     needing support, and both halves read the right way up on the plate.  Y
     rather than X because turning it the other way would leave the arcs upside
     down on the build plate; either is the same solid, and either assembles the
     same way, since the pins go back where they started when the half is turned
-    over again to glue it.
+    over again to glue it.  Each part remembers that move, inverted, as
+    `assembled`, so a viewer can show the two glued up.
     """
     span = rounded_rect(w + 10.0, h + 10.0, 0.0)
     lo = prisms([span], -1.0, z_mid + 1.0)
@@ -862,16 +1023,20 @@ def halve(body, front_relief, back_relief, z_mid, pins, w, h):
                        [back, *prisms(bores, z_mid - 0.01, PIN["height"] + 0.16)])
 
     flip = trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0])
-    parts = [dict(name="front", body=front, relief=front_relief),
-             dict(name="back", body=back, relief=back_relief)]
+    parts = [dict(name="front", slots={"body": front, **front_solids}),
+             dict(name="back", slots={"body": back, **back_solids})]
     for part in parts:
-        solids = [m for m in (part["body"], part["relief"]) if m is not None]
+        solids = list(part["slots"].values())
+        move = np.eye(4)
         if part["name"] == "back":
             for m in solids:
                 m.apply_transform(flip)
+            move = flip @ move
         drop = min(m.bounds[0][2] for m in solids)
         for m in solids:
             m.apply_translation((0.0, 0.0, -drop))
+        move = trimesh.transformations.translation_matrix((0.0, 0.0, -drop)) @ move
+        part["assembled"] = np.linalg.inv(move)
     return parts
 
 
@@ -899,10 +1064,12 @@ def parse_batch(text):
 def build_batch(rows, kind, **kw):
     """Every row as its own part(s), labelled by name; one list, one plate."""
     parts, infos = [], []
-    for row in rows:
+    for i, row in enumerate(rows):
         p, info = build(kind, name=row["name"], company=row["company"], phone=row["phone"],
                         link=row["link"] or kw.get("link", ""), label=row["name"],
                         **{k: v for k, v in kw.items() if k != "link"})
+        for part in p:
+            part["card"] = i
         parts += p
         infos.append(info)
     return parts, infos

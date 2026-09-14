@@ -18,10 +18,13 @@ def look_at(eye, target, up=(0, 0, 1)):
     return np.vstack([s, u, -f]), np.array(eye, float)
 
 
-def render(mesh, path, size=760, elev=22.0, azim=-60.0, zoom=1.18, bg=245):
+def render(mesh, path, size=760, elev=22.0, azim=-60.0, zoom=1.18, bg=245, colours=None):
     """Azimuth is measured so the camera sits on the -Y side: that puts +Y up
     on screen.  A +Y camera (azim=+90) mirrors both axes, i.e. renders the
-    emblem 180 degrees rotated."""
+    emblem 180 degrees rotated.
+
+    `colours`, if given, is one RGB triple (0..1) per face, and `bg` may then
+    be a triple too; without it the render is greyscale."""
     c = mesh.bounds.mean(axis=0)
     radius = np.linalg.norm(mesh.extents) / 2.0
     a, e = np.radians(azim), np.radians(elev)
@@ -45,7 +48,13 @@ def render(mesh, path, size=760, elev=22.0, azim=-60.0, zoom=1.18, bg=245):
     spec = np.clip(n @ key, 0, 1) ** 28 * 0.5
     lum = np.clip(shade + spec, 0, 1)
 
-    img = np.full((size, size), float(bg) / 255.0)
+    coloured = colours is not None
+    if coloured:
+        colours = np.asarray(colours, float)
+        bg = np.asarray(bg, float) / 255.0 if np.ndim(bg) else np.full(3, float(bg) / 255.0)
+        img = np.tile(bg, (size, size, 1))
+    else:
+        img = np.full((size, size), float(bg) / 255.0)
     zbuf = np.full((size, size), np.inf)
     P, D = px[faces], depth[faces]
     order = np.argsort(-D[:, 0])
@@ -70,18 +79,41 @@ def render(mesh, path, size=760, elev=22.0, azim=-60.0, zoom=1.18, bg=245):
         closer = zz[m] < zbuf[yy, xx]
         yy, xx, zz = yy[closer], xx[closer], zz[m][closer]
         zbuf[yy, xx] = zz
-        img[yy, xx] = L
+        img[yy, xx] = (colours[fi] * L + np.array([spec[fi]] * 3) * 0.5) if coloured else L
 
     # screen-space edge darkening, so relief reads even in flat lighting
     z = np.where(np.isinf(zbuf), np.nan, zbuf)
-    step = np.zeros_like(img)
+    step = np.zeros(zbuf.shape)
     for dy, dx in ((0, 1), (1, 0), (1, 1), (1, -1)):
         d = np.abs(z - np.roll(np.roll(z, dy, 0), dx, 1))
         step = np.maximum(step, np.nan_to_num(d))
-    img = img * (1.0 - 0.55 * np.clip(step / (0.09 * radius), 0, 1))
+    dark = 1.0 - 0.55 * np.clip(step / (0.09 * radius), 0, 1)
+    img = img * (dark[..., None] if coloured else dark)
 
     Image.fromarray((np.clip(img, 0, 1) * 255).astype(np.uint8)).save(path)
     return path
+
+
+def coloured(parts, colours, transforms=None):
+    """A mesh of every slot of every part plus one colour per face, for a
+    render of a card as it prints (no transforms) or as it is glued up
+    (each part's `assembled` transform)."""
+    import cards
+    meshes, cols = [], []
+    for i, part in enumerate(parts):
+        move = None if transforms is None else transforms[i]
+        for slot, mesh in part["slots"].items():
+            m = mesh.copy()
+            if move is not None:
+                m.apply_transform(move)
+            meshes.append(m)
+            cols.append(np.tile(srgb(colours[cards.SLOTS.index(slot)]), (len(m.faces), 1)))
+    return trimesh.util.concatenate(meshes), np.vstack(cols)
+
+
+def srgb(hex_colour):
+    h = hex_colour.lstrip("#")
+    return np.array([int(h[i:i + 2], 16) / 255.0 for i in (0, 2, 4)])
 
 
 def half(mesh, axis=1):
