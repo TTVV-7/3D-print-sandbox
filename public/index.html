@@ -1,0 +1,537 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Realtor NFC cards</title>
+<style>
+  :root {
+    --bg: #14171c;  --panel: #1b1f26;  --line: #2b313b;
+    --ink: #e7eaee;  --dim: #8d97a5;  --accent: #d9a441;  --bad: #e2725b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; height: 100vh; display: flex; background: var(--bg); color: var(--ink);
+    font: 14px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  aside {
+    width: 340px; flex: none; padding: 20px; overflow-y: auto;
+    background: var(--panel); border-right: 1px solid var(--line);
+  }
+  h1 { font-size: 16px; margin: 0 0 2px; letter-spacing: .01em; }
+  .sub { color: var(--dim); font-size: 12px; margin: 0 0 20px; }
+  fieldset { border: 0; border-top: 1px solid var(--line); margin: 18px 0 0; padding: 14px 0 0; }
+  legend { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .09em; padding: 0; }
+  label { display: block; margin-top: 12px; font-size: 12px; color: var(--dim); }
+  textarea {
+    width: 100%; margin-top: 4px; padding: 8px 10px; background: #12151a; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px; font: 12px/1.45 ui-monospace, monospace;
+    resize: vertical;
+  }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  input[type=file] { margin-top: 6px; font-size: 12px; color: var(--dim); width: 100%; }
+  input[type=text], select {
+    width: 100%; margin-top: 4px; padding: 8px 10px; background: #12151a; color: var(--ink);
+    border: 1px solid var(--line); border-radius: 6px; font: inherit;
+  }
+  input[type=text]:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .row { display: flex; gap: 8px; }
+  .row > label { flex: 1; }
+  .check { display: flex; align-items: center; gap: 8px; margin-top: 14px; color: var(--ink); font-size: 13px; }
+  .hint { color: var(--dim); font-size: 11px; margin-top: 6px; }
+  .hint code { background: #12151a; padding: 0 4px; border-radius: 3px; }
+  .swatches { display: flex; gap: 10px; }
+  .swatches label { flex: 1; }
+  input[type=range] { width: 100%; margin: 6px 0 0; accent-color: var(--accent); }
+  label b { color: var(--ink); font-weight: 600; float: right; }
+  input[type=color] {
+    width: 100%; height: 30px; margin-top: 4px; padding: 0; background: none;
+    border: 1px solid var(--line); border-radius: 6px;
+  }
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  #view { flex: 1; position: relative; min-height: 0; }
+  #gl { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #gl:active { cursor: grabbing; }
+  #hud { position: absolute; left: 16px; top: 14px; color: var(--dim); font-size: 12px; pointer-events: none; }
+  #nogl { position: absolute; inset: 0; display: none; place-items: center; padding: 30px;
+          text-align: center; color: var(--dim); }
+  #buttons { position: absolute; right: 16px; top: 14px; display: flex; gap: 8px; }
+  button {
+    padding: 8px 14px; border-radius: 6px; border: 1px solid var(--line);
+    background: #232833; color: var(--ink); font: inherit; cursor: pointer;
+  }
+  button:hover { border-color: var(--accent); }
+  button.go { background: var(--accent); border-color: var(--accent); color: #17191d; font-weight: 600; }
+  button:disabled { opacity: .45; cursor: default; border-color: var(--line); }
+  #specs {
+    border-top: 1px solid var(--line); background: var(--panel); padding: 13px 20px;
+    display: flex; flex-wrap: wrap; gap: 4px 26px; font-size: 12.5px; color: var(--dim);
+  }
+  #specs b { color: var(--ink); font-weight: 600; }
+  #specs .warn { color: var(--accent); }
+  .hint.ok { color: #7fbf8a; }
+  .hint.bad { color: var(--bad); }
+  #specs .err { color: var(--bad); }
+  @media (max-width: 760px) {
+    body { flex-direction: column; height: auto; }
+    aside { width: 100%; border-right: 0; border-bottom: 1px solid var(--line); }
+    #view { height: 60vh; }
+  }
+</style>
+</head>
+<body>
+<aside>
+  <h1>Realtor NFC cards</h1>
+  <p class="sub">Three fields, two sides, one tap.</p>
+
+  <label>Name <input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
+  <label>Company <input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
+  <label>Phone <input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
+  <p class="hint">A long line shrinks to fit. Past a point that stops being printable &mdash;
+     put a <code>|</code> where it should break instead, and both halves stay full size.</p>
+
+  <label>Logo (SVG) <input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
+  <p class="hint" id="logo_note">Raised on the front beside the name. Flat fills only &mdash;
+     strokes, gradients and text objects in the file are ignored, so export the logo as
+     outlines first.</p>
+  <label>Body
+    <select id="kind">
+      <option value="card">Card &mdash; 85.6 &times; 54 mm, wallet size</option>
+      <option value="fob">Keyring fob &mdash; smaller, with a ring hole</option>
+    </select>
+  </label>
+  <div class="check"><input type="checkbox" id="border" checked> <span>Raised border (card only)</span></div>
+  <label>Relief height <b id="rise_v">1.2 mm</b>
+    <input type="range" id="rise" min="0.4" max="2.5" step="0.1" value="1.2">
+  </label>
+  <p class="hint">How far the lettering stands off the face. 0.6 mm reads; 1.2 mm you can feel
+     with a thumb; past 2 mm the thin strokes start to snag.</p>
+
+  <fieldset>
+    <legend>Tap side</legend>
+    <label>Wording under the arcs <input type="text" id="tap" value="TAP HERE" autocomplete="off"></label>
+    <p class="hint">Use <code>|</code> to split lines. Leave it empty for arcs alone &mdash;
+       which is what the fob gets anyway, there is no room for text beside its pocket.</p>
+    <div class="row">
+      <label>Tag width <input type="text" id="tag_w" value="35" inputmode="decimal"></label>
+      <label>Tag height <input type="text" id="tag_h" value="22" inputmode="decimal"></label>
+      <label>Thick <input type="text" id="tag_thick" value="0.5" inputmode="decimal"></label>
+    </div>
+    <p class="hint">Millimetres, measured off your own tags. The pocket adds 0.4 mm of slack,
+       and the fob grows if it has to.</p>
+    <label>Tag fitting
+      <select id="tag_mode">
+        <option value="pocket">Pocket &mdash; open recess, stick the tag in after</option>
+        <option value="embed">Embedded &mdash; roofed over, pause the print</option>
+        <option value="split">Split &mdash; two halves, tag glued between them</option>
+      </select>
+    </label>
+    <p class="hint">Split gives you two parts on one plate, each with half the cavity and a
+       three-pin key so they only go together one way. The tag ends up on the neutral plane
+       with plastic either side.</p>
+    <label>Link <input type="text" id="link" autocomplete="off"
+           placeholder="https://www.realtor.ca/real-estate/..."></label>
+    <p class="hint" id="linkfit">Nothing here writes the tag &mdash; that is a phone job
+       (NFC Tools and the like). This counts the bytes it would take.</p>
+    <div class="check"><input type="checkbox" id="qr"> <span>QR code for the link on the back</span></div>
+    <p class="hint">For phones that don't tap. A shorter link is a coarser code, and a
+       coarser code prints on a bigger nozzle &mdash; the readout says which. Scanners want
+       dark modules on a light ground, so print the raised colour darker than the body.</p>
+  </fieldset>
+
+  <fieldset>
+    <legend>Batch</legend>
+    <label>One person per line
+      <textarea id="batch" rows="5" spellcheck="false"
+        placeholder="Jane Doe, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
+    </label>
+    <p class="hint">Name, company, phone, link &mdash; commas or tabs, so a spreadsheet pastes
+       straight in. Company and link may be blank. While there is anything here, the preview
+       and the downloads are the whole batch on one plate, sharing the settings above.</p>
+    <label>Plate width <input type="text" id="bed" value="220" inputmode="decimal"></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Colours</legend>
+    <div class="swatches">
+      <label>Body <input type="color" id="c_body" value="#cfd3d6"></label>
+      <label>Raised <input type="color" id="c_accent" value="#d9a441"></label>
+    </div>
+    <p class="hint">Written into the 3MF as two materials, so the slicer opens it with the
+       lettering already on the second filament. The STL is one solid; its split is where the
+       colour change goes.</p>
+  </fieldset>
+</aside>
+
+<main>
+  <div id="view">
+    <canvas id="gl"></canvas>
+    <div id="hud">drag to turn &middot; scroll to zoom</div>
+    <div id="nogl">This browser has no WebGL, so there is no preview &mdash; the form and
+      the STL download still work.</div>
+    <div id="buttons">
+      <button id="flip">Flip</button>
+      <button id="save_stl" disabled>STL</button>
+      <button id="save" class="go" disabled>Download 3MF</button>
+    </div>
+  </div>
+  <div id="specs">building&hellip;</div>
+</main>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const FIELDS = ["name", "company", "phone", "kind", "tap", "tag_w", "tag_h",
+                "tag_thick", "tag_mode", "rise", "link", "batch", "bed"];
+let logoText = "";
+const specs = $("specs");
+
+/* ---------------------------------------------------------------- maths --
+   Column-major 4x4s, the layout GLSL wants, so they go straight into a
+   uniform.  mul(a, b) is the matrix product: b happens first. */
+const M = {
+  mul(a, b) {
+    const o = new Float32Array(16);
+    for (let c = 0; c < 4; c++)
+      for (let r = 0; r < 4; r++) {
+        let s = 0;
+        for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+        o[c * 4 + r] = s;
+      }
+    return o;
+  },
+  perspective(fovy, aspect, near, far) {
+    const t = 1 / Math.tan(fovy / 2);
+    return new Float32Array([t / aspect, 0, 0, 0, 0, t, 0, 0,
+                             0, 0, (far + near) / (near - far), -1,
+                             0, 0, 2 * far * near / (near - far), 0]);
+  },
+  translate(x, y, z) {
+    return new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]);
+  },
+  rotX(a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]);
+  },
+  rotY(a) {
+    const c = Math.cos(a), s = Math.sin(a);
+    return new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]);
+  },
+};
+
+const VERT = `
+attribute vec3 aPos; attribute vec3 aNrm; attribute vec3 aCol;
+uniform mat4 uMVP; uniform mat4 uModel;
+varying vec3 vN; varying vec3 vC;
+void main() {
+  vN = (uModel * vec4(aNrm, 0.0)).xyz;
+  vC = aCol;
+  gl_Position = uMVP * vec4(aPos, 1.0);
+}`;
+
+const FRAG = `
+precision mediump float;
+varying vec3 vN; varying vec3 vC;
+void main() {
+  vec3 n = normalize(vN);
+  vec3 key = normalize(vec3(-0.25, 0.30, 1.00));
+  vec3 fill = normalize(vec3(0.60, -0.55, 0.55));
+  float d = max(dot(n, key), 0.0) * 0.76 + max(dot(n, fill), 0.0) * 0.22 + 0.26;
+  vec3 h = normalize(key + vec3(0.0, 0.0, 1.0));
+  float s = pow(max(dot(n, h), 0.0), 40.0) * 0.30;
+  gl_FragColor = vec4(vC * d + s, 1.0);
+}`;
+
+/* ------------------------------------------------------------- the view -- */
+const canvas = $("gl");
+const gl = canvas.getContext("webgl", { antialias: true, alpha: false });
+let prog, loc, buf = {}, count = 0;
+let yaw = Math.PI, yawTo = Math.PI, pitch = 0.34, dist = 150;
+let info = null, stl = null, drag = null;
+
+if (!gl) {
+  canvas.style.display = "none";
+  $("hud").style.display = "none";
+  $("nogl").style.display = "grid";
+} else {
+  const compile = (type, src) => {
+    const sh = gl.createShader(type);
+    gl.shaderSource(sh, src);
+    gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw gl.getShaderInfoLog(sh);
+    return sh;
+  };
+  prog = gl.createProgram();
+  gl.attachShader(prog, compile(gl.VERTEX_SHADER, VERT));
+  gl.attachShader(prog, compile(gl.FRAGMENT_SHADER, FRAG));
+  gl.linkProgram(prog);
+  gl.useProgram(prog);
+  loc = {
+    pos: gl.getAttribLocation(prog, "aPos"),
+    nrm: gl.getAttribLocation(prog, "aNrm"),
+    col: gl.getAttribLocation(prog, "aCol"),
+    mvp: gl.getUniformLocation(prog, "uMVP"),
+    model: gl.getUniformLocation(prog, "uModel"),
+  };
+  for (const k of ["pos", "nrm", "col"]) {
+    buf[k] = gl.createBuffer();
+    gl.enableVertexAttribArray(loc[k]);
+  }
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.CULL_FACE);
+  gl.clearColor(0.078, 0.090, 0.110, 1);
+  requestAnimationFrame(frame);
+
+  canvas.addEventListener("pointerdown", e => {
+    drag = { x: e.clientX, y: e.clientY };
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove", e => {
+    if (!drag) return;
+    yawTo = yaw += (e.clientX - drag.x) * 0.009;
+    pitch = Math.max(-1.45, Math.min(1.45, pitch + (e.clientY - drag.y) * 0.009));
+    drag = { x: e.clientX, y: e.clientY };
+  });
+  addEventListener("pointerup", () => { drag = null; });
+  canvas.addEventListener("wheel", e => {
+    e.preventDefault();
+    dist = Math.max(30, Math.min(600, dist * (1 + Math.sign(e.deltaY) * 0.12)));
+  }, { passive: false });
+}
+
+function frame() {
+  requestAnimationFrame(frame);
+  const dpr = Math.min(devicePixelRatio || 1, 2);
+  const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  gl.viewport(0, 0, w, h);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  if (!count) return;
+
+  yaw += (yawTo - yaw) * 0.16;
+  const model = M.mul(M.rotY(yaw), M.rotX(pitch));
+  const mvp = M.mul(M.mul(M.perspective(0.58, w / Math.max(1, h), 1, 3000),
+                          M.translate(0, 0, -dist)), model);
+  gl.uniformMatrix4fv(loc.mvp, false, mvp);
+  gl.uniformMatrix4fv(loc.model, false, model);
+  gl.drawArrays(gl.TRIANGLES, 0, count);
+}
+
+/* ------------------------------------------------------------ the model --
+   Binary STL: 80-byte header, a triangle count, then 50 bytes per triangle.
+   The stored facet normal is ignored and recomputed, which is both safer and
+   what gives the flat-shaded look. */
+function upload(bytes) {
+  const dv = new DataView(bytes);
+  const n = dv.getUint32(80, true);
+  const pos = new Float32Array(n * 9), nrm = new Float32Array(n * 9);
+  const col = new Float32Array(n * 9);
+  const body = rgb($("c_body").value), accent = rgb($("c_accent").value);
+  const lo = info.change_up - 0.02, hi = info.change_back + 0.02;
+  const lim = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+
+  let o = 84;
+  for (let i = 0; i < n * 9; i += 9) {
+    o += 12;
+    for (let v = 0; v < 9; v += 3, o += 12)
+      for (let k = 0; k < 3; k++) {
+        const x = dv.getFloat32(o + k * 4, true);
+        pos[i + v + k] = x;
+        if (x < lim[k]) lim[k] = x;
+        if (x > lim[k + 3]) lim[k + 3] = x;
+      }
+    o += 2;
+
+    const ax = pos[i + 3] - pos[i], ay = pos[i + 4] - pos[i + 1], az = pos[i + 5] - pos[i + 2];
+    const bx = pos[i + 6] - pos[i], by = pos[i + 7] - pos[i + 1], bz = pos[i + 8] - pos[i + 2];
+    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+    const len = Math.hypot(nx, ny, nz) || 1;
+    nx /= len; ny /= len; nz /= len;
+
+    // The colour split is the filament change: below the first one and above
+    // the second is raised lettering, everything between is the body.
+    const z = (pos[i + 2] + pos[i + 5] + pos[i + 8]) / 3;
+    const c = (z < lo || z > hi) ? accent : body;
+    for (let v = 0; v < 9; v += 3) {
+      nrm[i + v] = nx; nrm[i + v + 1] = ny; nrm[i + v + 2] = nz;
+      col[i + v] = c[0]; col[i + v + 1] = c[1]; col[i + v + 2] = c[2];
+    }
+  }
+
+  const mid = [0, 1, 2].map(k => (lim[k] + lim[k + 3]) / 2);
+  for (let i = 0; i < pos.length; i += 3)
+    for (let k = 0; k < 3; k++) pos[i + k] -= mid[k];
+
+  for (const [k, data] of [["pos", pos], ["nrm", nrm], ["col", col]]) {
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf[k]);
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(loc[k], 3, gl.FLOAT, false, 0, 0);
+  }
+  count = n * 3;
+  dist = Math.max(lim[3] - lim[0], lim[4] - lim[1]) * 2.3;
+}
+
+const rgb = hex => [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16) / 255)
+                            .map(v => v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+
+/* ------------------------------------------------------------- the form -- */
+const mm = v => (+v).toFixed(1);
+const list = a => a.length < 2 ? a[0] : `${a.slice(0, -1).join(", ")} and ${a.at(-1)}`;
+
+/* An NDEF URI record: a TLV wrapper, a 4-byte record header, a one-byte code
+   standing in for a common scheme prefix, the rest of the URI, a terminator. */
+const TAGS = { NTAG213: 144, NTAG215: 504, NTAG216: 888 };
+const PREFIXES = ["https://www.", "http://www.", "https://", "http://"];
+
+function ndefBytes(url) {
+  const p = PREFIXES.find(x => url.startsWith(x)) || "";
+  return 8 + new TextEncoder().encode(url.slice(p.length)).length;
+}
+
+function checkLink() {
+  const url = $("link").value.trim();
+  const el = $("linkfit");
+  if (!url) {
+    el.className = "hint";
+    el.innerHTML = "Nothing here writes the tag &mdash; that is a phone job (NFC Tools and " +
+                   "the like). This just counts the bytes it would take.";
+    return;
+  }
+  const n = ndefBytes(url);
+  const fits = Object.entries(TAGS).filter(([, cap]) => n <= cap);
+  el.className = fits.length ? "hint ok" : "hint bad";
+  el.innerHTML = fits.length
+    ? `<b>${n} bytes</b> &mdash; fits ${list(fits.map(([k, cap]) => `${k} (${cap - n} spare)`))}.`
+    : `<b>${n} bytes</b> &mdash; too long for every NTAG. Use a short link.`;
+}
+
+function readout() {
+  const line = (k, v) => `<span>${k} <b>${v}</b></span>`;
+  const needs = (info.logo || info.qr)
+    ? (info.nozzle
+        ? line("nozzle", `${info.nozzle} mm or finer`)
+        : `<span class="err">too fine for any nozzle &mdash; shorter link, or a simpler logo</span>`)
+    : "";
+  specs.innerHTML = [
+    info.batch ? line("batch", `${info.batch} people, ${info.parts.length > 1 ? "two parts" : "one part"} each`) : "",
+    line("size", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.total_z)} mm`),
+    info.parts.length > 1
+      ? line("two halves", `${mm(info.part_thick)} mm each, ${info.pins} pins, ` +
+                           `${mm(info.assembled)} mm glued up`)
+      : line("uses", `${info.volume.toFixed(2)} cm&sup3;`),
+    line("cavity", `${mm(info.pocket[0])} &times; ${mm(info.pocket[1])} &times; ${mm(info.pocket[2])} deep`),
+    line("colour change at", info.changes.map(mm).join(" and ") + " mm" +
+                             (info.parts.length > 1 ? ", each half" : "")),
+    info.pause_z !== null ? line("pause the print at", `${mm(info.pause_z)} mm`) : "",
+    info.logo ? line("logo", `${mm(info.logo.w)} &times; ${mm(info.logo.h)} mm, detail ${info.logo.detail} mm`) : "",
+    info.qr ? line("qr", `${info.qr.modules} modules at ${info.qr.module} mm, ${mm(info.qr.size)} mm square`) : "",
+    needs,
+    info.thin.length
+      ? `<span class="warn">${list(info.thin)} thinner than 0.8 mm &mdash; turn on
+         thin-wall detection, or break the line with a |</span>` : "",
+  ].join("");
+}
+
+let pending = null, seq = 0;
+
+const CAN_INFLATE = "DecompressionStream" in window;
+
+/* The STL comes back gzipped when we can inflate it here -- a third the bytes
+   over the wire, and under the ceiling a hosted function puts on a response. */
+async function body(res) {
+  if (res.headers.get("X-Compressed") === "gzip")
+    return new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  return res.arrayBuffer();
+}
+
+function formParams() {
+  const params = Object.fromEntries(FIELDS.map(f => [f, $(f).value]));
+  params.border = $("border").checked;
+  params.gzip = CAN_INFLATE;
+  params.qr = $("qr").checked;
+  if (!params.qr) params.link = "";               // the link only shapes the part as a code
+  params.logo = logoText;
+  return params;
+}
+
+async function rebuild() {
+  const params = formParams();
+  const mine = ++seq;
+  try {
+    const res = await fetch("/api/model", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    if (mine !== seq) return;                      // a later keystroke got there first
+    if (!res.ok) {
+      specs.innerHTML = `<span class="err">${(await res.json()).error}</span>`;
+      $("save").disabled = $("save_stl").disabled = true;
+      return;
+    }
+    info = JSON.parse(res.headers.get("X-Card-Info"));
+    stl = await body(res);
+    if (gl) upload(stl);
+    readout();
+    $("save").disabled = $("save_stl").disabled = false;
+  } catch (e) {
+    specs.innerHTML = `<span class="err">${e.message} &mdash; is src/app.py still running?</span>`;
+  }
+}
+
+const queue = () => { clearTimeout(pending); pending = setTimeout(rebuild, 300); };
+
+$("link").addEventListener("input", checkLink);
+for (const f of FIELDS) $(f).addEventListener("input", queue);
+$("border").addEventListener("change", queue);
+$("qr").addEventListener("change", queue);
+$("logo_file").addEventListener("change", async () => {
+  const f = $("logo_file").files[0];
+  logoText = f ? await f.text() : "";
+  $("logo_note").textContent = f ? `${f.name}, ${(f.size / 1024).toFixed(1)} kB.` :
+    "Raised on the front beside the name.";
+  queue();
+});
+$("kind").addEventListener("change", () => {
+  $("border").disabled = $("kind").value !== "card";
+});
+for (const c of ["c_body", "c_accent"])
+  $(c).addEventListener("input", () => { if (gl && stl) upload(stl); });
+$("flip").addEventListener("click", () => { yawTo += Math.PI; });
+$("rise").addEventListener("input", () => { $("rise_v").textContent = `${$("rise").value} mm`; });
+
+function stem() {
+  if ($("batch").value.trim()) return `batch_${$("kind").value}`;
+  const base = ($("name").value || $("company").value || "card")
+    .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "card";
+  return `${base}_${$("kind").value}` + ($("tag_mode").value === "split" ? "_halves" : "");
+}
+
+function save(bytes, type, name) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([bytes], { type }));
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+$("save_stl").addEventListener("click", () => save(stl, "model/stl", `${stem()}.stl`));
+$("save").addEventListener("click", async () => {
+  const params = formParams();
+  params.format = "3mf";
+  params.body = $("c_body").value;
+  params.accent = $("c_accent").value;
+  const res = await fetch("/api/model", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    specs.innerHTML = `<span class="err">${(await res.json()).error}</span>`;
+    return;
+  }
+  save(await res.arrayBuffer(), "model/3mf", `${stem()}.3mf`);
+});
+
+rebuild();
+</script>
+</body>
+</html>

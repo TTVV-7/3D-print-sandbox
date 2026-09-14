@@ -1,0 +1,4 @@
+# Not needed to build or run the app; 66 MB of valve-cap STLs would only
+# slow the clone and crowd the function bundle.
+stl/
+previews/

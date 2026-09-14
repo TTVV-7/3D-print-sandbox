@@ -1,2 +1,6 @@
 __pycache__/
 *.pyc
+
+# generated cards -- somebody's real name and phone number
+stl/*_card*
+stl/*_fob*

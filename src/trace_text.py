@@ -44,7 +44,13 @@ class Flattener(BasePen):
         self._cur = []
 
 
-def trace(text, font_path):
+def trace(text, font_path, tracking=0.0):
+    """Outlines for `text`, in em units, baseline on y=0 and starting at x=0.
+
+    `tracking` is extra letterspacing, also in em -- cards.py opens up small
+    lettering with it, which both reads better and widens the gaps between
+    strokes, so more of them survive the nozzle.
+    """
     font = TTFont(font_path)
     glyphset = font.getGlyphSet()
     cmap = font.getBestCmap()
@@ -52,12 +58,14 @@ def trace(text, font_path):
 
     rings, x = [], 0.0
     for ch in text:
-        name = cmap[ord(ch)]
+        name = cmap.get(ord(ch))
+        if name is None:
+            raise ValueError(f"{Path(font_path).name} has no glyph for {ch!r}")
         pen = Flattener(glyphset)
         glyphset[name].draw(pen)
         for c in pen.contours:
             rings.append([((px + x) / upem, py / upem) for px, py in c])
-        x += glyphset[name].width
+        x += glyphset[name].width + tracking * upem
 
     # A ring contained by another is a counter, not a separate letter.
     polys = [Polygon(r).buffer(0) for r in rings]
