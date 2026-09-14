@@ -35,10 +35,13 @@ QUAD = 32                    # arc resolution, as in logos.py
 # and the valve caps in this repo print happily down to 0.55 mm.
 MIN_STROKE = 0.8
 
-# Fonts.  Any TTF works; these are the ones likely to be on the machine
-# already, best first.  A heavy sans is what you want -- the strokes have to
-# survive as 0.6 mm-tall bars of plastic.
+# Fonts.  Any TTF works.  Liberation Sans Bold ships in public/fonts (SIL Open
+# Font License, text alongside it), so the generator has the same face on every
+# machine and on Vercel, where there are no system fonts at all; the rest are
+# fallbacks.  A heavy sans is what you want -- the strokes have to survive as
+# 1.2 mm-tall bars of plastic.
 FONT_SEARCH = [
+    str(Path(__file__).resolve().parent.parent / "public" / "fonts" / "LiberationSans-Bold.ttf"),
     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",

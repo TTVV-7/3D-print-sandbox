@@ -434,9 +434,20 @@ function readout() {
 
 let pending = null, seq = 0;
 
+const CAN_INFLATE = "DecompressionStream" in window;
+
+/* The STL comes back gzipped when we can inflate it here -- a third the bytes
+   over the wire, and under the ceiling a hosted function puts on a response. */
+async function body(res) {
+  if (res.headers.get("X-Compressed") === "gzip")
+    return new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  return res.arrayBuffer();
+}
+
 function formParams() {
   const params = Object.fromEntries(FIELDS.map(f => [f, $(f).value]));
   params.border = $("border").checked;
+  params.gzip = CAN_INFLATE;
   params.qr = $("qr").checked;
   if (!params.qr) params.link = "";               // the link only shapes the part as a code
   params.logo = logoText;
@@ -447,7 +458,7 @@ async function rebuild() {
   const params = formParams();
   const mine = ++seq;
   try {
-    const res = await fetch("/model", {
+    const res = await fetch("/api/model", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params),
     });
@@ -458,7 +469,7 @@ async function rebuild() {
       return;
     }
     info = JSON.parse(res.headers.get("X-Card-Info"));
-    stl = await res.arrayBuffer();
+    stl = await body(res);
     if (gl) upload(stl);
     readout();
     $("save").disabled = $("save_stl").disabled = false;
@@ -509,7 +520,7 @@ $("save").addEventListener("click", async () => {
   params.format = "3mf";
   params.body = $("c_body").value;
   params.accent = $("c_accent").value;
-  const res = await fetch("/model", {
+  const res = await fetch("/api/model", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
   });

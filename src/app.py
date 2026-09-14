@@ -10,8 +10,12 @@ solid, and the preview's colour split is where its filament change goes.
 Standard library only -- no framework, nothing to install beyond what
 src/cards.py already needs.  It listens on the loopback address; this is a tool
 for the machine it runs on, not a service to put on a network.
+
+The same Handler is also what api/model.py hands to Vercel, which runs
+BaseHTTPRequestHandler subclasses as functions: one code path, local or hosted.
 """
 import argparse
+import gzip
 import json
 import re
 import threading
@@ -22,7 +26,7 @@ from pathlib import Path
 import cards
 
 ROOT = Path(__file__).resolve().parent.parent
-PAGE = ROOT / "web" / "index.html"
+PAGE = ROOT / "public" / "index.html"
 
 # manifold is fast but there is no reason to have four keystrokes' worth of
 # booleans running at once.  The last few builds are kept, so asking for the
@@ -112,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, b"not found", "text/plain")
 
     def do_POST(self):
-        if self.path != "/model":
+        if self.path.split("?")[0] not in ("/api/model", "/model"):
             return self._send(404, b"not found", "text/plain")
         body = self.rfile.read(int(self.headers.get("Content-Length") or 0))
         try:
@@ -121,9 +125,16 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as exc:             # a tag that will not fit, mostly
             payload = json.dumps({"error": str(exc)}).encode()
             return self._send(400, payload, "application/json")
+        headers = [("X-Card-Info", json.dumps(info))]
+        # An STL is a third repeated floats and squashes to about a third of its
+        # size; the page asks for that when it can inflate it itself, and a
+        # hosted function has a body-size ceiling that a batch plate would hit.
+        if ctype == "model/stl" and params.get("gzip"):
+            data = gzip.compress(data, compresslevel=6)
+            headers.append(("X-Compressed", "gzip"))
         print(f"  {info['kind']:5s} {info['w']:5.1f} x {info['h']:5.1f} mm  "
               f"{info['volume']:5.2f} cm^3  {ctype[6:]:3s} {len(data) / 1024:6.0f} kB")
-        self._send(200, data, ctype, [("X-Card-Info", json.dumps(info))])
+        self._send(200, data, ctype, headers)
 
 
 def serve(host="127.0.0.1", port=8765, open_browser=True):
