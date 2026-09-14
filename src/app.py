@@ -94,6 +94,23 @@ def model(params):
     return cards.plate(parts, row_w=row_w).export(file_type="stl"), info, "model/stl"
 
 
+def health():
+    """GET /api/model: does the whole pipeline run where this is deployed?
+
+    Builds the default fob and reports on it, so one request from a browser
+    tells you the geometry libraries loaded, the font was found and a boolean
+    came out watertight -- which is what a hosted function most often gets
+    wrong, and what a 200 on the page alone would not show.
+    """
+    import time
+    t = time.time()
+    with BUILD:
+        parts, info = cards.build("fob", "Self Test")
+    return dict(ok=info["watertight"], font=info["font"],
+                built=f"{info['w']} x {info['h']} mm fob in {time.time() - t:.2f}s",
+                python=__import__("sys").version.split()[0])
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "cards"
 
@@ -110,8 +127,11 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path.split("?")[0] in ("/", "/index.html"):
+        path = self.path.split("?")[0]
+        if path in ("/", "/index.html"):
             self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+        elif path in ("/api/model", "/model"):
+            self._send(200, json.dumps(health()).encode(), "application/json")
         else:
             self._send(404, b"not found", "text/plain")
 
