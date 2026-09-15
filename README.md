@@ -132,7 +132,11 @@ The page is styled on Figma's [Simple Design
 System](https://www.figma.com/community/file/1380235722331273046/simple-design-system):
 Inter, a near-black brand colour on white, 1 px borders, 8 px radii and an
 8-based spacing scale, with its token names kept in the stylesheet's `:root` so
-the values can be swapped for the file's own.  The server is standard library
+the values can be swapped for the file's own.  The one part not drawn to that
+system is the jetpack that flies across the viewer while a build runs -- it is
+anand_4957's loader from [Uiverse.io](https://uiverse.io) (MIT), kept as
+written apart from taking its colours from the tokens, and credited in the
+stylesheet.  The server is standard library
 only and the viewer is hand-written WebGL, so there is no framework to install,
 nothing fetched from a CDN, and it works with the network off.  It listens on
 the loopback address; it is a tool for the machine it runs on, not a service to
