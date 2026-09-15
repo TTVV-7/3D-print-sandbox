@@ -47,8 +47,10 @@ MIN_STROKE = 0.8
 # machine and on Vercel, where there are no system fonts at all.  The rest are
 # fallbacks.  A heavy sans is what you want: the strokes have to survive as
 # 1.2 mm-tall bars of plastic.
+FONT_DIR = Path(__file__).resolve().parent / "fonts"
+
 FONT_SEARCH = [
-    str(Path(__file__).resolve().parent / "fonts" / "LiberationSans-Bold.ttf"),
+    str(FONT_DIR / "LiberationSans-Bold.ttf"),
     "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
     "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
     "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
@@ -56,6 +58,31 @@ FONT_SEARCH = [
     "/Library/Fonts/Arial Bold.ttf",
     "C:/Windows/Fonts/arialbd.ttf",
 ]
+
+# The faces offered by name, all SIL Open Font License with their licence text
+# alongside them in src/fonts.  A card is mostly its wording and one face does
+# for it; a keychain *is* its lettering, so the choice matters much more there
+# -- and what a face costs is printability, which the readout reports: the
+# fatter the letterform the wider its narrowest stroke and the coarser the
+# nozzle it will take.
+FONTS = {
+    "Liberation Sans Bold": "LiberationSans-Bold.ttf",
+    "Erica One":            "EricaOne-Regular.ttf",
+    "Boldonse":             "Boldonse-Regular.ttf",
+    "Outfit Bold":          "Outfit-Bold.ttf",
+    "National Park Bold":   "NationalPark-Bold.ttf",
+    "Big Shoulders Bold":   "BigShoulders-Bold.ttf",
+    "Tektur":               "Tektur-Medium.ttf",
+    "Lora Bold":            "Lora-Bold.ttf",
+    "Silkscreen":           "Silkscreen-Regular.ttf",
+    "Nothing You Could Do": "NothingYouCouldDo-Regular.ttf",
+}
+
+# Where a character the chosen face has not got comes from.  Monochrome, and
+# that is the whole point: a colour emoji font stores bitmaps, and a bitmap
+# has no outline to extrude.  Noto Emoji at weight 700, whose strokes are the
+# fattest of the family and so the likeliest to print.
+EMOJI = str(FONT_DIR / "NotoEmoji-Bold.ttf")
 
 # The face: one thin layer, FACE mm deep, that every colour lives in -- the
 # body colour where nothing else is, the pattern, the lettering, all flush
@@ -187,6 +214,19 @@ def default_font():
                             + " -- pass --font /path/to/Font.ttf")
 
 
+def font_path(font):
+    """A path for whatever was asked for: one of FONTS by name, a path to a TTF
+    of your own, or nothing at all, which gets the first face that exists."""
+    if not font:
+        return default_font()
+    if font in FONTS:
+        return str(FONT_DIR / FONTS[font])
+    if Path(font).exists():
+        return str(font)
+    raise ValueError(f"no such font: {font} -- pick one of {', '.join(FONTS)}, "
+                     f"or give the path to a TTF")
+
+
 def cap_per_em(font):
     """Height of a capital H, in em, so that a cap height in millimetres means
     the same thing whatever font is handed in."""
@@ -201,7 +241,7 @@ def text_polys(text, font, cap_mm, max_w=None, tracking=0.0):
     Returns (polygons, width, cap): `cap` is what the line ended up at, which
     is less than asked for when it had to shrink to fit `max_w`.
     """
-    shapes = trace_text.trace(text, font, tracking)
+    shapes = trace_text.trace(text, font, tracking, fallback=EMOJI)
     if not shapes:
         return [], 0.0, 0.0
     k = cap_mm / cap_per_em(font)
@@ -855,8 +895,20 @@ def prisms(polys, z0, thickness):
         # A micron of tolerance: enough to drop the doubled vertex a clip can
         # leave behind, which earcut turns into an open mesh; nothing else
         # here is drawn that finely.
-        mesh = trimesh.creation.extrude_polygon(poly.simplify(0.001), thickness)
-        if not mesh.is_watertight:
+        #
+        # The second attempt is for a rarer fault, and a stranger one: on some
+        # perfectly valid polygons -- a Tektur 'o', an octagon round a square
+        # counter -- earcut triangulates the caps with two vertices that are
+        # not on the outline, so the caps no longer meet the walls and the
+        # solid comes out open.  A hundredth of a micron out and back rebuilds
+        # the rings as something it triangulates properly, and moves no corner
+        # far enough to see.
+        for attempt in (poly.simplify(0.001),
+                        poly.buffer(1e-4).buffer(-1e-4).simplify(0.001)):
+            mesh = trimesh.creation.extrude_polygon(attempt, thickness)
+            if mesh.is_watertight:
+                break
+        else:
             raise ValueError(f"shape {i} did not extrude to a closed solid")
         mesh.apply_translation((0.0, 0.0, z0))
         out.append(mesh)
@@ -1101,7 +1153,7 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     they need in info["nozzle"].
     """
     spec = {**BODIES[kind]}
-    font = font or default_font()
+    font = font_path(font)
     t = {**TAG, **(tag or {})}
     if not border:
         spec["border"] = 0.0
