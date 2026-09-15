@@ -25,6 +25,14 @@ What comes out is one solid in the shape of the word, with the letters raised
 on top of it in a second colour, and a ring tab at the left for the split ring.
 
     parts, info = nametag.build("Freddie")
+    parts, info = nametag.build("Freddie", font="script", cap=18)
+
+The face is a key from src/typefaces.py -- a plain sans, a script, a slab and
+three more -- or the path to a TTF of your own.  Each of the six carries its
+own weld and its own smallest sensible letter height, because a fat slab is
+nearly one piece before the weld starts while a script needs all of it, and
+because a face whose counters are slots rather than holes has them welded shut
+at a height where the sans is still perfectly readable.
 
 The parts are the same shape as cards.build()'s, so the plate layout, the 3MF,
 the STL and the app's viewer all take them unchanged.
@@ -36,10 +44,12 @@ from shapely.geometry import LineString, Point
 from shapely.ops import nearest_points, unary_union
 
 import cards
+import typefaces
 
 # The letters, in millimetres of capital height.  14 mm is about the size of
 # the ones on a keyring at a school fair: big enough to read across a table,
-# small enough not to bruise a leg through a pocket.
+# small enough not to bruise a leg through a pocket.  A face whose counters
+# need more than that says so itself, in typefaces.FACES, and wins.
 CAP = 14.0
 
 # A keyring gets dropped, sat on and jangled against keys, so it is thicker
@@ -50,7 +60,8 @@ RISE = 1.2
 # How far each glyph grows before the union.  This is the number that decides
 # whether the word holds together, and it is also the visible outline round
 # the letters.  Too little and the word comes apart; too much and the counters
-# -- the holes in a, e, o -- close up.
+# -- the holes in a, e, o -- close up.  Each bundled face carries its own,
+# measured; this is what an outside TTF gets.
 WELD = 0.5
 
 # The tie that catches whatever the weld did not.  1.2 mm is three lines of a
@@ -233,13 +244,39 @@ def counters(poly):
     return [cards.Polygon(r) for r in rings]
 
 
-def build(text="", font=None, cap=CAP, thick=THICK, rise=RISE, weld=WELD,
-          gap=GAP, bridge=BRIDGE, ring=True, ring_d=RING_D, hole_side="left",
+def shut_counters(shapes, poly):
+    """How many of the letters' own holes the weld closed outright.
+
+    Measuring the smallest hole that is left says nothing about the holes that
+    are gone, and gone is the worse failure: an `a` whose bowl has filled in is
+    not a tight `a`, it is a blob, and the word stops being readable before it
+    stops being printable.  It is the one thing a face can do at 14 mm that the
+    sans never does, which is why each face carries a height it wants
+    (typefaces.FACES) and why this is counted rather than inferred.
+    """
+    left = counters(poly)
+    shut = 0
+    for ring in (r for shape in shapes for r in shape.interiors):
+        hole = cards.Polygon(ring)
+        if not any(g.representative_point().within(hole) for g in left):
+            shut += 1
+    return shut
+
+
+def build(text="", font=None, cap=None, thick=THICK, rise=RISE, weld=None,
+          gap=None, bridge=BRIDGE, ring=True, ring_d=RING_D, hole_side="left",
           colours=cards.COLOURS, label="", outline=True):
     """One name keyring, as printable parts plus the numbers worth knowing.
 
     Returns ([part], info) in cards.build()'s shape: one part, its groups
     filed by colour slot and by field, and a welded mesh for the STL.
+
+    `font` is a face from typefaces.FACES -- "sans", "script", "slab" and
+    three more -- or the path to a TTF of your own.  Leave `cap`, `weld` and
+    `gap` alone and the face's own come through: the height it needs before
+    its counters survive the weld, the weld that suits its weight, and how
+    close its letters want to be set.  Pass any of them and it is taken as
+    given, blobs and all.
 
     `outline` False drops the raised letters and leaves the welded word as one
     flat solid -- the single-colour version, where the weld is all you see.
@@ -247,7 +284,13 @@ def build(text="", font=None, cap=CAP, thick=THICK, rise=RISE, weld=WELD,
     text = (text or "").strip()
     if not text:
         raise ValueError("a name keyring needs a name")
-    font = font or cards.default_font()
+    face = typefaces.face(font)
+    font = face["path"]
+    floor = face["min_cap"] or 0.0
+    cap = float(cap) if cap else max(CAP, floor)
+    weld = float(weld) if weld else (face["weld"] or WELD)
+    gap = float(gap) if gap is not None else (
+        GAP if face["gap"] is None else face["gap"])
     colours = tuple(colours or cards.COLOURS)
     rise = max(0.0, float(rise))
 
@@ -287,6 +330,7 @@ def build(text="", font=None, cap=CAP, thick=THICK, rise=RISE, weld=WELD,
 
     holes = counters(body_2d)
     smallest = min((cards.stroke_width(h) for h in holes), default=0.0)
+    shut = shut_counters(shapes, body_2d)
     lo, hi = body_2d.bounds[:2], body_2d.bounds[2:]
     stroke = cards.narrowest([body_2d] if body_2d.geom_type == "Polygon"
                              else list(body_2d.geoms))
@@ -300,6 +344,7 @@ def build(text="", font=None, cap=CAP, thick=THICK, rise=RISE, weld=WELD,
         cap=round(cap, 2), weld=round(weld_used, 2), bridges=ties,
         ring=bool(ring), ring_d=ring_d if ring else None,
         counters=len(holes), counter=round(float(smallest), 2) if holes else None,
+        shut=shut,
         layout=None, look=None, pattern_stroke=None,
         slots=sorted({g["slot"] for g in groups}, key=cards.SLOTS.index),
         part_slots={"name": sorted({g["slot"] for g in groups}, key=cards.SLOTS.index)},
@@ -312,6 +357,8 @@ def build(text="", font=None, cap=CAP, thick=THICK, rise=RISE, weld=WELD,
         volume=round(part["mesh"].volume / 1000.0, 2),
         watertight=part["mesh"].is_watertight and part["mesh"].is_winding_consistent,
         font=cards.Path(font).name,
+        typeface=face["key"], typeface_name=face["font"],
+        min_cap=face["min_cap"],
     )
     info["total_z"] = round(float(part["mesh"].bounds[1][2]), 2)
     info["colour_z"] = round(thick + rise, 2) if rise else round(thick, 2)
@@ -321,7 +368,7 @@ def build(text="", font=None, cap=CAP, thick=THICK, rise=RISE, weld=WELD,
                             [round(thick, 2), info["total_z"]]] if rise else \
                            [[0.0, round(thick, 2)]]
     info["thin"] = ["outline"] if stroke < cards.MIN_STROKE else []
-    if holes and smallest < MIN_COUNTER:
+    if shut or (holes and smallest < MIN_COUNTER):
         info["thin"].append("counters")
     return parts, info
 

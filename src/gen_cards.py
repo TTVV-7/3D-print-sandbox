@@ -20,6 +20,7 @@ from pathlib import Path
 import cards
 import looks
 import nametag
+import typefaces
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -32,6 +33,8 @@ def report_name(name, info):
     print(f"  {name:38s} {info['w']:5.1f} x {info['h']:5.1f} x {info['total_z']:4.1f} mm  "
           f"{info['volume']:5.2f} cm^3  "
           f"{'watertight' if info['watertight'] else 'NOT WATERTIGHT'}")
+    print(f"      face     {info['typeface_name']}"
+          + (f" ({info['typeface']})" if info["typeface"] else ""))
     print(f"      letters  {info['cap']:.1f} mm caps on a {info['thick']:.1f} mm body, "
           f"{info['rise']:.1f} mm proud")
     print(f"      outline  {info['weld']:.2f} mm round the word"
@@ -41,7 +44,11 @@ def report_name(name, info):
         print(f"      ring     {info['ring_d']:.1f} mm hole")
     if info["counter"]:
         print(f"      counters {info['counters']}, smallest {info['counter']:.2f} mm across")
-    if info["thin"]:
+    if info["shut"]:
+        print(f"      filled   {info['shut']} counter(s) welded shut"
+              + (f" -- this face wants {info['min_cap']:.0f} mm caps or more"
+                 if info["min_cap"] else " -- raise the letter height"))
+    elif info["thin"]:
         print(f"      note     {', '.join(info['thin'])} tight -- raise the letter height")
     if info["rise"]:
         print(f"      colour   change filament at Z = {info['thick']:.2f} mm")
@@ -106,8 +113,9 @@ def main():
     ap.add_argument("--kind", default="fob", choices=["card", "fob", "both", "name"],
                     help="fob and card carry an NFC tag; name is the keyring that is "
                          "just the word, welded into one piece")
-    ap.add_argument("--cap", type=float, default=nametag.CAP,
-                    help=f"letter height for --kind name, mm (default {nametag.CAP:g})")
+    ap.add_argument("--cap", type=float, default=None,
+                    help=f"letter height for --kind name, mm (default {nametag.CAP:g}, "
+                         f"or the face's own minimum where that is taller)")
     ap.add_argument("--ring", type=float, default=nametag.RING_D,
                     help=f"ring hole for --kind name, mm; 0 drops the tab "
                          f"(default {nametag.RING_D:g})")
@@ -157,7 +165,12 @@ def main():
                          "comma separated; writes every card onto one plate")
     ap.add_argument("--bed", type=float, default=220.0,
                     help="plate width the batch wraps at, mm (default 220)")
-    ap.add_argument("--font", default=None, help="path to a TTF; a bold sans works best")
+    ap.add_argument("--font", default=None, metavar="FACE",
+                    help="for --kind name, one of "
+                         + ", ".join(f"{k} ({v['font']})" for k, v in typefaces.FACES.items())
+                         + f" (default {typefaces.DEFAULT}); or the path to a TTF of your "
+                           "own, which is all a card or a fob will take -- their lettering "
+                           "is small and wants a bold sans")
     ap.add_argument("--out", default=str(ROOT / "stl"), help="where to write the STLs")
     ap.add_argument("--preview", action="store_true", help="also render PNGs to previews/")
     args = ap.parse_args()

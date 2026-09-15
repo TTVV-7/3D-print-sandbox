@@ -31,6 +31,7 @@ from shapely.ops import unary_union
 import looks
 import trace_svg
 import trace_text
+import typefaces
 
 QUAD = 32                    # arc resolution, as in logos.py
 
@@ -40,22 +41,17 @@ QUAD = 32                    # arc resolution, as in logos.py
 # and the valve caps in this repo print happily down to 0.55 mm.
 MIN_STROKE = 0.8
 
-# Fonts.  Any TTF works.  Liberation Sans Bold ships in src/fonts (SIL Open
-# Font License, text alongside it) -- next to the code rather than under
-# public/, because a hosted function is guaranteed to carry its source and
-# not necessarily anything else -- so the generator has the same face on every
-# machine and on Vercel, where there are no system fonts at all.  The rest are
-# fallbacks.  A heavy sans is what you want: the strokes have to survive as
-# 1.2 mm-tall bars of plastic.
-FONT_SEARCH = [
-    str(Path(__file__).resolve().parent / "fonts" / "LiberationSans-Bold.ttf"),
-    "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
-    "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-    "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf",
-    "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-    "/Library/Fonts/Arial Bold.ttf",
-    "C:/Windows/Fonts/arialbd.ttf",
-]
+# Fonts.  Any TTF works, and --font takes one.  A card is set in the plain
+# sans, because the strokes have to survive as 0.6 mm-deep inlays a couple of
+# millimetres tall and a heavy sans is the only thing that reliably does.  It
+# and the five faces the name keyring can be set in all ship in src/fonts,
+# licences beside them -- next to the code rather than under public/, because
+# a hosted function is guaranteed to carry its source and not necessarily
+# anything else, so the generator has the same faces on every machine and on
+# Vercel, where there are no system fonts at all.  Which face is which, and
+# what each one needs of a keyring, is src/typefaces.py; the search below is
+# its fallback to a system copy of the sans.
+FONT_SEARCH = typefaces.SEARCH
 
 # The face: one thin layer, FACE mm deep, that every colour lives in -- the
 # body colour where nothing else is, the pattern, the lettering, all flush
@@ -174,17 +170,9 @@ _CAP = {}
 
 
 def default_font():
-    """The first font in FONT_SEARCH that exists.
-
-    A miss is an ordinary error, not a SystemExit: raised inside a request
-    handler, SystemExit takes the whole process down with no traceback, which
-    is exactly how the hosted version first failed.
-    """
-    for path in FONT_SEARCH:
-        if Path(path).exists():
-            return path
-    raise FileNotFoundError("no font found; looked in " + ", ".join(FONT_SEARCH)
-                            + " -- pass --font /path/to/Font.ttf")
+    """The first font in FONT_SEARCH that exists -- the plain sans everything
+    but a name keyring is set in."""
+    return typefaces.default_font()
 
 
 def cap_per_em(font):
