@@ -1,13 +1,19 @@
 # 3D print sandbox
 
-Two parametric things live here so far.  Both are plain Python -- shapely for
-the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
+Three parametric things live here so far.  All plain Python -- shapely for the
+2-D work, trimesh and manifold for the solids -- and all re-run in seconds.
 
+- **[Name keychains](#name-keychains)** -- a word, in one of ten faces, where
+  the lettering *is* the part.  Emoji included.  Cut it into links that come
+  off the plate already hinged.
 - **[NFC cards and fobs](#nfc-cards-and-fobs)** -- a keyring fob or a
   wallet card, printed as two halves with an NFC tag glued between them, in up
-  to four colours, in one of three layouts.  Comes with a browser front end.
+  to four colours, in one of three layouts.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
+
+The first two share a browser front end: `python3 src/app.py`, then pick which
+of them you are making and the form asks for what that one needs.
 
 ---
 
@@ -78,11 +84,14 @@ python3 src/app.py
 opens `http://127.0.0.1:8765`.  Type in the boxes and the part rebuilds as you
 go, about half a second a time.
 
-The panel goes in the order the decisions do.  **Shape** comes first, because a
-fob and a card are different objects and everything below reads differently for
-each -- a fob has no border to draw, and five lines of type on one come out
-small enough that you want to leave the title or the email off it.  Then who
-you are, then how it looks, then the tap side, then a batch of them.
+**The page opens with one question on it.**  A keychain, a fob and a card are
+different objects with almost nothing in common to ask about, so until one of
+them is picked there is nothing else on the screen -- no NFC tag sizes on the
+way to a keychain, no letter spacing on the way to a business card.  Pick one
+and that one's form appears, in the order the decisions come: for a keychain,
+the word, then the shape behind it, then the key ring, then hinges; for a fob
+or a card, who you are, how it looks, the tap side, and a batch of them.
+Picking a different card at the top swaps the whole form.
 
 **Every control lights up what it makes.**  Put the cursor in the Email box, or
 just run it over the label, and the email on the part turns cyan while
@@ -478,6 +487,203 @@ Things that bite, all of them learned here:
 Personal cards are kept out of git: `stl/*_card*` and `stl/*_fob*` are ignored,
 so `gen_cards.py` can write straight into `stl/` without the repo filling up
 with other people's phone numbers.
+
+---
+
+# Name keychains
+
+Type a word and the word is the part.  The outline comes out of the glyphs
+rather than off a rectangle, so what prints is the shape of the name, with
+whatever is behind it there to hold it together.
+
+![Kady](previews/keychain_front.png)
+
+Everything below is a keyword argument of `keychain.build()`; `src/app.py` is
+the browser front end over it.
+
+```python
+import keychain
+parts, info = keychain.build("Kady🔥", font="Erica One", backing="outline")
+```
+
+## The four backings
+
+How much of the letterform survives as the silhouette is the first decision,
+and it is the one that decides whether the thing holds together at all.
+
+![the four backings](previews/keychain_backings.png)
+
+- **outline** -- the letters, fattened by one shapely buffer.  The best-looking
+  of the four, because the backing follows the letterforms instead of boxing
+  them in.  It also **grows its own padding** until the word is one piece: a T
+  beside an o leaves a wide gap down at the baseline, and a fixed padding gets
+  that wrong about as often as it gets it right.  The readout says what it
+  settled on.
+- **plate** -- a rounded rectangle behind the lot.  The sturdiest, and the one
+  that copes with any face at any size.
+- **bar** -- a strip through the middle of the line, ascenders and descenders
+  standing out of it.
+- **none** -- bare letters, joined only where they touch.  The handsome one and
+  the one that comes off the plate in pieces unless the spacing is tight enough
+  to overlap the strokes.  Take the letter spacing negative until it does; the
+  readout counts the pieces before you print them, not after.
+
+## The lettering, and the emoji
+
+Ten faces ship in `src/fonts`, all SIL Open Font License with their licence
+text alongside them.  A card is mostly its wording and one face does for it; a
+keychain *is* its lettering, so the choice matters much more here -- and what a
+face costs is printability.  The readout measures the narrowest stroke in the
+word and names the largest nozzle that puts two extrusion lines across it:
+
+| face | good for |
+|---|---|
+| Erica One | fat and round -- the easiest of them to print |
+| Boldonse | heavy display, very wide |
+| Outfit Bold | clean geometric sans |
+| National Park Bold | friendly, slightly rounded |
+| Big Shoulders Bold | tall and condensed, fits a long name |
+| Liberation Sans Bold | the plain one |
+| Tektur | squared off, technical |
+| Lora Bold | a serif, so watch the thin strokes |
+| Silkscreen | pixel, all square corners |
+| Nothing You Could Do | handwriting; needs a backing behind it |
+
+**Emoji work** -- 🔥 ⭐ 🔑 🏠 🐶 -- and they come out as real extruded
+outlines, not pictures.  That only works with a *monochrome* emoji font: the
+colour ones your keyboard shows (Noto Color Emoji and friends) store bitmaps,
+and a bitmap has no outline to extrude.  `src/fonts/NotoEmoji-Bold.ttf` is the
+one that does, at weight 700 because its strokes are the fattest of the family
+and so the likeliest to survive a nozzle.  `trace_text.trace()` falls back to
+it per character and scales the glyph to the cap height of the face it lands
+in, so the flame stands level with the K beside it rather than towering over
+it.  The same fallback works on cards and fobs.
+
+Skin-tone modifiers and the zero-width joiner are passed over rather than
+refused, so 👨‍👩‍👧 comes out as its separate pieces -- the best a
+per-codepoint tracer can do, and better than refusing the line.
+
+Put a `|` where a second line should start.  Letter spacing is in millimetres
+rather than in em, which is what anyone setting a keychain actually wants to
+think in, and going negative with it is how a joined-up face is made to work.
+
+## The key ring end
+
+Four ends: **nothing**, a **hole** straight through the backing, a **tab** --
+a disc off one end with a hole in it -- or a **loop**, a ring on a short neck.
+Left, right or top.  4.5 mm takes the 25 mm split ring that comes on most key
+rings, and the tab grows with the hole to keep 1.8 mm of wall round it, which
+is what stops it tearing out.
+
+The end hangs off the **material**, not off the bounding box.  The left of a T
+is the end of its crossbar, three quarters of the way up, so a tab hung on the
+corner of the box hangs in mid-air welded to nothing; `edge_point()` walks the
+outline instead and takes the point that is both furthest out and nearest the
+middle of the side it is on.
+
+## Hinges
+
+One button cuts the keychain into links that come off the plate already
+articulated.  Nothing is glued, nothing is assembled, and nothing needs
+supports.
+
+![five links](previews/keychain_links.png)
+
+Two kinds:
+
+- **pivot** -- the head sits in a round socket.  It turns about the joint and
+  does nothing else, so the letters stay in a line.
+- **chain** -- the same joint with a slot in it, so every link turns *and*
+  slides.  The strip prints closed up and opens by 1.5 mm at each joint, which
+  is the slack that lets it drape.
+
+### How a joint is captive
+
+![one joint](previews/keychain_joint.png)
+
+Each link ends in a head on a stalk, sitting in a socket that closes round it.
+
+**In the plane** it cannot come out at all: the throat the stalk swings in is
+`neck + 2 × clearance` wide -- 3.3 mm -- against a head of 6 mm, and no amount
+of pulling gets one through the other.  The mouth flares at 35° past the
+cavity, which is what the stalk swings in.
+
+**Out of the plane** the socket is narrower in the first and last few layers
+than it is in the middle, and the head is wider in the middle than at its top
+and bottom, so the head's shoulder sits under the socket's lip.  Lifting a link
+out means raising it clear of that lip, which is `base − band − clearance`:
+about 2 mm of the 3 mm the backing is thick.  Far more than a pocket will ever
+do to it, and much less than forever -- which is the honest way to put it.
+
+The two do **not** change width at the same height.  The socket goes wide at
+`band` and the head at `band + clearance`, so there is a real gap between the
+underside of one lip and the top of the other shoulder.  Without it those two
+faces meet exactly, and a joint whose parts share a plane is a joint the
+boolean -- and then the slicer -- welds solid.  That is the one mistake here
+that still looks right on screen.  It makes five bands, not three:
+
+```
+0              .. band            socket narrow, head narrow
+band           .. band+clearance  socket wide,   head narrow   <- the daylight
+band+clearance .. base-band-c     socket wide,   head wide
+                                  and back down the same way
+```
+
+Every number is in `HINGE` in `src/keychain.py` and every one of them was
+picked for a 0.4 mm nozzle.  **0.45 mm of clearance** on every side is the one
+that matters most: a little over one extrusion width, which is the smallest gap
+that reliably does not fuse.  Under 0.4 it welds itself shut; over 0.6 the
+joint rattles.
+
+### Where the links are cut
+
+A joint is about ten millimetres long and the gap between two letters is about
+two, so a hinged keychain **lays its letters out for its joints**: the gaps
+that are going to hold one are opened to make room, and every other gap is left
+exactly as it was set.
+
+That second half matters as much as the first.  Open all of them and a link
+carrying two letters is two tiles with nothing between them, which is what it
+prints as.  So asking for fewer links than letters does not space the whole
+word out -- it groups letters onto tiles and only opens the gaps between the
+groups.
+
+Three things can refuse, each saying what to do instead:
+
+- **A gap the backing cannot bridge on its own** -- the space between two words
+  -- must have a joint whether or not the link count asked for one, because it
+  is already two tiles.
+- **Two letters that do not stand level with each other** where they face
+  across a gap cannot hold a stalk between them.  What faces an o across the
+  gap in `To` is the end of the T's crossbar; a millimetre of it lines up with
+  anything, and a stalk needs 3.3.  Those gaps are never cut, so the two
+  letters ride on one link -- and if no gap in the word will take a joint, a
+  plate backing gives every gap the full height of the plate to weld across.
+- **Two lines** have no left-to-right chain to be part of.
+
+Where the joint has to shrink to fit a short tile the stalk shrinks with it.
+Left at full width while the head came down, the cavity closed to within fifty
+microns of the stalk -- which prints as one solid piece.
+
+## Printing
+
+Backing down, letters up, no supports, no brim needed.  A keychain is small
+enough that the whole thing is first-layer adhesion and nothing else.
+
+The 3MF carries the backing and the letters as **two separate components** with
+their own materials, so a multi-material printer opens it already knowing which
+filament goes where and makes exactly one colour change, at the top of the
+backing.  On a single-material printer it all comes out in one colour and still
+reads, because the letters stand off the backing.
+
+Defaults are 3 mm of backing and 1.2 mm of letters -- 4.2 mm all told, which is
+chunky on purpose: the failure mode of a thin keychain is that it snaps in a
+pocket.  A hinged one needs at least 2.6 mm of backing to fit the capture in,
+and `build()` says so rather than printing something that falls apart.
+
+For a chain, print it as it comes: it is drawn closed up, and every joint opens
+once it is off the plate.  Give the links a wiggle with a pair of pliers before
+they cool all the way and any joint that is going to be stiff will free itself.
 
 ---
 
