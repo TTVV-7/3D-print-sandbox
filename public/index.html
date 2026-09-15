@@ -3,539 +3,322 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Realtor NFC cards</title>
+<title>NFC cards and fobs</title>
 <style>
-  /* The controls are open-source pieces from Uiverse.io (MIT), kept as their
-     authors wrote them and credited inline; the page around them is ours. */
+  /* Styled on Figma's Simple Design System: Inter, a near-black brand colour
+     on white, 1 px borders, 8 px radii, an 8-based spacing scale.  The tokens
+     below carry its names so the values can be swapped for the file's own. */
   :root {
-    --paper: #f3f1ec; --paper-2: #e9e5de; --ink: #2a2a2a; --dim: #7a7570;
-    --coral: lightcoral; --lime: greenyellow; --night: #16181d;
+    --bg-default: #ffffff; --bg-secondary: #f5f5f5; --bg-tertiary: #ececec;
+    --text-default: #1e1e1e; --text-secondary: #757575; --text-tertiary: #b3b3b3;
+    --border-default: #d9d9d9; --border-secondary: #767676;
+    --brand: #2c2c2c; --brand-hover: #1e1e1e; --on-brand: #f5f5f5;
+    --neutral: #e3e3e3; --neutral-hover: #cdcdcd;
+    --positive: #02542d; --positive-bg: #ebffee;
+    --warning: #522504; --warning-bg: #fff1c2;
+    --danger: #900b09; --danger-bg: #fee9e7;
+    --space-100: 4px; --space-200: 8px; --space-300: 12px; --space-400: 16px;
+    --space-600: 24px; --space-800: 32px;
+    --radius-100: 4px; --radius-200: 8px; --radius-full: 9999px;
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   body {
-    margin: 0; height: 100vh; display: flex; background: var(--night); color: var(--ink);
-    font: 14px/1.5 ui-rounded, "Nunito", "Segoe UI", system-ui, sans-serif;
+    margin: 0; height: 100vh; display: flex; background: var(--bg-default); color: var(--text-default);
+    font: 16px/1.4 Inter, "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   }
   aside {
-    width: 360px; flex: none; padding: 22px 22px 40px; overflow-y: auto;
-    background: var(--paper); border-right: 6px solid var(--coral);
+    width: 400px; flex: none; padding: var(--space-600); overflow-y: auto;
+    background: var(--bg-default); border-right: 1px solid var(--border-default);
+    display: flex; flex-direction: column; gap: var(--space-600);
   }
-  h1 { font-size: 22px; margin: 0; letter-spacing: -.01em; color: var(--coral); }
-  .sub { color: var(--dim); font-size: 13px; margin: 2px 0 22px; }
-  fieldset { border: 0; border-top: 2px dashed var(--paper-2); margin: 22px 0 0; padding: 16px 0 0; }
-  legend { color: var(--coral); font-size: 12px; font-weight: 700; text-transform: uppercase;
-           letter-spacing: .12em; padding: 0 8px 0 0; }
-  label { display: block; margin-top: 14px; font-size: 13px; font-weight: 600; color: var(--ink); }
-  label b { color: var(--coral); float: right; }
-  .row { display: flex; gap: 10px; }
-  .row > label { flex: 1; min-width: 0; }
-  .hint { color: var(--dim); font-size: 12px; margin: 6px 0 0; line-height: 1.45; }
-  .hint code { background: var(--paper-2); padding: 0 5px; border-radius: 6px; }
-  .hint.ok { color: #3a9d5d; }
-  .hint.bad { color: #c8412b; }
+  h1 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+  .sub { color: var(--text-secondary); margin: var(--space-100) 0 0; }
 
-  /* From Uiverse.io by adamgiebl */
-  .input-wrapper input {
-    background-color: #eee;
-    border: none;
-    padding: 1rem;
-    font-size: 1rem;
-    width: 13em;
-    border-radius: 1rem;
-    color: lightcoral;
-    box-shadow: 0 0.4rem #dfd9d9;
-    cursor: pointer;
+  /* Card: a bordered panel with a subheading */
+  section {
+    border: 1px solid var(--border-default); border-radius: var(--radius-200);
+    padding: var(--space-600); display: flex; flex-direction: column; gap: var(--space-400);
+    background: var(--bg-default);
   }
-  .input-wrapper input:focus {
-    outline-color: lightcoral;
+  h2 { font-size: 20px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+
+  /* Input field: label above, description below */
+  .field { display: flex; flex-direction: column; gap: var(--space-200); }
+  .field > span, .field > label { font-weight: 400; }
+  .row { display: flex; gap: var(--space-400); }
+  .row > .field { flex: 1; min-width: 0; }
+  input[type=text], select, textarea {
+    font: inherit; color: var(--text-default); background: var(--bg-default);
+    border: 1px solid var(--border-default); border-radius: var(--radius-200);
+    padding: var(--space-300) var(--space-400); min-height: 40px; width: 100%;
   }
-  /* ours: fit the sidebar, and give selects and the batch box the same look */
-  .input-wrapper { display: block; margin-top: 6px; }
-  .input-wrapper input { width: 100%; padding: .8rem 1rem; font-size: .95rem; font-weight: 600; }
-  select, textarea {
-    display: block; width: 100%; margin-top: 6px; padding: .8rem 1rem; font-size: .95rem;
-    font-weight: 600; font-family: inherit; color: lightcoral; background: #eee; border: none;
-    border-radius: 1rem; box-shadow: 0 0.4rem #dfd9d9; cursor: pointer;
+  input[type=text]:focus, select:focus, textarea:focus, input[type=file]:focus {
+    outline: 2px solid var(--brand); outline-offset: 1px; border-color: var(--brand);
   }
-  select:focus, textarea:focus { outline: 2px solid lightcoral; }
-  textarea { font: 600 12.5px/1.5 ui-monospace, Menlo, Consolas, monospace; resize: vertical; cursor: text; }
-  input[type=file] { display: block; margin-top: 8px; font-size: 12px; color: var(--dim); width: 100%; }
+  select {
+    appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%231e1e1e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+  textarea { resize: vertical; font-size: 14px; line-height: 1.4; }
+  .hint { color: var(--text-secondary); font-size: 14px; margin: 0; }
+  .hint code { font-family: "Roboto Mono", ui-monospace, monospace; font-size: 13px; background: var(--bg-tertiary);
+               padding: 0 var(--space-100); border-radius: var(--radius-100); }
+  .hint.ok { color: var(--positive); }
+  .hint.bad { color: var(--danger); }
+
+  /* file picker: styled as a neutral button */
+  input[type=file] { font: inherit; font-size: 14px; color: var(--text-secondary); width: 100%; }
   input[type=file]::file-selector-button {
-    font: 600 12px ui-rounded, system-ui, sans-serif; color: #fff; background: lightcoral; border: none;
-    border-radius: 100px; padding: 6px 14px; margin-right: 10px; cursor: pointer;
+    font: inherit; font-size: 14px; color: var(--text-default); background: var(--neutral);
+    border: 1px solid var(--border-secondary); border-radius: var(--radius-200);
+    padding: var(--space-200) var(--space-300); margin-right: var(--space-300); cursor: pointer;
   }
-  input[type=range] { width: 100%; margin: 10px 0 0; accent-color: lightcoral; }
-  .swatches { display: flex; gap: 12px; }
-  .swatches label { flex: 1; }
-  input[type=color] {
-    width: 100%; height: 38px; margin-top: 6px; padding: 0; background: none;
-    border: none; border-radius: 1rem; box-shadow: 0 0.4rem #dfd9d9; cursor: pointer;
-  }
+  input[type=file]::file-selector-button:hover { background: var(--neutral-hover); }
 
-  /* From Uiverse.io by Praashoo7 */
-  /* Hide the default checkbox */
-  .container input {
-    position: absolute;
-    opacity: 0;
-    cursor: pointer;
-    height: 0;
-    width: 0;
+  /* Slider */
+  .slider { display: flex; align-items: center; gap: var(--space-300); }
+  .slider output { min-width: 4.5em; text-align: right; color: var(--text-secondary); font-size: 14px; }
+  input[type=range] { flex: 1; accent-color: var(--brand); height: 24px; margin: 0; cursor: pointer; }
+
+  /* Checkbox field */
+  .check { display: flex; align-items: center; gap: var(--space-300); cursor: pointer; }
+  .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--brand); border-radius: var(--radius-100); cursor: pointer; }
+  .check input:disabled + span { color: var(--text-tertiary); }
+
+  /* Shape tiles: the first choice, and the one everything else follows from */
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-300); }
+  .tile {
+    font: inherit; text-align: left; display: flex; flex-direction: column;
+    gap: var(--space-200); padding: var(--space-300); cursor: pointer;
+    border: 1px solid var(--border-default); border-radius: var(--radius-200);
+    background: var(--bg-default); color: var(--text-default);
   }
-  .container {
-    display: block;
-    position: relative;
-    cursor: pointer;
-    font-size: 20px;
-    user-select: none;
+  .tile:hover { background: var(--bg-tertiary); }
+  .tile[aria-pressed=true] { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+  .tile b { font-weight: 600; }
+  .tile span { font-size: 13px; line-height: 1.3; color: var(--text-secondary); }
+  .tile svg { width: 100%; height: 40px; fill: none; stroke: var(--text-secondary);
+              stroke-width: 2; stroke-linecap: round; }
+  .tile[aria-pressed=true] svg { stroke: var(--text-default); }
+
+  /* Colour swatches: four Tags in a row */
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-200); }
+  .swatches label { display: flex; flex-direction: column; align-items: center; gap: var(--space-100);
+                    font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+  .swatches input {
+    width: 100%; height: 40px; padding: 0; border: 1px solid var(--border-default);
+    border-radius: var(--radius-200); background: none; cursor: pointer;
   }
-  /* Create a custom checkbox */
-  .checkmark {
-    position: relative;
-    top: 0;
-    left: 0;
-    height: 2.3em;
-    width: 2.3em;
-    background-color: #ccc;
-    border-radius: 50%;
-    transition: .4s;
+  .swatches input::-webkit-color-swatch-wrapper { padding: 3px; }
+  .swatches input::-webkit-color-swatch { border: none; border-radius: 5px; }
+  .swatches input::-moz-color-swatch { border: none; border-radius: 5px; }
+
+  /* Buttons */
+  .button {
+    font: inherit; font-weight: 400; display: inline-flex; align-items: center; justify-content: center;
+    gap: var(--space-200); padding: var(--space-300); min-height: 40px; border-radius: var(--radius-200);
+    border: 1px solid transparent; cursor: pointer; white-space: nowrap; transition: background .12s;
   }
-  .checkmark:hover {
-    box-shadow: inset 17px 17px 16px #b3b3b3,
-              inset -17px -17px 16px #ffffff;
+  .button.primary { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+  .button.primary:hover { background: var(--brand-hover); }
+  .button.neutral { background: var(--neutral); color: var(--text-default); border-color: var(--border-secondary); }
+  .button.neutral:hover { background: var(--neutral-hover); }
+  .button.subtle { background: transparent; color: var(--text-default); }
+  .button.subtle:hover { background: var(--bg-tertiary); }
+  .button:disabled { opacity: .4; pointer-events: none; }
+  .button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6;
+                stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Segmented control for the view */
+  .segmented { display: inline-flex; border: 1px solid var(--border-secondary); border-radius: var(--radius-200);
+               background: var(--neutral); padding: 2px; gap: 2px; }
+  .segmented button {
+    font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--text-default);
+    padding: var(--space-200) var(--space-300); border-radius: 6px; cursor: pointer;
   }
-  /* When the checkbox is checked, add a blue background */
-  .container input:checked ~ .checkmark {
-    box-shadow: none;
-    background-color: limegreen;
-    transform: rotateX(360deg);
-  }
-  .container input:checked ~ .checkmark:hover {
-    box-shadow: 3px 3px 3px rgba(0,0,0,0.2);
-  }
-  /* Create the checkmark/indicator (hidden when not checked) */
-  .checkmark:after {
-    content: "";
-    position: absolute;
-    display: none;
-  }
-  /* Show the checkmark when checked */
-  .container input:checked ~ .checkmark:after {
-    display: block;
-  }
-  /* Style the checkmark/indicator */
-  .container .checkmark:after {
-    left: 0.96em;
-    top: 0.7em;
-    width: 0.25em;
-    height: 0.5em;
-    border: solid white;
-    border-width: 0 0.15em 0.15em 0;
-    box-shadow: 0.1em 0.1em 0em 0 rgba(0,0,0,0.3);
-    transform: rotate(45deg);
-  }
-  /* ours: sit the circle beside its label, at sidebar scale */
-  .container { display: flex; align-items: center; gap: 12px; font-size: 13px; margin-top: 16px; }
-  .checkmark { flex: none; }
-  .check-label { font-size: 13px; font-weight: 600; }
+  .segmented button[aria-pressed=true] { background: var(--brand); color: var(--on-brand); }
 
   /* the viewer */
-  main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-secondary); }
   #view { flex: 1; position: relative; min-height: 0; }
   #gl { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
   #gl:active { cursor: grabbing; }
-  #hud { position: absolute; left: 20px; top: 16px; color: #8a9a6a; font-size: 12px; pointer-events: none; }
+  #hud { position: absolute; left: var(--space-600); top: var(--space-400); color: var(--text-secondary);
+         font-size: 14px; pointer-events: none; }
+  #modes { position: absolute; right: var(--space-600); top: var(--space-400); }
   #nogl { position: absolute; inset: 0; display: none; place-items: center; padding: 30px;
-          text-align: center; color: #9aa; }
-  #buttons { position: absolute; right: 20px; bottom: 20px; display: flex; gap: 14px; flex-wrap: wrap;
-              justify-content: flex-end; }
-
-  /* From Uiverse.io by gharsh11032000 */
-  .animated-button {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    padding: 16px 36px;
-    border: 4px solid;
-    border-color: transparent;
-    font-size: 16px;
-    background-color: inherit;
-    border-radius: 100px;
-    font-weight: 600;
-    color: greenyellow;
-    box-shadow: 0 0 0 2px greenyellow;
-    cursor: pointer;
-    overflow: hidden;
-    transition: all 0.6s cubic-bezier(0.23, 1, 0.32, 1);
-  }
-  .animated-button svg {
-    position: absolute;
-    width: 24px;
-    fill: greenyellow;
-    z-index: 9;
-    transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-  }
-  .animated-button .arr-1 {
-    right: 16px;
-  }
-  .animated-button .arr-2 {
-    left: -25%;
-  }
-  .animated-button .circle {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 20px;
-    height: 20px;
-    background-color: greenyellow;
-    border-radius: 50%;
-    opacity: 0;
-    transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-  }
-  .animated-button .text {
-    position: relative;
-    z-index: 1;
-    transform: translateX(-12px);
-    transition: all 0.8s cubic-bezier(0.23, 1, 0.32, 1);
-  }
-  .animated-button:hover {
-    box-shadow: 0 0 0 12px transparent;
-    color: #212121;
-    border-radius: 12px;
-  }
-  .animated-button:hover .arr-1 {
-    right: -25%;
-  }
-  .animated-button:hover .arr-2 {
-    left: 16px;
-  }
-  .animated-button:hover .text {
-    transform: translateX(12px);
-  }
-  .animated-button:hover svg {
-    fill: #212121;
-  }
-  .animated-button:active {
-    scale: 0.95;
-    box-shadow: 0 0 0 4px greenyellow;
-  }
-  .animated-button:hover .circle {
-    width: 220px;
-    height: 220px;
-    opacity: 1;
-  }
-  /* ours: the buttons sit on the dark viewer, and a disabled one waits quietly */
-  .animated-button { background-color: var(--night); font-family: inherit; white-space: nowrap; }
-  .animated-button:disabled { opacity: .35; pointer-events: none; }
-
-  /* a build in flight: the car, on a paper chip so it reads on the dark viewer */
+          text-align: center; color: var(--text-secondary); }
   #building {
     position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-    width: 300px; height: 130px; background: var(--paper); border-radius: 22px;
-    box-shadow: 0 12px 40px rgba(0,0,0,.45); overflow: hidden; pointer-events: none;
+    display: flex; align-items: center; gap: var(--space-300); padding: var(--space-300) var(--space-400);
+    background: var(--bg-default); border: 1px solid var(--border-default); border-radius: var(--radius-200);
+    color: var(--text-secondary); font-size: 14px; pointer-events: none;
   }
-  #building p { position: absolute; left: 0; right: 0; bottom: 12px; margin: 0; text-align: center;
-                 font-size: 12px; font-weight: 700; color: var(--coral); letter-spacing: .1em; }
-
-  /* From Uiverse.io by anand_4957 */
-  .loader {
-    position: absolute;
-    top: 50%;
-    margin-left: -50px;
-    left: 50%;
-    animation: speeder 0.4s linear infinite;
-  }
-  .loader > span {
-    height: 5px;
-    width: 35px;
-    background: #000;
-    position: absolute;
-    top: -19px;
-    left: 60px;
-    border-radius: 2px 10px 1px 0;
-  }
-  .base span {
-    position: absolute;
-    width: 0;
-    height: 0;
-    border-top: 6px solid transparent;
-    border-right: 100px solid #000;
-    border-bottom: 6px solid transparent;
-  }
-  .base span:before {
-    content: "";
-    height: 22px;
-    width: 22px;
-    border-radius: 50%;
-    background: #000;
-    position: absolute;
-    right: -110px;
-    top: -16px;
-  }
-  .base span:after {
-    content: "";
-    position: absolute;
-    width: 0;
-    height: 0;
-    border-top: 0 solid transparent;
-    border-right: 55px solid #000;
-    border-bottom: 16px solid transparent;
-    top: -16px;
-    right: -98px;
-  }
-  .face {
-    position: absolute;
-    height: 12px;
-    width: 20px;
-    background: #000;
-    border-radius: 20px 20px 0 0;
-    transform: rotate(-40deg);
-    right: -125px;
-    top: -15px;
-  }
-  .face:after {
-    content: "";
-    height: 12px;
-    width: 12px;
-    background: #000;
-    right: 4px;
-    top: 7px;
-    position: absolute;
-    transform: rotate(40deg);
-    transform-origin: 50% 50%;
-    border-radius: 0 0 0 2px;
-  }
-  .loader > span > span:nth-child(1),
-  .loader > span > span:nth-child(2),
-  .loader > span > span:nth-child(3),
-  .loader > span > span:nth-child(4) {
-    width: 30px;
-    height: 1px;
-    background: #000;
-    position: absolute;
-    animation: fazer1 0.2s linear infinite;
-  }
-  .loader > span > span:nth-child(2) {
-    top: 3px;
-    animation: fazer2 0.4s linear infinite;
-  }
-  .loader > span > span:nth-child(3) {
-    top: 1px;
-    animation: fazer3 0.4s linear infinite;
-    animation-delay: -1s;
-  }
-  .loader > span > span:nth-child(4) {
-    top: 4px;
-    animation: fazer4 1s linear infinite;
-    animation-delay: -1s;
-  }
-  @keyframes fazer1 {
-    0% { left: 0; }
-    100% { left: -80px; opacity: 0; }
-  }
-  @keyframes fazer2 {
-    0% { left: 0; }
-    100% { left: -100px; opacity: 0; }
-  }
-  @keyframes fazer3 {
-    0% { left: 0; }
-    100% { left: -50px; opacity: 0; }
-  }
-  @keyframes fazer4 {
-    0% { left: 0; }
-    100% { left: -150px; opacity: 0; }
-  }
-  @keyframes speeder {
-    0% { transform: translate(2px, 1px) rotate(0deg); }
-    10% { transform: translate(-1px, -3px) rotate(-1deg); }
-    20% { transform: translate(-2px, 0px) rotate(1deg); }
-    30% { transform: translate(1px, 2px) rotate(0deg); }
-    40% { transform: translate(1px, -1px) rotate(1deg); }
-    50% { transform: translate(-1px, 3px) rotate(-1deg); }
-    60% { transform: translate(-1px, 1px) rotate(0deg); }
-    70% { transform: translate(3px, 1px) rotate(-1deg); }
-    80% { transform: translate(-2px, -1px) rotate(1deg); }
-    90% { transform: translate(2px, 1px) rotate(0deg); }
-    100% { transform: translate(1px, -2px) rotate(-1deg); }
-  }
-  .longfazers {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-  }
-  .longfazers span {
-    position: absolute;
-    height: 2px;
-    width: 20%;
-    background: #000;
-  }
-  .longfazers span:nth-child(1) {
-    top: 20%;
-    animation: lf 0.6s linear infinite;
-    animation-delay: -5s;
-  }
-  .longfazers span:nth-child(2) {
-    top: 40%;
-    animation: lf2 0.8s linear infinite;
-    animation-delay: -1s;
-  }
-  .longfazers span:nth-child(3) {
-    top: 60%;
-    animation: lf3 0.6s linear infinite;
-  }
-  .longfazers span:nth-child(4) {
-    top: 80%;
-    animation: lf4 0.5s linear infinite;
-    animation-delay: -3s;
-  }
-  @keyframes lf {
-    0% { left: 200%; }
-    100% { left: -200%; opacity: 0; }
-  }
-  @keyframes lf2 {
-    0% { left: 200%; }
-    100% { left: -200%; opacity: 0; }
-  }
-  @keyframes lf3 {
-    0% { left: 200%; }
-    100% { left: -100%; opacity: 0; }
-  }
-  @keyframes lf4 {
-    0% { left: 200%; }
-    100% { left: -100%; opacity: 0; }
-  }
+  #building i { width: 16px; height: 16px; border: 2px solid var(--border-default); border-top-color: var(--brand);
+                border-radius: 50%; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #buttons { position: absolute; right: var(--space-600); bottom: var(--space-600); display: flex; gap: var(--space-300);
+             flex-wrap: wrap; justify-content: flex-end; }
 
   /* the readout */
   #specs {
-    background: var(--paper); border-top: 6px solid var(--coral); padding: 14px 22px;
-    display: flex; flex-wrap: wrap; gap: 4px 26px; font-size: 13px; color: var(--dim);
+    background: var(--bg-default); border-top: 1px solid var(--border-default); padding: var(--space-400) var(--space-600);
+    display: flex; flex-wrap: wrap; gap: var(--space-100) var(--space-600); font-size: 14px; color: var(--text-secondary);
   }
-  #specs b { color: var(--ink); font-weight: 700; }
-  #specs .warn { color: #b8661f; }
-  #specs .err { color: #c8412b; font-weight: 600; }
+  #specs b { color: var(--text-default); font-weight: 600; }
+  #specs .warn { color: var(--warning); background: var(--warning-bg); padding: 0 var(--space-200); border-radius: var(--radius-100); }
+  #specs .err { color: var(--danger); background: var(--danger-bg); padding: 0 var(--space-200); border-radius: var(--radius-100); }
 
-  /* the scrollbar: thin, round, coral -- to go with the inputs */
-  aside { scrollbar-width: thin; scrollbar-color: lightcoral var(--paper-2); }
-  aside::-webkit-scrollbar { width: 10px; }
-  aside::-webkit-scrollbar-track { background: var(--paper-2); border-radius: 10px; }
-  aside::-webkit-scrollbar-thumb { background: lightcoral; border-radius: 10px; border: 2px solid var(--paper-2); }
-  aside::-webkit-scrollbar-thumb:hover { background: #e0605a; }
+  aside { scrollbar-width: thin; scrollbar-color: var(--border-default) transparent; }
 
-  @media (max-width: 760px) {
+  @media (max-width: 800px) {
     body { flex-direction: column; height: auto; }
-    aside { width: 100%; border-right: 0; border-bottom: 6px solid var(--coral); }
-    #view { height: 62vh; }
-    #buttons { right: 12px; bottom: 12px; gap: 8px; }
-    .animated-button { padding: 12px 28px; font-size: 14px; }
+    aside { width: 100%; border-right: 0; border-bottom: 1px solid var(--border-default); }
+    #view { height: 64vh; }
+    #buttons { right: var(--space-400); bottom: var(--space-400); }
   }
 </style>
 </head>
 <body>
 <aside>
-  <h1>Realtor NFC cards</h1>
-  <p class="sub">Three fields, two sides, one tap.</p>
+  <div>
+    <h1>NFC cards and fobs</h1>
+    <p class="sub">Pick a shape, fill it in, print it in two halves.</p>
+  </div>
 
-  <label>Name<span class="input-wrapper"><input type="text" id="name" value="Jane Doe" autocomplete="off" ></span></label>
-  <label>Company<span class="input-wrapper"><input type="text" id="company" value="Bluewater Realty" autocomplete="off" ></span></label>
-  <label>Phone<span class="input-wrapper"><input type="text" id="phone" value="(555) 214-8890" autocomplete="off" ></span></label>
-  <p class="hint">A long line shrinks to fit. Past a point that stops being printable &mdash;
-     put a <code>|</code> where it should break instead, and both halves stay full size.</p>
-
-  <label>Logo (SVG) <input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
-  <p class="hint" id="logo_note">Raised on the front beside the name. Flat fills only &mdash;
-     strokes, gradients and text objects in the file are ignored, so export the logo as
-     outlines first.</p>
-  <label>Full front design (SVG) <input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
-  <p class="hint" id="design_note">Replaces name, company, phone and logo with your own artwork,
-     filling the face.</p>
-
-  <label>Body
-    <select id="kind">
-      <option value="card">Card &mdash; 85.6 &times; 54 mm, wallet size</option>
-      <option value="fob">Keyring fob &mdash; smaller, with a ring hole</option>
-    </select>
-  </label>
-  <label class="container"><input type="checkbox" id="border" checked><span class="checkmark"></span><span class="check-label">Raised border (card only)</span></label>
-  <label>Relief height <b id="rise_v">1.2 mm</b>
-    <input type="range" id="rise" min="0.4" max="2.5" step="0.1" value="1.2">
-  </label>
-  <p class="hint">How far the lettering stands off the face. 0.6 mm reads; 1.2 mm you can feel
-     with a thumb; past 2 mm the thin strokes start to snag.</p>
-
-  <fieldset>
-    <legend>Tap side</legend>
-    <label>Wording under the arcs<span class="input-wrapper"><input type="text" id="tap" value="TAP HERE" autocomplete="off" ></span></label>
-    <p class="hint">Use <code>|</code> to split lines. Leave it empty for arcs alone &mdash;
-       which is what the fob gets anyway, there is no room for text beside its pocket.</p>
-    <div class="row">
-      <label>Tag width<span class="input-wrapper"><input type="text" id="tag_w" value="35" autocomplete="off" inputmode="decimal"></span></label>
-      <label>Tag height<span class="input-wrapper"><input type="text" id="tag_h" value="22" autocomplete="off" inputmode="decimal"></span></label>
-      <label>Thick<span class="input-wrapper"><input type="text" id="tag_thick" value="0.5" autocomplete="off" inputmode="decimal"></span></label>
+  <section>
+    <h2>1 &middot; Shape</h2>
+    <div class="tiles" data-light="kind">
+      <button type="button" class="tile" data-kind="fob" aria-pressed="true">
+        <svg viewBox="0 0 62 34" aria-hidden="true"><rect x="1" y="1" width="60" height="32" rx="4"/><circle cx="8" cy="17" r="2.6"/><path d="M18 12h30M18 18h22"/></svg>
+        <b>Keyring fob</b><span>62 &times; 34 mm, with a ring hole</span>
+      </button>
+      <button type="button" class="tile" data-kind="card" aria-pressed="false">
+        <svg viewBox="0 0 86 54" aria-hidden="true"><rect x="1" y="1" width="84" height="52" rx="3"/><path d="M10 18h44M10 28h30M10 38h36"/></svg>
+        <b>Business card</b><span>85.6 &times; 54 mm, wallet size</span>
+      </button>
     </div>
-    <p class="hint">Millimetres, measured off your own tags. The pocket adds 0.4 mm of slack,
-       and the fob grows if it has to.</p>
-    <label>Tag fitting
+    <input type="hidden" id="kind" value="fob">
+    <p class="hint" id="shape_note">The fob is the one that lives on a keyring. The card is CR80,
+       the size of a credit card, so it sits in a wallet slot.</p>
+  </section>
+
+  <section>
+    <h2>2 &middot; Who you are</h2>
+    <label class="field" data-light="name"><span>Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
+    <label class="field" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
+    <label class="field" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
+    <label class="field" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
+    <label class="field" data-light="email"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
+    <p class="hint">Name, company, title, phone and email are the five every guide to business
+       cards agrees on, and five to seven things is where a card stops being read. Leave any of
+       them empty and the line goes away. A long one shrinks to fit; past the point where that
+       stops being printable, put a <code>|</code> where it should break instead.</p>
+    <label class="field" data-light="logo_file"><span>Logo (SVG)</span><input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
+    <p class="hint" id="logo_note">Goes beside the name. Flat fills only &mdash; strokes, gradients
+       and text objects are ignored, so export the logo as outlines first. Each fill colour in the
+       file goes to whichever of the four colours it is nearest.</p>
+    <label class="field" data-light="design_file"><span>Full front design (SVG)</span><input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
+    <p class="hint" id="design_note">Replaces the whole front with your own artwork. Draw it on a
+       rectangle in the body colour and it comes out at the rectangle's size.</p>
+  </section>
+
+  <section>
+    <h2>3 &middot; How it looks</h2>
+    <label class="field" data-light="preset"><span>Preset</span>
+      <select id="preset"></select>
+    </label>
+    <label class="field" data-light="layout"><span>Layout</span>
+      <select id="layout"></select>
+    </label>
+    <p class="hint" id="layout_note"></p>
+    <label class="check" data-light="logo_file"><input type="checkbox" id="placeholder"><span>Empty square where a logo would go</span></label>
+    <label class="field" data-light="look"><span>Background pattern</span>
+      <select id="look"></select>
+    </label>
+    <div class="field"><span>Colours</span>
+      <div class="swatches">
+        <label data-light="c0"><input type="color" id="c0" value="#141414">Body</label>
+        <label data-light="c1"><input type="color" id="c1" value="#2e2e2e">Pattern</label>
+        <label data-light="c2"><input type="color" id="c2" value="#f2f2f2">Primary</label>
+        <label data-light="c3"><input type="color" id="c3" value="#9a9a9a">Secondary</label>
+      </div>
+    </div>
+    <p class="hint">Every colour is an inlay in one thin face layer &mdash; the first 0.6 mm of each
+       half as it prints &mdash; so a multi-material printer does all its changes in three layers
+       and the rest of the part in the body colour. Primary is the name, phone and logo;
+       secondary the quieter lines and the tap wording.</p>
+    <div class="field" data-light="rise"><span>Relief</span>
+      <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
+    </div>
+    <p class="hint">How far the lettering stands off the face. Flush is a smooth card with every
+       colour in the face layer. 1.2 mm you can feel with a thumb, at the cost of a colour change
+       on every layer of the relief.</p>
+    <label class="check card-only" data-light="border"><input type="checkbox" id="border"><span>Border line round the card</span></label>
+  </section>
+
+  <section>
+    <h2>4 &middot; The tap side</h2>
+    <label class="field" data-light="tag_mode"><span>Tag fitting</span>
       <select id="tag_mode">
+        <option value="split">Two halves &mdash; tag glued between them</option>
         <option value="pocket">Pocket &mdash; open recess, stick the tag in after</option>
         <option value="embed">Embedded &mdash; roofed over, pause the print</option>
-        <option value="split">Split &mdash; two halves, tag glued between them</option>
       </select>
     </label>
-    <p class="hint">Split gives you two parts on one plate, each with half the cavity and a
-       three-pin key so they only go together one way. The tag ends up on the neutral plane
-       with plastic either side.</p>
-    <label>Link<span class="input-wrapper"><input type="text" id="link" value="" autocomplete="off" placeholder="https://www.realtor.ca/real-estate/..."></span></label>
+    <p class="hint" id="mode_note">Two halves print face down on one plate, each with half the cavity and
+       a three-pin key so they only go together one way. Glue the flat border outside the cavity
+       and clamp; the tag ends up sealed in the middle with nothing showing.</p>
+    <div class="row">
+      <label class="field" data-light="tag_w"><span>Tag width</span><input type="text" id="tag_w" value="35" autocomplete="off" inputmode="decimal"></label>
+      <label class="field" data-light="tag_h"><span>Tag height</span><input type="text" id="tag_h" value="22" autocomplete="off" inputmode="decimal"></label>
+      <label class="field" data-light="tag_thick"><span>Thick</span><input type="text" id="tag_thick" value="0.5" autocomplete="off" inputmode="decimal"></label>
+    </div>
+    <p class="hint">Millimetres, measured off your own tags. The cavity adds 0.4 mm of slack, and
+       the fob grows if it has to.</p>
+    <label class="field" data-light="tap"><span>Wording under the arcs</span><input type="text" id="tap" value="TAP HERE" autocomplete="off"></label>
+    <p class="hint">Use <code>|</code> to split lines. Leave it empty for arcs alone &mdash;
+       which is what the fob gets anyway, there is no room for text beside its cavity.</p>
+    <label class="field" data-light="link"><span>Link</span><input type="text" id="link" value="" autocomplete="off" placeholder="https://..."></label>
     <p class="hint" id="linkfit">Nothing here writes the tag &mdash; that is a phone job
        (NFC Tools and the like). This counts the bytes it would take.</p>
-    <label class="container"><input type="checkbox" id="qr"><span class="checkmark"></span><span class="check-label">QR code for the link on the back</span></label>
-    <p class="hint">For phones that don't tap. A shorter link is a coarser code, and a
-       coarser code prints on a bigger nozzle &mdash; the readout says which. Scanners want
-       dark modules on a light ground, so print the raised colour darker than the body.</p>
-  </fieldset>
+    <label class="check" data-light="qr"><input type="checkbox" id="qr"><span>QR code for the link on the back</span></label>
+    <p class="hint">For phones that don't tap, and the one addition worth making to a modern card:
+       a short link you control can be re-pointed without reprinting. A shorter link is a coarser
+       code, and a coarser code prints on a bigger nozzle.</p>
+  </section>
 
-  <fieldset>
-    <legend>Batch</legend>
-    <label>One person per line
-      <textarea id="batch" rows="5" spellcheck="false"
+  <section>
+    <h2>5 &middot; A batch of them</h2>
+    <label class="field"><span>One person per line</span>
+      <textarea id="batch" rows="4" spellcheck="false"
         placeholder="Jane Doe, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
     </label>
     <p class="hint">Name, company, phone, link &mdash; commas or tabs, so a spreadsheet pastes
-       straight in. Company and link may be blank. While there is anything here, the preview
-       and the downloads are the whole batch on one plate, sharing the settings above.</p>
-    <label>Plate width<span class="input-wrapper"><input type="text" id="bed" value="220" autocomplete="off" inputmode="decimal"></span></label>
-  </fieldset>
-
-  <fieldset>
-    <legend>Colours</legend>
-    <div class="swatches">
-      <label>Body <input type="color" id="c_body" value="#cfd3d6"></label>
-      <label>Raised <input type="color" id="c_accent" value="#d9a441"></label>
-    </div>
-    <p class="hint">Written into the 3MF as two materials, so the slicer opens it with the
-       lettering already on the second filament. The STL is one solid; its split is where the
-       colour change goes.</p>
-  </fieldset>
+       straight in. The title and email above are shared by the whole batch. While there is
+       anything here, the preview and the downloads are the whole batch on one plate.</p>
+    <label class="field"><span>Plate width</span><input type="text" id="bed" value="220" autocomplete="off" inputmode="decimal"></label>
+  </section>
 </aside>
 
 <main>
   <div id="view">
     <canvas id="gl"></canvas>
     <div id="hud">drag to turn &middot; scroll to zoom</div>
+    <div id="modes" class="segmented" hidden>
+      <button type="button" data-mode="glued" aria-pressed="true">Glued up</button>
+      <button type="button" data-mode="apart" aria-pressed="false">Pulled apart</button>
+      <button type="button" data-mode="plate" aria-pressed="false">On the plate</button>
+    </div>
     <div id="nogl">This browser has no WebGL, so there is no preview &mdash; the form and
       the downloads still work.</div>
-    <div id="building" hidden>
-      <div class="loader">
-        <span><span></span><span></span><span></span><span></span></span>
-        <div class="base"><span></span><div class="face"></div></div>
-      </div>
-      <div class="longfazers"><span></span><span></span><span></span><span></span></div>
-      <p>BUILDING</p>
-    </div>
+    <div id="building" hidden><i></i>Building</div>
     <div id="buttons">
-      <button class="animated-button" id="flip"><svg viewBox="0 0 24 24" class="arr-2" xmlns="http://www.w3.org/2000/svg"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"></path></svg><span class="text">Flip</span><span class="circle"></span><svg viewBox="0 0 24 24" class="arr-1" xmlns="http://www.w3.org/2000/svg"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"></path></svg></button>
-      <button class="animated-button" id="save_stl" disabled><svg viewBox="0 0 24 24" class="arr-2" xmlns="http://www.w3.org/2000/svg"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"></path></svg><span class="text">STL</span><span class="circle"></span><svg viewBox="0 0 24 24" class="arr-1" xmlns="http://www.w3.org/2000/svg"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"></path></svg></button>
-      <button class="animated-button" id="save" disabled><svg viewBox="0 0 24 24" class="arr-2" xmlns="http://www.w3.org/2000/svg"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"></path></svg><span class="text">Download 3MF</span><span class="circle"></span><svg viewBox="0 0 24 24" class="arr-1" xmlns="http://www.w3.org/2000/svg"><path d="M16.1716 10.9999L10.8076 5.63589L12.2218 4.22168L20 11.9999L12.2218 19.778L10.8076 18.3638L16.1716 12.9999H4V10.9999H16.1716Z"></path></svg></button>
+      <button class="button subtle" id="flip"><svg viewBox="0 0 16 16"><path d="M2 8a6 6 0 0 1 10.4-4.1M14 8a6 6 0 0 1-10.4 4.1"/><path d="M12.5 1v3h-3M3.5 15v-3h3"/></svg>Flip</button>
+      <button class="button neutral" id="save_stl" disabled>STL</button>
+      <button class="button primary" id="save" disabled><svg viewBox="0 0 16 16"><path d="M8 2v8m0 0L5 7m3 3 3-3M3 12v2h10v-2"/></svg>Download 3MF</button>
     </div>
   </div>
   <div id="specs">building&hellip;</div>
@@ -544,10 +327,51 @@
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const FIELDS = ["name", "company", "phone", "kind", "tap", "tag_w", "tag_h",
-                "tag_thick", "tag_mode", "rise", "link", "batch", "bed"];
+const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag_w",
+                "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
+                "look", "layout"];
+const COLOURS = ["c0", "c1", "c2", "c3"];
+const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "";
 const specs = $("specs");
+
+/* The looks, as src/looks.py has them -- a layout, a pattern and four colours:
+   body, pattern, primary, secondary.  Kept here too so picking one is instant. */
+const LAYOUTS = {
+  centred: "Centred — name, company, rule, phone, in the middle",
+  student: "Student — name top left, logo square top right, address bottom right",
+  corporate: "Corporate — mark and company top left, person bottom left",
+};
+const PATTERNS = {
+  plain: "Plain — no pattern",
+  cubes: "Cubes — isometric outlines in two corners",
+  stripes: "Stripes — diagonal hatching in two corners",
+  grid: "Grid — graph paper across the face",
+  hexes: "Hexes — honeycomb in two corners",
+  rings: "Rings — arcs out of two corners",
+  dots: "Dots — a dot grid in two corners",
+  disc: "Disc — one big circle off the top-right corner",
+  hexband: "Hex band — solid hexagons along the bottom",
+  badge: "Badge — the disc and the hex band together",
+};
+const PRESETS = {
+  printlab:  ["Print Lab — black, white lettering, cubes", "cubes", "centred", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
+  student:   ["Student — dark card, name top left, address bottom right", "plain", "student", ["#1b2430", "#2a3644", "#f4f6f8", "#9fb0c0"]],
+  corporate: ["Corporate — navy, big disc, hexagons along the bottom", "badge", "corporate", ["#141d3a", "#22305c", "#ffffff", "#c8cede"]],
+  citrus:    ["Citrus — burnt orange, white lettering, hex band", "badge", "corporate", ["#c4561f", "#a54314", "#ffffff", "#f6cdb6"]],
+  slate:     ["Slate — blue-grey, gold accent, stripes", "stripes", "centred", ["#2b3a4a", "#3d5063", "#ffffff", "#c9a227"]],
+  paper:     ["Paper — ivory, ink, coral, grid", "grid", "centred", ["#f2efe6", "#d9d3c4", "#1f1f1f", "#c8412b"]],
+  navy:      ["Navy — navy and gold, rings", "rings", "centred", ["#1f2a44", "#2c3a5c", "#e8c15a", "#cfd3d6"]],
+  forest:    ["Forest — green, cream, hexes", "hexes", "centred", ["#1d3b2a", "#2b5038", "#f4efe2", "#d9a441"]],
+  ember:     ["Ember — charcoal, orange, dots", "dots", "centred", ["#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0"]],
+  plain:     ["Plain — grey body, gold lettering, no pattern", "plain", "centred", ["#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441"]],
+};
+for (const [k, v] of Object.entries(LAYOUTS)) $("layout").add(new Option(v, k));
+for (const [k, v] of Object.entries(PATTERNS)) $("look").add(new Option(v, k));
+for (const [k, v] of Object.entries(PRESETS)) $("preset").add(new Option(v[0], k));
+$("preset").add(new Option("Custom", "custom"));
+$("look").value = "cubes";
+$("layout").value = "centred";
 
 /* ---------------------------------------------------------------- maths --
    Column-major 4x4s, the layout GLSL wants, so they go straight into a
@@ -580,6 +404,17 @@ const M = {
     const c = Math.cos(a), s = Math.sin(a);
     return new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]);
   },
+  // a row-major 4x4 as numpy lays it out, to column-major
+  fromRows(m) {
+    const o = new Float32Array(16);
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) o[c * 4 + r] = m[r * 4 + c];
+    return o;
+  },
+  apply(m, x, y, z) {
+    return [m[0] * x + m[4] * y + m[8] * z + m[12],
+            m[1] * x + m[5] * y + m[9] * z + m[13],
+            m[2] * x + m[6] * y + m[10] * z + m[14]];
+  },
 };
 
 const VERT = `
@@ -595,22 +430,57 @@ void main() {
 const FRAG = `
 precision mediump float;
 varying vec3 vN; varying vec3 vC;
+uniform float uHi;          // 1 this group is lit, -1 something else is, 0 nothing
 void main() {
+  // Two-sided: a back face is lit as though it faced us.  With culling off,
+  // the pinholes a sliver leaves in a flat face show the inside of the solid
+  // through them, and shading that inside like the face around it is what
+  // makes them disappear.
   vec3 n = normalize(vN);
+  if (!gl_FrontFacing) n = -n;
   vec3 key = normalize(vec3(-0.25, 0.30, 1.00));
   vec3 fill = normalize(vec3(0.60, -0.55, 0.55));
-  float d = max(dot(n, key), 0.0) * 0.76 + max(dot(n, fill), 0.0) * 0.22 + 0.26;
+  float d = max(dot(n, key), 0.0) * 0.70 + max(dot(n, fill), 0.0) * 0.22 + 0.30;
   vec3 h = normalize(key + vec3(0.0, 0.0, 1.0));
-  float s = pow(max(dot(n, h), 0.0), 40.0) * 0.30;
-  gl_FragColor = vec4(vC * d + s, 1.0);
+  float s = pow(max(dot(n, h), 0.0), 40.0) * 0.25;
+  // Putting the cursor in a box lights up what it makes: that field goes a
+  // colour no filament here is, and the rest of the part loses its own, so
+  // the answer to "which bit is this?" is the only coloured thing on screen.
+  vec3 c = vC;
+  if (uHi > 0.5) c = vec3(0.10, 0.76, 1.0);
+  else if (uHi < -0.5) c = mix(c, vec3(dot(c, vec3(0.299, 0.587, 0.114))), 0.78);
+  gl_FragColor = vec4(c * d + s, 1.0);
 }`;
 
-/* ------------------------------------------------------------- the view -- */
+/* ------------------------------------------------------------- the view --
+   The model is a list of parts, each a run of triangles in its own
+   coordinates plus two places it can be: on the plate, as it prints, and in
+   the assembled card.  "Pulled apart" is the assembled place with the back
+   half lifted off along the glue line. */
 const canvas = $("gl");
-const gl = canvas.getContext("webgl", { antialias: true, alpha: false });
-let prog, loc, buf = {}, count = 0;
-let yaw = Math.PI, yawTo = Math.PI, pitch = 0.34, dist = 150;
-let info = null, stl = null, drag = null;
+/* Supersampled rather than multisampled.  A boolean leaves needle triangles
+   a few microns across, and rounding their corners to the single precision an
+   STL stores opens sub-pixel cracks between them; multisampling resolves
+   those cracks against whatever lies behind the face and scatters faint
+   speckles over it.  Drawing into a canvas larger than it is shown and
+   letting the browser scale it down antialiases the edges without ever
+   sampling a crack. */
+const SUPERSAMPLE = 1.8;
+const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
+let prog, loc, buf = {};
+let parts = [];                      // { start, count, name, plate, assembled }
+let yaw = Math.PI, yawTo = Math.PI, pitch = 0.34, pitchTo = 0.34, dist = 150, distTo = 150;
+let focus = [0, 0, 0], focusTo = [0, 0, 0], lift = 0, liftTo = 0, depth = 40;
+let mode = "glued", info = null, stl = null, drag = null;
+/* yaw, pitch per mode.  Pitch 0 is straight on to the face, so the plate gets
+   the least of it -- a plan view of what the slicer will see -- the glued card
+   a slight tilt, and the exploded one enough to look into the open joint.
+   Yaw PI turns the card over to its front; yaw 0 leaves the tap side up.
+   The exploded view's pitch is negative so that lifting the back half along
+   +Z moves it up the screen: the tap side on top, the cavity and pins of the
+   front half below it, and the tag between the two. */
+const CAMERA = { glued: [Math.PI, 0.34], apart: [0, -0.8], plate: [0, 0.22] };
+const FOV = 0.42;              // a longish lens: a card should read flat, not bulge
 
 if (!gl) {
   canvas.style.display = "none";
@@ -635,14 +505,21 @@ if (!gl) {
     col: gl.getAttribLocation(prog, "aCol"),
     mvp: gl.getUniformLocation(prog, "uMVP"),
     model: gl.getUniformLocation(prog, "uModel"),
+    hi: gl.getUniformLocation(prog, "uHi"),
   };
   for (const k of ["pos", "nrm", "col"]) {
     buf[k] = gl.createBuffer();
     gl.enableVertexAttribArray(loc[k]);
   }
   gl.enable(gl.DEPTH_TEST);
-  gl.enable(gl.CULL_FACE);
-  gl.clearColor(0.078, 0.090, 0.110, 1);
+  // No back-face culling.  A boolean leaves slivers a few microns across, and
+  // once their corners are rounded to the single precision an STL stores, the
+  // sign of their screen-space area is a coin toss -- so culling drops a
+  // scattering of them and leaves pinholes in a flat face, through which the
+  // lettering on the other side of the part shows as dark speckles.  These
+  // meshes are small and every solid here is closed, so drawing both sides
+  // costs little and the depth buffer still picks the right one.
+  gl.clearColor(0.961, 0.961, 0.961, 1);
   requestAnimationFrame(frame);
 
   canvas.addEventListener("pointerdown", e => {
@@ -652,86 +529,258 @@ if (!gl) {
   canvas.addEventListener("pointermove", e => {
     if (!drag) return;
     yawTo = yaw += (e.clientX - drag.x) * 0.009;
-    pitch = Math.max(-1.45, Math.min(1.45, pitch + (e.clientY - drag.y) * 0.009));
+    pitchTo = pitch = Math.max(-1.45, Math.min(1.45, pitch + (e.clientY - drag.y) * 0.009));
     drag = { x: e.clientX, y: e.clientY };
   });
   addEventListener("pointerup", () => { drag = null; });
   canvas.addEventListener("wheel", e => {
     e.preventDefault();
-    dist = Math.max(30, Math.min(600, dist * (1 + Math.sign(e.deltaY) * 0.12)));
+    distTo = dist = Math.max(30, Math.min(900, dist * (1 + Math.sign(e.deltaY) * 0.12)));
   }, { passive: false });
+}
+
+/* what is on screen in this mode: the tag is not a printed part, so it only
+   shows when the halves are open far enough to see it */
+const shown = part => mode !== "plate" || !part.tag;
+
+/* where a part sits in the current mode: column-major 4x4.  Opening the
+   joint lifts the back half clear and leaves the tag halfway up, which is
+   where it ends up once the two are glued. */
+function place(part, gap) {
+  if (mode === "plate") return M.translate(...part.plate);
+  const m = part.assembled;
+  if (part.name === "back") return M.mul(M.translate(0, 0, gap), m);
+  if (part.tag) return M.mul(M.translate(0, 0, gap / 2), m);
+  return m;
 }
 
 function frame() {
   requestAnimationFrame(frame);
-  const dpr = Math.min(devicePixelRatio || 1, 2);
+  // capped, because a big display at 1.8x again is a lot of fragments for a
+  // software renderer to push
+  const dpr = Math.min((devicePixelRatio || 1) * SUPERSAMPLE, 2.6);
   const w = Math.round(canvas.clientWidth * dpr), h = Math.round(canvas.clientHeight * dpr);
   if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
   gl.viewport(0, 0, w, h);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  if (!count) return;
+  if (!parts.length) return;
 
   yaw += (yawTo - yaw) * 0.16;
-  const model = M.mul(M.rotY(yaw), M.rotX(pitch));
-  const mvp = M.mul(M.mul(M.perspective(0.58, w / Math.max(1, h), 1, 3000),
-                          M.translate(0, 0, -dist)), model);
-  gl.uniformMatrix4fv(loc.mvp, false, mvp);
-  gl.uniformMatrix4fv(loc.model, false, model);
-  gl.drawArrays(gl.TRIANGLES, 0, count);
+  pitch += (pitchTo - pitch) * 0.16;
+  dist += (distTo - dist) * 0.16;
+  lift += (liftTo - lift) * 0.14;
+  for (let k = 0; k < 3; k++) focus[k] += (focusTo[k] - focus[k]) * 0.16;
+
+  const turn = M.mul(M.rotY(yaw), M.rotX(pitch));
+  const view = M.mul(M.mul(M.translate(0, 0, -dist), turn), M.translate(-focus[0], -focus[1], -focus[2]));
+  // The near plane does the work here.  A card is 2 mm thick and the depth
+  // buffer may be only 16 bits, so a near plane at 1 mm spends nearly all of
+  // its precision on empty space in front of the part and the lettering on
+  // the far face speckles through the near one.  Wrapping both planes tightly
+  // round the scene -- its own depth, measured in camera space, plus room to
+  // turn and zoom -- puts that precision where the geometry is.
+  const pad = depth * 1.6 + 20;
+  const proj = M.perspective(FOV, w / Math.max(1, h),
+                             Math.max(dist - pad, dist * 0.02), dist + pad);
+  for (const part of parts) {
+    if (!shown(part)) continue;
+    const model = place(part, lift);
+    gl.uniformMatrix4fv(loc.mvp, false, M.mul(M.mul(proj, view), model));
+    gl.uniformMatrix4fv(loc.model, false, M.mul(turn, model));
+    for (const g of part.groups) {
+      gl.uniform1f(loc.hi, !light ? 0 : (lit(g) ? 1 : -1));
+      gl.drawArrays(gl.TRIANGLES, g.start, g.count);
+    }
+  }
+}
+
+/* Point the camera at the middle of whatever the mode is showing, from far
+   enough back to hold all of it.  The box is measured twice: in world
+   coordinates, for where to look, and again turned into camera coordinates,
+   for how far back -- a plate is wide on screen and a card on edge is not,
+   and only the turned box knows the difference. */
+function frameView() {
+  const world = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  const cam = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  const turn = M.mul(M.rotY(yawTo), M.rotX(pitchTo));
+  for (const part of parts) {
+    if (!shown(part)) continue;
+    const m = place(part, mode === "apart" ? part.lift : 0);
+    for (const x of [part.lo[0], part.hi[0]]) for (const y of [part.lo[1], part.hi[1]])
+      for (const z of [part.lo[2], part.hi[2]]) {
+        const p = M.apply(m, x, y, z);
+        const q = M.apply(turn, p[0], p[1], p[2]);
+        for (let k = 0; k < 3; k++) {
+          world[k] = Math.min(world[k], p[k]); world[k + 3] = Math.max(world[k + 3], p[k]);
+          cam[k] = Math.min(cam[k], q[k]); cam[k + 3] = Math.max(cam[k + 3], q[k]);
+        }
+      }
+  }
+  focusTo = [0, 1, 2].map(k => (world[k] + world[k + 3]) / 2);
+  const aspect = canvas.clientWidth / Math.max(1, canvas.clientHeight);
+  const half = Math.tan(FOV / 2);
+  const w = (cam[3] - cam[0]) / 2, h = (cam[4] - cam[1]) / 2, d = (cam[5] - cam[2]) / 2;
+  depth = d;
+  // the near face is what fills the frame, so stand off from it, not from the centre
+  distTo = 1.3 * Math.max(w / (half * aspect), h / half) + d;
+}
+
+function setMode(next, snap) {
+  mode = next;
+  for (const b of $("modes").querySelectorAll("button"))
+    b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
+  liftTo = mode === "apart" ? (parts[0] ? parts[0].lift : 14) : 0;
+  [yawTo, pitchTo] = CAMERA[mode];
+  frameView();
+  if (snap) { lift = liftTo; yaw = yawTo; pitch = pitchTo; focus = [...focusTo]; dist = distTo; }
+}
+
+/* ---------------------------------------------------------- highlighting --
+   Every run of triangles knows the field it came from, so a control can say
+   "this one" and the viewer can answer.  Putting the cursor in a box -- or
+   just running it over one -- lights that field up and greys the rest. */
+const HUD_IDLE = "drag to turn \u00b7 scroll to zoom";
+const LIGHTS = {
+  kind:        { all: true, label: "the whole part" },
+  name:        { el: ["name"], label: "the name" },
+  company:     { el: ["company"], label: "the company" },
+  role:        { el: ["role"], label: "the title" },
+  phone:       { el: ["phone"], label: "the phone number" },
+  email:       { el: ["email"], label: "the email" },
+  logo_file:   { el: ["logo", "design"], label: "the logo" },
+  design_file: { el: ["design", "logo"], label: "the design" },
+  preset:      { ink: true, label: "everything in the face" },
+  layout:      { face: "front", label: "the front" },
+  look:        { el: ["pattern"], label: "the pattern" },
+  border:      { el: ["border"], label: "the border" },
+  rise:        { ink: true, label: "everything in the face" },
+  c0:          { slot: 0, label: "the body colour" },
+  c1:          { slot: 1, label: "the pattern colour" },
+  c2:          { slot: 2, label: "the primary colour" },
+  c3:          { slot: 3, label: "the secondary colour" },
+  tap:         { el: ["tap", "arcs"], label: "the tap mark" },
+  link:        { el: ["qr"], label: "the QR code" },
+  qr:          { el: ["qr"], label: "the QR code" },
+  tag_mode:    { el: ["tag"], mode: "apart", label: "the tag in the joint" },
+  tag_w:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
+  tag_h:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
+  tag_thick:   { el: ["tag"], mode: "apart", label: "the tag in the joint" },
+};
+let light = null, lightKey = null;
+
+function lit(g) {
+  if (!light) return false;
+  if (light.all) return true;
+  if (light.slot !== undefined) return g.slot === light.slot;
+  if (light.ink) return g.element !== "body" && g.element !== "tag";
+  if (light.el) return light.el.includes(g.element);
+  if (light.face) return g.face === light.face;
+  return false;
+}
+
+function setLight(key) {
+  if (key === lightKey) return;
+  lightKey = key;
+  light = (key && LIGHTS[key]) || null;
+  if (!light) { $("hud").textContent = HUD_IDLE; return; }
+  const faces = new Set();
+  for (const p of parts) for (const g of p.groups) if (lit(g)) faces.add(g.face);
+  if (!faces.size) {
+    $("hud").textContent = `nothing on the part for ${light.label} yet`;
+    return;
+  }
+  $("hud").textContent = `showing ${light.label}`;
+  // Turn whatever it is towards the camera: the tag only exists in the open
+  // joint, and there is no point lighting up the back of a card you are
+  // looking at the front of.
+  if (light.mode && !$("modes").hidden) setMode(light.mode, false);
+  else if (mode === "glued" && faces.size === 1) {
+    if (faces.has("back")) yawTo = 0;
+    else if (faces.has("front")) yawTo = Math.PI;
+  }
 }
 
 /* ------------------------------------------------------------ the model --
    Binary STL: 80-byte header, a triangle count, then 50 bytes per triangle.
-   The stored facet normal is ignored and recomputed, which is both safer and
-   what gives the flat-shaded look. */
+   The stored facet normal is used, and only recomputed when it is missing or
+   not a unit vector: a boolean leaves slivers a few microns wide, and the
+   cross product of two nearly parallel edges of single-precision coordinates
+   points anywhere at all -- which showed up as dark speckles scattered over
+   the flat faces.  The writer computed those normals in double precision
+   from the geometry before it was rounded, so they are the better source.
+   info.preview says which triangles are which part, and for each run of them
+   the colour slot, the field it came from and the face it is on. */
 function upload(bytes) {
   const dv = new DataView(bytes);
   const n = dv.getUint32(80, true);
   const pos = new Float32Array(n * 9), nrm = new Float32Array(n * 9);
   const col = new Float32Array(n * 9);
-  const body = rgb($("c_body").value), accent = rgb($("c_accent").value);
-  const lo = info.change_up - 0.02, hi = info.change_back + 0.02;
-  const lim = [Infinity, Infinity, Infinity, -Infinity, -Infinity, -Infinity];
+  const palette = COLOURS.map(id => rgb($(id).value)).concat([TAG_COLOUR]);
 
-  let o = 84;
-  for (let i = 0; i < n * 9; i += 9) {
-    o += 12;
-    for (let v = 0; v < 9; v += 3, o += 12)
-      for (let k = 0; k < 3; k++) {
-        const x = dv.getFloat32(o + k * 4, true);
-        pos[i + v + k] = x;
-        if (x < lim[k]) lim[k] = x;
-        if (x > lim[k + 3]) lim[k + 3] = x;
+  let o = 84, i = 0;
+  parts = [];
+  for (const part of info.preview) {
+    const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
+    const start = i / 3;
+    const groups = [];
+    for (const [slot, element, face, faces] of part.slots) {
+      const c = palette[slot];
+      groups.push({ slot, element, face, start: i / 3, count: faces * 3 });
+      for (let f = 0; f < faces; f++, i += 9) {
+        let nx = dv.getFloat32(o, true), ny = dv.getFloat32(o + 4, true),
+            nz = dv.getFloat32(o + 8, true);
+        o += 12;
+        for (let v = 0; v < 9; v += 3, o += 12)
+          for (let k = 0; k < 3; k++) {
+            const x = dv.getFloat32(o + k * 4, true);
+            pos[i + v + k] = x;
+            if (x < lo[k]) lo[k] = x;
+            if (x > hi[k]) hi[k] = x;
+          }
+        o += 2;
+        let len = Math.hypot(nx, ny, nz);
+        if (Math.abs(len - 1) > 1e-3) {           // no usable normal in the file
+          const ax = pos[i + 3] - pos[i], ay = pos[i + 4] - pos[i + 1], az = pos[i + 5] - pos[i + 2];
+          const bx = pos[i + 6] - pos[i], by = pos[i + 7] - pos[i + 1], bz = pos[i + 8] - pos[i + 2];
+          nx = ay * bz - az * by; ny = az * bx - ax * bz; nz = ax * by - ay * bx;
+          len = Math.hypot(nx, ny, nz) || 1;
+        }
+        nx /= len; ny /= len; nz /= len;
+        for (let v = 0; v < 9; v += 3) {
+          nrm[i + v] = nx; nrm[i + v + 1] = ny; nrm[i + v + 2] = nz;
+          col[i + v] = c[0]; col[i + v + 1] = c[1]; col[i + v + 2] = c[2];
+        }
       }
-    o += 2;
-
-    const ax = pos[i + 3] - pos[i], ay = pos[i + 4] - pos[i + 1], az = pos[i + 5] - pos[i + 2];
-    const bx = pos[i + 6] - pos[i], by = pos[i + 7] - pos[i + 1], bz = pos[i + 8] - pos[i + 2];
-    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
-    const len = Math.hypot(nx, ny, nz) || 1;
-    nx /= len; ny /= len; nz /= len;
-
-    // The colour split is the filament change: below the first one and above
-    // the second is raised lettering, everything between is the body.
-    const z = (pos[i + 2] + pos[i + 5] + pos[i + 8]) / 3;
-    const c = (z < lo || z > hi) ? accent : body;
-    for (let v = 0; v < 9; v += 3) {
-      nrm[i + v] = nx; nrm[i + v + 1] = ny; nrm[i + v + 2] = nz;
-      col[i + v] = c[0]; col[i + v + 1] = c[1]; col[i + v + 2] = c[2];
     }
+    parts.push({ name: part.name, start, count: i / 3 - start, lo, hi, tag: !!part.tag,
+                 groups,
+                 plate: part.plate, assembled: M.fromRows(part.assembled),
+                 // far enough that the halves clear each other on screen at
+                 // the exploded view's angle, rather than overlapping
+                 lift: Math.max(14, info.h / Math.abs(Math.tan(CAMERA.apart[1])) * 1.15) });
   }
-
-  const mid = [0, 1, 2].map(k => (lim[k] + lim[k + 3]) / 2);
-  for (let i = 0; i < pos.length; i += 3)
-    for (let k = 0; k < 3; k++) pos[i + k] -= mid[k];
 
   for (const [k, data] of [["pos", pos], ["nrm", nrm], ["col", col]]) {
     gl.bindBuffer(gl.ARRAY_BUFFER, buf[k]);
     gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
     gl.vertexAttribPointer(loc[k], 3, gl.FLOAT, false, 0, 0);
   }
-  count = n * 3;
-  dist = Math.max(lim[3] - lim[0], lim[4] - lim[1]) * 2.3;
+}
+
+/* only the colours changed: repaint without re-reading the geometry */
+function recolour() {
+  if (!gl || !stl) return;
+  const palette = COLOURS.map(id => rgb($(id).value)).concat([TAG_COLOUR]);
+  let i = 0;
+  const col = [];
+  for (const part of info.preview)
+    for (const [slot, , , faces] of part.slots) {
+      const c = palette[slot];
+      for (let f = 0; f < faces * 3; f++) col.push(c[0], c[1], c[2]);
+    }
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf.col);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(col), gl.STATIC_DRAW);
+  gl.vertexAttribPointer(loc.col, 3, gl.FLOAT, false, 0, 0);
 }
 
 const rgb = hex => [1, 3, 5].map(i => parseInt(hex.substr(i, 2), 16) / 255)
@@ -770,24 +819,28 @@ function checkLink() {
 
 function readout() {
   const line = (k, v) => `<span>${k} <b>${v}</b></span>`;
+  const split = info.parts.length > 1;
   const needs = (info.logo || info.qr)
     ? (info.nozzle
         ? line("nozzle", `${info.nozzle} mm or finer`)
         : `<span class="err">too fine for any nozzle &mdash; shorter link, or a simpler logo</span>`)
     : "";
+  const layers = Math.round(info.colour_z / 0.2);
   specs.innerHTML = [
-    info.batch ? line("batch", `${info.batch} people, ${info.parts.length > 1 ? "two parts" : "one part"} each`) : "",
-    line("size", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.total_z)} mm`),
-    info.parts.length > 1
+    info.batch ? line("batch", `${info.batch} people, ${split ? "two halves" : "one part"} each`) : "",
+    line("size", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.assembled)} mm`),
+    split
       ? line("two halves", `${mm(info.part_thick)} mm each, ${info.pins} pins, ` +
-                           `${mm(info.assembled)} mm glued up`)
+                           `${mm(info.assembled)} mm glued up with the tag between`)
       : line("uses", `${info.volume.toFixed(2)} cm&sup3;`),
     line("cavity", `${mm(info.pocket[0])} &times; ${mm(info.pocket[1])} &times; ${mm(info.pocket[2])} deep`),
-    line("colour change at", info.changes.map(mm).join(" and ") + " mm" +
-                             (info.parts.length > 1 ? ", each half" : "")),
+    line("colours", `${info.slots.length}, all in the first ${mm(info.colour_z)} mm` +
+                    ` (${layers} layer${layers === 1 ? "" : "s"} at 0.2)` +
+                    (split ? " of each half" : ", and the last for the back")),
     info.pause_z !== null ? line("pause the print at", `${mm(info.pause_z)} mm`) : "",
     info.logo ? line(info.logo.design ? "design" : "logo",
-                     `${mm(info.logo.w)} &times; ${mm(info.logo.h)} mm, detail ${info.logo.detail} mm`) : "",
+                     `${mm(info.logo.w)} &times; ${mm(info.logo.h)} mm, detail ${info.logo.detail} mm, ` +
+                     `${info.logo.slots.length} colour${info.logo.slots.length === 1 ? "" : "s"}`) : "",
     info.qr ? line("qr", `${info.qr.modules} modules at ${info.qr.module} mm, ${mm(info.qr.size)} mm square`) : "",
     needs,
     info.thin.length
@@ -800,8 +853,9 @@ let pending = null, seq = 0;
 
 const CAN_INFLATE = "DecompressionStream" in window;
 
-/* The STL comes back gzipped when we can inflate it here -- a third the bytes
-   over the wire, and under the ceiling a hosted function puts on a response. */
+/* The preview comes back gzipped when we can inflate it here -- a third the
+   bytes over the wire, and under the ceiling a hosted function puts on a
+   response. */
 async function body(res) {
   if (res.headers.get("X-Compressed") === "gzip")
     return new Response(res.body.pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
@@ -811,11 +865,13 @@ async function body(res) {
 function formParams() {
   const params = Object.fromEntries(FIELDS.map(f => [f, $(f).value]));
   params.border = $("border").checked;
+  params.placeholder = $("placeholder").checked ? "box" : "";
   params.gzip = CAN_INFLATE;
   params.qr = $("qr").checked;
   if (!params.qr) params.link = "";               // the link only shapes the part as a code
   params.logo = logoText;
   params.design = designText;
+  params.colours = COLOURS.map(id => $(id).value);
   return params;
 }
 
@@ -834,9 +890,16 @@ async function rebuild() {
       $("save").disabled = $("save_stl").disabled = true;
       return;
     }
+    const wasSplit = info && info.parts.length > 1;
     info = JSON.parse(res.headers.get("X-Card-Info"));
     stl = await body(res);
-    if (gl) upload(stl);
+    const split = info.parts.length > 1;
+    $("modes").hidden = !split;
+    if (!split) mode = "glued";
+    if (gl) {
+      upload(stl);
+      setMode(mode, wasSplit !== split || !parts.length);
+    }
     readout();
     $("save").disabled = $("save_stl").disabled = false;
   } catch (e) {
@@ -848,15 +911,38 @@ async function rebuild() {
 
 const queue = () => { clearTimeout(pending); pending = setTimeout(rebuild, 300); };
 
+/* A control lights up what it makes: the focused one wins, and the hovered
+   one fills in while nothing has focus. */
+const aside = document.querySelector("aside");
+let focusedKey = null, hoverKey = null;
+const lightKeyOf = el => {
+  for (let n = el; n && n !== aside; n = n.parentElement) {
+    if (n.dataset && n.dataset.light) return n.dataset.light;
+    if (n.id && LIGHTS[n.id]) return n.id;
+  }
+  return null;
+};
+aside.addEventListener("focusin", e => {
+  focusedKey = lightKeyOf(e.target);
+  setLight(focusedKey || hoverKey);
+});
+aside.addEventListener("focusout", () => { focusedKey = null; setLight(hoverKey); });
+aside.addEventListener("pointerover", e => {
+  hoverKey = lightKeyOf(e.target);
+  setLight(focusedKey || hoverKey);
+});
+aside.addEventListener("pointerleave", () => { hoverKey = null; setLight(focusedKey); });
+
 $("link").addEventListener("input", checkLink);
 for (const f of FIELDS) $(f).addEventListener("input", queue);
 $("border").addEventListener("change", queue);
 $("qr").addEventListener("change", queue);
+$("placeholder").addEventListener("change", queue);
 $("logo_file").addEventListener("change", async () => {
   const f = $("logo_file").files[0];
   logoText = f ? await f.text() : "";
   $("logo_note").textContent = f ? `${f.name}, ${(f.size / 1024).toFixed(1)} kB.` :
-    "Raised on the front beside the name.";
+    "Goes on the front beside the name.";
   queue();
 });
 $("design_file").addEventListener("change", async () => {
@@ -864,16 +950,74 @@ $("design_file").addEventListener("change", async () => {
   designText = f ? await f.text() : "";
   $("design_note").textContent = f
     ? `${f.name} is the whole front now; the fields above only name the file.`
-    : "Replaces name, company, phone and logo with your own artwork, filling the face.";
+    : "Replaces name, company, phone, logo and pattern with your own artwork, filling the face.";
   queue();
 });
-$("kind").addEventListener("change", () => {
-  $("border").disabled = $("kind").value !== "card";
+/* The shape is the first choice, and what is offered below follows from it:
+   a fob has no room for a border, so that control is not there for one. */
+function shapeChosen() {
+  const card = $("kind").value === "card";
+  for (const el of document.querySelectorAll(".card-only")) el.hidden = !card;
+  $("shape_note").textContent = card
+    ? "CR80, the size of a credit card, so it sits in a wallet slot. A US card is 88.9 \u00d7 50.8 mm and a European one 85 \u00d7 55; this is the one that fits the slot either of them would."
+    : "The one that lives on a keyring. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.";
+}
+for (const tile of document.querySelectorAll(".tile"))
+  tile.addEventListener("click", () => {
+    if ($("kind").value === tile.dataset.kind) return;
+    $("kind").value = tile.dataset.kind;
+    for (const t of document.querySelectorAll(".tile"))
+      t.setAttribute("aria-pressed", String(t === tile));
+    shapeChosen();
+    queue();
+  });
+shapeChosen();
+
+function layoutChosen() {
+  const lay = $("layout").value;
+  $("layout_note").textContent = {
+    centred: "Everything stacked and centred, with a logo to the left of it. The one that copes with a fob.",
+    student: "Name top left, a logo square top right, title and company under the name, email along the bottom right. Shows the email where it has one, the phone otherwise.",
+    corporate: "A mark and the company across the top, you in the bottom left. Drawn to sit on the badge pattern.",
+  }[lay] || "";
+}
+$("layout").addEventListener("change", layoutChosen);
+layoutChosen();
+const MODE_NOTES = {
+  split: "Two halves print face down on one plate, each with half the cavity and a three-pin " +
+         "key so they only go together one way. Glue the flat border outside the cavity and " +
+         "clamp; the tag ends up sealed in the middle with nothing showing.",
+  pocket: "One part with an open recess in the back. Peel the sticker and press it in when the " +
+          "print comes off the plate. Visible, and you can replace the tag later.",
+  embed: "One part with the recess roofed over. Pause the print at the height the readout " +
+         "gives and drop the tag in; invisible and unpeelable.",
+};
+$("tag_mode").addEventListener("change", () => { $("mode_note").textContent = MODE_NOTES[$("tag_mode").value]; });
+
+/* Colours: repaint on the spot, unless a logo or design is sorting its fills
+   by them, in which case the geometry changes too. */
+for (const id of COLOURS)
+  $(id).addEventListener("input", () => {
+    $("preset").value = "custom";
+    if (logoText || designText) queue(); else recolour();
+  });
+$("preset").addEventListener("change", () => {
+  const p = PRESETS[$("preset").value];
+  if (!p) return;
+  $("look").value = p[1];
+  $("layout").value = p[2];
+  p[3].forEach((c, i) => { $(COLOURS[i]).value = c; });
+  layoutChosen();
+  queue();
 });
-for (const c of ["c_body", "c_accent"])
-  $(c).addEventListener("input", () => { if (gl && stl) upload(stl); });
+for (const id of ["look", "layout"])
+  $(id).addEventListener("input", () => { $("preset").value = "custom"; });
 $("flip").addEventListener("click", () => { yawTo += Math.PI; });
-$("rise").addEventListener("input", () => { $("rise_v").textContent = `${$("rise").value} mm`; });
+$("rise").addEventListener("input", () => {
+  $("rise_v").textContent = +$("rise").value ? `${$("rise").value} mm` : "flush";
+});
+for (const b of $("modes").querySelectorAll("button"))
+  b.addEventListener("click", () => setMode(b.dataset.mode, false));
 
 function stem() {
   if ($("batch").value.trim()) return `batch_${$("kind").value}`;
@@ -890,12 +1034,10 @@ function save(bytes, type, name) {
   URL.revokeObjectURL(a.href);
 }
 
-$("save_stl").addEventListener("click", () => save(stl, "model/stl", `${stem()}.stl`));
-$("save").addEventListener("click", async () => {
+async function download(format, type, ext) {
   const params = formParams();
-  params.format = "3mf";
-  params.body = $("c_body").value;
-  params.accent = $("c_accent").value;
+  params.format = format;
+  params.gzip = false;
   const res = await fetch("/api/model", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
@@ -904,8 +1046,11 @@ $("save").addEventListener("click", async () => {
     specs.innerHTML = `<span class="err">${(await res.json()).error}</span>`;
     return;
   }
-  save(await res.arrayBuffer(), "model/3mf", `${stem()}.3mf`);
-});
+  save(await res.arrayBuffer(), type, `${stem()}.${ext}`);
+}
+
+$("save_stl").addEventListener("click", () => download("stl", "model/stl", "stl"));
+$("save").addEventListener("click", () => download("3mf", "model/3mf", "3mf"));
 
 rebuild();
 </script>

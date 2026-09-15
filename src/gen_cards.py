@@ -4,11 +4,11 @@
                              --company "Bluewater Realty" \
                              --phone "(555) 214-8890"
 
-writes stl/jane_doe_card.3mf and .stl, and the same for the fob.  The 3MF has
-the body and the raised lettering as separate coloured parts, so the slicer
-opens it already set up for two filaments; the STL is one welded solid plus a
-colour-change height.  --preview also renders them.  src/app.py is the same
-thing with a browser front end.
+writes stl/jane_doe_fob.3mf and .stl -- two halves to glue with the tag between
+them, by default.  The 3MF has every colour as a separate part, so the slicer
+opens it already set up for four filaments; the STL is one welded solid.
+--preview also renders them.  src/app.py is the same thing with a browser
+front end.
 
 Measure your NFC tags and pass --tag WxH: the pocket is cut to fit, and the
 fob grows if it has to.  Everything else worth changing lives in src/cards.py.
@@ -18,6 +18,7 @@ import re
 from pathlib import Path
 
 import cards
+import looks
 
 ROOT = Path(__file__).resolve().parent.parent
 
@@ -38,8 +39,12 @@ def report(name, info):
           f"{info['pocket'][2]:.1f} mm deep ({info['tag_mode']})")
     if info["tag_mode"] == "split":
         print(f"      assembly two halves, {info['part_thick']:.1f} mm each including the "
-              f"relief, {info['pins']} register pins -- {info['assembled']:.1f} mm glued up "
+              f"face, {info['pins']} register pins -- {info['assembled']:.1f} mm glued up "
               f"with the tag between them")
+    if info["layout"]:
+        print(f"      layout   {info['layout']}")
+    if info["look"]:
+        print(f"      pattern  {info['look']}, ~{info['pattern_stroke']:.2f} mm strokes")
     if info["logo"]:
         L = info["logo"]
         print(f"      {'design' if L.get('design') else 'logo':8s} {L['w']:.1f} x {L['h']:.1f} mm, "
@@ -57,9 +62,10 @@ def report(name, info):
               f"turn on the slicer's thin-wall detection, or shorten the text")
     if info["pause_z"] is not None:
         print(f"      pause    the print at Z = {info['pause_z']:.2f} mm and drop the tag in")
-    changes = " and ".join(f"Z = {z:.2f} mm" for z in info["changes"])
-    print(f"      colour   change filament at {changes}"
-          + (" (each half)" if info["tag_mode"] == "split" else ""))
+    bands = " and ".join(f"Z = {a:.2f}-{b:.2f} mm" for a, b in info["colour_bands"])
+    print(f"      colours  {len(info['slots'])} ({', '.join(info['slots'])}), all within "
+          f"{bands}" + (" of each half" if info["tag_mode"] == "split" else "")
+          + "; the body colour alone elsewhere")
 
 
 def main():
@@ -68,26 +74,41 @@ def main():
     ap.add_argument("--name", default="", help="the realtor's name, the big line")
     ap.add_argument("--company", default="", help="brokerage, under the name")
     ap.add_argument("--phone", default="", help="phone number, under the rule")
-    ap.add_argument("--kind", default="both", choices=["card", "fob", "both"])
+    ap.add_argument("--role", default="", help="the line under the name, or the slogan "
+                                               "under the company -- layouts that have "
+                                               "room for one")
+    ap.add_argument("--email", default="", help="address along the bottom of the layouts "
+                                                "that have a place for one")
+    ap.add_argument("--layout", default=None, choices=list(cards.LAYOUTS),
+                    help="where the fields go on the front (default: the look's own)")
+    ap.add_argument("--logo-box", dest="placeholder", action="store_const", const="box",
+                    help="draw an empty square where the logo would go")
+    ap.add_argument("--kind", default="fob", choices=["card", "fob", "both"])
     ap.add_argument("--tag", default=None, metavar="WxH",
                     help=f"NFC tag size in mm (default "
                          f"{cards.TAG['w']:g}x{cards.TAG['h']:g})")
     ap.add_argument("--tag-thick", type=float, default=cards.TAG["thick"],
                     help="NFC tag thickness in mm")
-    ap.add_argument("--tag-mode", default="pocket", choices=["pocket", "embed", "split"],
-                    help="pocket: open recess, drop the tag in afterwards.  "
-                         "embed: roofed over, pause the print and bury it.  "
-                         "split: two halves to glue with the tag between them")
+    ap.add_argument("--tag-mode", default="split", choices=["split", "pocket", "embed"],
+                    help="split: two halves to glue with the tag between them (default).  "
+                         "pocket: open recess, drop the tag in afterwards.  "
+                         "embed: roofed over, pause the print and bury it")
     ap.add_argument("--tap", default="TAP HERE",
                     help="wording under the contactless mark; '|' splits lines, "
                          "empty leaves just the arcs")
     ap.add_argument("--rise", type=float, default=cards.RISE,
-                    help=f"how far the lettering stands off the face, mm "
+                    help=f"how far the lettering stands off the face, mm; 0 is flush "
                          f"(default {cards.RISE:g})")
-    ap.add_argument("--colours", default="#cfd3d6,#d9a441", metavar="BODY,RAISED",
-                    help="hex colours written into the 3MF, body then raised")
+    ap.add_argument("--look", default=looks.DEFAULT,
+                    choices=list(looks.PRESETS) + [k for k in looks.PATTERNS
+                                                   if k not in looks.PRESETS],
+                    help="a preset -- pattern and four colours -- or a bare pattern name "
+                         f"(default {looks.DEFAULT}); --colours overrides the colours")
+    ap.add_argument("--colours", default=None, metavar="BODY,PATTERN,PRIMARY,SECONDARY",
+                    help="hex colours written into the 3MF; fewer than four and the "
+                         "rest come from the look")
     ap.add_argument("--format", default="both", choices=["3mf", "stl", "both"])
-    ap.add_argument("--no-border", action="store_true", help="drop the raised card border")
+    ap.add_argument("--border", action="store_true", help="a border line round a card")
     ap.add_argument("--chamfer", type=float, default=cards.CHAMFER,
                     help=f"45-degree break on the outer edges, mm (default {cards.CHAMFER:g})")
     ap.add_argument("--logo", default=None, metavar="FILE.svg",
@@ -110,8 +131,10 @@ def main():
     ap.add_argument("--preview", action="store_true", help="also render PNGs to previews/")
     args = ap.parse_args()
 
-    if not args.batch and not any([args.name, args.company, args.phone, args.design]):
-        ap.error("give at least one of --name / --company / --phone / --design, or --batch")
+    if not args.batch and not any([args.name, args.company, args.phone, args.role,
+                                   args.email, args.design]):
+        ap.error("give at least one of --name / --company / --phone / --role / --email "
+                 "/ --design, or --batch")
     if args.qr and not args.link and not args.batch:
         ap.error("--qr needs --link")
 
@@ -122,17 +145,26 @@ def main():
         except ValueError:
             ap.error(f"--tag wants WxH in mm, e.g. 35x22 -- got {args.tag!r}")
 
-    colours = tuple(c.strip() for c in args.colours.split(","))
-    if len(colours) != 2 or not all(re.fullmatch(r"#[0-9a-fA-F]{6}", c) for c in colours):
-        ap.error(f"--colours wants two hex colours like #cfd3d6,#d9a441 -- got {args.colours!r}")
+    preset = looks.PRESETS.get(args.look)
+    look = preset["pattern"] if preset else args.look
+    layout = args.layout or (preset["layout"] if preset else "centred")
+    colours = list(preset["colours"] if preset else cards.COLOURS)
+    if args.colours:
+        given = [c.strip() for c in args.colours.split(",")]
+        if len(given) > 4 or not all(re.fullmatch(r"#[0-9a-fA-F]{6}", c) for c in given):
+            ap.error(f"--colours wants up to four hex colours like #141414,#2e2e2e,"
+                     f"#f2f2f2,#9a9a9a -- got {args.colours!r}")
+        colours[:len(given)] = given
+    colours = tuple(colours)
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     kinds = ["card", "fob"] if args.kind == "both" else [args.kind]
     common = dict(font=args.font, tag=tag, tap_text=args.tap, tag_mode=args.tag_mode,
-                  border=not args.no_border, rise=args.rise, chamfer=args.chamfer,
+                  border=args.border, rise=args.rise, chamfer=args.chamfer,
                   logo=args.logo, logo_h=args.logo_height, qr=args.qr,
-                  design=args.design)
+                  design=args.design, look=look, colours=colours, layout=layout,
+                  placeholder=args.placeholder)
 
     if args.batch:
         rows = cards.parse_batch(Path(args.batch).read_text())
@@ -158,7 +190,8 @@ def main():
     print("building:")
     for kind in kinds:
         parts, info = cards.build(
-            kind, args.name, args.company, args.phone, link=args.link, **common)
+            kind, args.name, args.company, args.phone, link=args.link,
+            role=args.role, email=args.email, **common)
         stem = f"{slug(args.name or args.company)}_{kind}"
         names, written = [], []
         for part in parts:
@@ -176,14 +209,27 @@ def main():
             import render
             shots = ROOT / "previews"
             shots.mkdir(exist_ok=True)
-            for name, part in zip(names, (p["mesh"] for p in parts)):
-                flipped = part.copy()
-                flipped.apply_transform(
-                    trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0]))
-                render.render(flipped, shots / f"{name}_front.png",
-                              elev=58, azim=-90, zoom=1.04)
-                render.render(part, shots / f"{name}_back.png",
-                              elev=58, azim=-90, zoom=1.04)
+            bg = (30, 32, 36)
+            flip = trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0])
+            # the front face, and the back face, of the card glued up
+            glued = [m for _, m in cards.assembly(parts)]
+            mesh, cols = render.coloured(parts, colours, [flip @ m for m in glued])
+            render.render(mesh, shots / f"{stem}_front.png", elev=58, azim=-90, zoom=1.04,
+                          bg=bg, colours=cols)
+            mesh, cols = render.coloured(parts, colours, glued)
+            render.render(mesh, shots / f"{stem}_back.png", elev=58, azim=-90, zoom=1.04,
+                          bg=bg, colours=cols)
+            if len(parts) > 1:      # the halves pulled apart, and as they print
+                lift = trimesh.transformations.translation_matrix((0, 0, 14.0))
+                apart = [m if p["name"] != "back" else lift @ m for p, m in zip(parts, glued)]
+                mesh, cols = render.coloured(parts, colours, apart)
+                render.render(mesh, shots / f"{stem}_apart.png", elev=28, azim=-55, zoom=1.0,
+                              bg=bg, colours=cols)
+                plated = [trimesh.transformations.translation_matrix(s)
+                          for _, s in cards.layout(parts)]
+                mesh, cols = render.coloured(parts, colours, plated)
+                render.render(mesh, shots / f"{stem}_plate.png", elev=50, azim=-90, zoom=1.0,
+                              bg=bg, colours=cols)
 
 
 if __name__ == "__main__":

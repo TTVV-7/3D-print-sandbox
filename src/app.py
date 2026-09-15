@@ -3,9 +3,11 @@
     python3 src/app.py            # then open http://127.0.0.1:8765
 
 Fill in name, company and phone, watch the part turn in the viewer, download
-it.  The 3MF carries the body and the raised lettering as separate coloured
-parts, so the slicer opens it set up for two filaments; the STL is one welded
-solid, and the preview's colour split is where its filament change goes.
+it.  The 3MF carries each colour as a separate part, so the slicer opens it
+set up for four filaments; the STL is one welded solid.  The preview is the
+same solids, sent one after another with a colour and a place for each, so
+the page can show the two halves of a split body glued up, pulled apart, or
+lying on the plate as they print.
 
 Standard library only -- no framework, nothing to install beyond what
 src/cards.py already needs.  It listens on the loopback address; this is a tool
@@ -23,7 +25,10 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import trimesh
+
 import cards
+import looks
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "public" / "index.html"
@@ -33,10 +38,55 @@ PAGE = ROOT / "public" / "index.html"
 # 3MF of what is on screen does not rebuild it.
 BUILD = threading.Lock()
 RECENT = {}
-GEOMETRY = ("kind", "name", "company", "phone", "tap", "tag_w", "tag_h",
-            "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr", "logo",
-            "batch", "design")
+GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
+            "tag_h", "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr",
+            "logo", "batch", "design", "look", "layout", "placeholder")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
+
+
+def palette(params):
+    """The four colours from the form, defaults where a value is missing or
+    not a hex colour."""
+    given = params.get("colours") or []
+    return tuple(c if isinstance(c, str) and HEX.match(c) else d
+                 for c, d in zip(list(given) + [None] * 4, cards.COLOURS))
+
+
+def preview(parts, info, row_w):
+    """(bytes, description): every slot of every part, one after another in
+    a binary STL, each in its own coordinates, plus where each goes -- its
+    shift on the plate, and its transform into the assembled card -- so the
+    page can draw either arrangement, colour every triangle by slot, and light
+    up one field at a time.  A run is [colour slot, field, face, triangles].
+
+    A split body also gets the NFC tag itself, as a slab in the joint.  It is
+    not a printed part and has no place on the plate; it is there so that
+    pulling the halves apart on screen shows what goes between them.
+    """
+    meshes, described = [], []
+    assembled = dict((id(p), m) for p, m in cards.assembly(parts, row_w=row_w))
+    for part, shift in cards.layout(parts, row_w=row_w):
+        runs = []
+        for g in part["groups"]:
+            meshes.append(g["mesh"])
+            runs.append([cards.SLOTS.index(g["slot"]), g["element"], g["face"],
+                         int(len(g["mesh"].faces))])
+        described.append(dict(name=part["name"], card=part.get("card", 0), slots=runs,
+                              plate=[round(float(v), 4) for v in shift],
+                              assembled=[round(float(v), 6)
+                                         for v in assembled[id(part)].ravel()]))
+        if part["name"] == "front" and info.get("joint"):
+            slab = trimesh.creation.box(info["tag"])
+            meshes.append(slab)
+            place = assembled[id(part)] @ trimesh.transformations.translation_matrix(
+                info["joint"])
+            described.append(dict(name="tag", card=part.get("card", 0), tag=True,
+                                  slots=[[len(cards.SLOTS), "tag", "joint",
+                                      int(len(slab.faces))]],
+                                  plate=None,
+                                  assembled=[round(float(v), 6) for v in place.ravel()]))
+    mesh = trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]
+    return mesh.export(file_type="stl"), described
 
 
 def model(params):
@@ -47,7 +97,11 @@ def model(params):
         except (TypeError, ValueError):
             return default
 
-    key = json.dumps({k: params.get(k) for k in GEOMETRY}, sort_keys=True)
+    colours = palette(params)
+    keyed = {k: params.get(k) for k in GEOMETRY}
+    if params.get("logo") or params.get("design"):
+        keyed["colours"] = colours          # the fills sort into slots by colour
+    key = json.dumps(keyed, sort_keys=True)
     with BUILD:
         if key not in RECENT:
             tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
@@ -57,13 +111,22 @@ def model(params):
             for what, svg in (("logo", logo), ("design", design)):
                 if svg and not svg.lstrip().startswith("<"):
                     raise ValueError(f"the {what} has to be an SVG file")
+            look = params.get("look") or "plain"
+            if look not in looks.PATTERNS:
+                raise ValueError(f"no such pattern: {look}")
+            layout = params.get("layout") or "centred"
+            if layout not in cards.LAYOUTS:
+                raise ValueError(f"no such layout: {layout}")
+            placeholder = params.get("placeholder") or None
             settings = dict(
                 tag=tag, tap_text=params.get("tap", "TAP HERE"),
-                tag_mode=params.get("tag_mode", "pocket"),
-                border=bool(params.get("border", True)), rise=num("rise", cards.RISE),
+                tag_mode=params.get("tag_mode", "split"),
+                border=bool(params.get("border", False)), rise=num("rise", cards.RISE),
                 font=params.get("font") or None, logo=logo, design=design,
-                qr=bool(params.get("qr")), link=params.get("link", ""))
-            kind = params.get("kind", "card")
+                qr=bool(params.get("qr")), link=params.get("link", ""),
+                look=look, colours=colours, layout=layout, placeholder=placeholder,
+                role=params.get("role", ""), email=params.get("email", ""))
+            kind = params.get("kind", "fob")
             if params.get("batch"):
                 rows = cards.parse_batch(params["batch"])
                 if not rows:
@@ -89,11 +152,11 @@ def model(params):
     # one file to slice and one thing to show in the viewer.
     row_w = num("bed", 220.0) if params.get("batch") else None
     if params.get("format") == "3mf":
-        colours = tuple(c if isinstance(c, str) and HEX.match(c) else d
-                        for c, d in ((params.get("body"), "#cfd3d6"),
-                                     (params.get("accent"), "#d9a441")))
         return cards.export_3mf(parts, colours, row_w=row_w), info, "model/3mf"
-    return cards.plate(parts, row_w=row_w).export(file_type="stl"), info, "model/stl"
+    if params.get("format") == "stl":
+        return cards.plate(parts, row_w=row_w).export(file_type="stl"), info, "model/stl"
+    data, described = preview(parts, info, row_w)
+    return data, {**info, "preview": described}, "model/stl"
 
 
 def health():
@@ -155,7 +218,7 @@ class Handler(BaseHTTPRequestHandler):
         # An STL is a third repeated floats and squashes to about a third of its
         # size; the page asks for that when it can inflate it itself, and a
         # hosted function has a body-size ceiling that a batch plate would hit.
-        if ctype == "model/stl" and params.get("gzip"):
+        if ctype == "model/stl" and params.get("gzip") and params.get("format") != "stl":
             data = gzip.compress(data, compresslevel=6)
             headers.append(("X-Compressed", "gzip"))
         print(f"  {info['kind']:5s} {info['w']:5.1f} x {info['h']:5.1f} mm  "
