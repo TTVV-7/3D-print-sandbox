@@ -19,12 +19,32 @@ from pathlib import Path
 
 import cards
 import looks
+import nametag
 
 ROOT = Path(__file__).resolve().parent.parent
 
 
 def slug(text):
     return re.sub(r"[^a-z0-9]+", "_", text.lower()).strip("_") or "card"
+
+
+def report_name(name, info):
+    print(f"  {name:38s} {info['w']:5.1f} x {info['h']:5.1f} x {info['total_z']:4.1f} mm  "
+          f"{info['volume']:5.2f} cm^3  "
+          f"{'watertight' if info['watertight'] else 'NOT WATERTIGHT'}")
+    print(f"      letters  {info['cap']:.1f} mm caps on a {info['thick']:.1f} mm body, "
+          f"{info['rise']:.1f} mm proud")
+    print(f"      outline  {info['weld']:.2f} mm round the word"
+          + (f", {info['bridges']} bridge(s) to hold the loose pieces on"
+             if info["bridges"] else ""))
+    if info["ring"]:
+        print(f"      ring     {info['ring_d']:.1f} mm hole")
+    if info["counter"]:
+        print(f"      counters {info['counters']}, smallest {info['counter']:.2f} mm across")
+    if info["thin"]:
+        print(f"      note     {', '.join(info['thin'])} tight -- raise the letter height")
+    if info["rise"]:
+        print(f"      colour   change filament at Z = {info['thick']:.2f} mm")
 
 
 def report(name, info):
@@ -83,7 +103,16 @@ def main():
                     help="where the fields go on the front (default: the look's own)")
     ap.add_argument("--logo-box", dest="placeholder", action="store_const", const="box",
                     help="draw an empty square where the logo would go")
-    ap.add_argument("--kind", default="fob", choices=["card", "fob", "both"])
+    ap.add_argument("--kind", default="fob", choices=["card", "fob", "both", "name"],
+                    help="fob and card carry an NFC tag; name is the keyring that is "
+                         "just the word, welded into one piece")
+    ap.add_argument("--cap", type=float, default=nametag.CAP,
+                    help=f"letter height for --kind name, mm (default {nametag.CAP:g})")
+    ap.add_argument("--ring", type=float, default=nametag.RING_D,
+                    help=f"ring hole for --kind name, mm; 0 drops the tab "
+                         f"(default {nametag.RING_D:g})")
+    ap.add_argument("--flat", action="store_true",
+                    help="for --kind name: one solid in the body colour, no raised letters")
     ap.add_argument("--tag", default=None, metavar="WxH",
                     help=f"NFC tag size in mm (default "
                          f"{cards.TAG['w']:g}x{cards.TAG['h']:g})")
@@ -96,9 +125,11 @@ def main():
     ap.add_argument("--tap", default="TAP HERE",
                     help="wording under the contactless mark; '|' splits lines, "
                          "empty leaves just the arcs")
-    ap.add_argument("--rise", type=float, default=cards.RISE,
+    ap.add_argument("--rise", type=float, default=None,
                     help=f"how far the lettering stands off the face, mm; 0 is flush "
-                         f"(default {cards.RISE:g})")
+                         f"(default {cards.RISE:g} on a card or fob, where the colours "
+                         f"live in the face, and {nametag.RISE:g} on a name keyring, "
+                         f"where the letters sit on top)")
     ap.add_argument("--look", default=looks.DEFAULT,
                     choices=list(looks.PRESETS) + [k for k in looks.PATTERNS
                                                    if k not in looks.PRESETS],
@@ -156,12 +187,54 @@ def main():
                      f"#f2f2f2,#9a9a9a -- got {args.colours!r}")
         colours[:len(given)] = given
     colours = tuple(colours)
+    # Flush is right for a card, whose colours are inlaid in the face; a name
+    # keyring wants its letters standing on the outline.
+    rise = args.rise if args.rise is not None else (
+        nametag.RISE if args.kind == "name" else cards.RISE)
+
+    if args.kind == "name":
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        common = dict(font=args.font, cap=args.cap, rise=rise, ring_d=args.ring,
+                      ring=args.ring > 0.5, outline=not args.flat)
+        if args.batch:
+            rows = cards.parse_batch(Path(args.batch).read_text())
+            print(f"building {len(rows)} keyrings:")
+            parts, infos = nametag.build_batch(rows, **common)
+            for info in infos:
+                report_name(info["label"], info)
+            written = []
+            if args.format != "stl":
+                (out / "batch_keyrings.3mf").write_bytes(
+                    cards.export_3mf(parts, colours, row_w=args.bed))
+                written.append("batch_keyrings.3mf")
+            if args.format != "3mf":
+                cards.plate(parts, row_w=args.bed).export(out / "batch_keyrings.stl")
+                written.append("batch_keyrings.stl")
+            print(f"  -> {', '.join(written)}: {len(parts)} on a "
+                  f"{cards.plate(parts, row_w=args.bed).extents[0]:.0f} mm plate")
+            return
+        if not args.name:
+            ap.error("--kind name needs --name")
+        parts, info = nametag.build(args.name, **common)
+        stem = f"{slug(args.name)}_keyring"
+        written = []
+        if args.format != "3mf":
+            parts[0]["mesh"].export(out / f"{stem}.stl")
+            written.append(f"{stem}.stl")
+        if args.format != "stl":
+            (out / f"{stem}.3mf").write_bytes(cards.export_3mf(parts, colours))
+            written.insert(0, f"{stem}.3mf")
+        print("building:")
+        report_name(", ".join(written), info)
+        return
+
 
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     kinds = ["card", "fob"] if args.kind == "both" else [args.kind]
     common = dict(font=args.font, tag=tag, tap_text=args.tap, tag_mode=args.tag_mode,
-                  border=args.border, rise=args.rise, chamfer=args.chamfer,
+                  border=args.border, rise=rise, chamfer=args.chamfer,
                   logo=args.logo, logo_h=args.logo_height, qr=args.qr,
                   design=args.design, look=look, colours=colours, layout=layout,
                   placeholder=args.placeholder)
