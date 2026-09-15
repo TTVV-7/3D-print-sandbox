@@ -28,6 +28,7 @@ from pathlib import Path
 import trimesh
 
 import cards
+import keychain
 import looks
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -41,6 +42,12 @@ RECENT = {}
 GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "tag_h", "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr",
             "logo", "batch", "design", "look", "layout", "placeholder")
+# The keychain is a different part with a different form, so it is keyed on its
+# own fields: sending it the card's would rebuild it every time somebody typed
+# a phone number it has nowhere to put.
+KEYCHAIN = ("kind", "text", "font", "cap", "spacing", "leading", "align", "backing",
+            "pad", "corner", "base", "rise", "handle_type", "handle_position",
+            "handle_size", "handle_hole", "handle_offset", "hinge", "segments", "join")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -89,6 +96,27 @@ def preview(parts, info, row_w):
     return mesh.export(file_type="stl"), described
 
 
+def keychain_params(params, num, colours):
+    """The keychain form, as build() wants it."""
+    return dict(
+        text=params.get("text", ""), font=params.get("font") or None,
+        cap=num("cap", keychain.CAP), spacing=num("spacing", 0.0),
+        leading=num("leading", keychain.LEADING),
+        align=params.get("align") or "center",
+        backing=params.get("backing") or "outline",
+        pad=num("pad", keychain.PAD), corner=num("corner", keychain.CORNER),
+        base=num("base", keychain.BASE), rise=num("rise", keychain.RISE),
+        handle=dict(type=params.get("handle_type") or "tab",
+                    position=params.get("handle_position") or "left",
+                    size=num("handle_size", keychain.HANDLE["size"]),
+                    hole=num("handle_hole", keychain.HANDLE["hole"]),
+                    offset=num("handle_offset", 0.0)),
+        hinge=params.get("hinge") or "none",
+        segments=int(num("segments", 0)),
+        join=params.get("join", True) is not False,
+        colours=colours)
+
+
 def model(params):
     """(bytes, info, content type) for one set of form values."""
     def num(key, default):
@@ -98,12 +126,15 @@ def model(params):
             return default
 
     colours = palette(params)
-    keyed = {k: params.get(k) for k in GEOMETRY}
+    kind = params.get("kind", "fob")
+    keyed = {k: params.get(k) for k in (KEYCHAIN if kind == "keychain" else GEOMETRY)}
     if params.get("logo") or params.get("design"):
         keyed["colours"] = colours          # the fills sort into slots by colour
     key = json.dumps(keyed, sort_keys=True)
     with BUILD:
-        if key not in RECENT:
+        if key not in RECENT and kind == "keychain":
+            RECENT[key] = keychain.build(**keychain_params(params, num, colours))
+        elif key not in RECENT:
             tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
                        thick=num("tag_thick", cards.TAG["thick"]))
             logo = params.get("logo") or None       # the SVGs' text, from the file pickers
@@ -126,7 +157,6 @@ def model(params):
                 qr=bool(params.get("qr")), link=params.get("link", ""),
                 look=look, colours=colours, layout=layout, placeholder=placeholder,
                 role=params.get("role", ""), email=params.get("email", ""))
-            kind = params.get("kind", "fob")
             if params.get("batch"):
                 rows = cards.parse_batch(params["batch"])
                 if not rows:
@@ -144,8 +174,8 @@ def model(params):
                 RECENT[key] = cards.build(
                     kind, name=params.get("name", ""), company=params.get("company", ""),
                     phone=params.get("phone", ""), **settings)
-            while len(RECENT) > 8:
-                del RECENT[next(iter(RECENT))]
+        while len(RECENT) > 8:
+            del RECENT[next(iter(RECENT))]
         parts, info = RECENT[key]
 
     # A batch, or a split body, is several parts; they go out as one plate --
@@ -171,8 +201,11 @@ def health():
     t = time.time()
     with BUILD:
         parts, info = cards.build("fob", "Self Test")
-    return dict(ok=info["watertight"], font=cards.default_font(),
-                built=f"{info['w']} x {info['h']} mm fob in {time.time() - t:.2f}s",
+        chain, kinfo = keychain.build("Self 🔑", font="Outfit Bold", hinge="pivot")
+    return dict(ok=info["watertight"] and kinfo["watertight"],
+                font=cards.default_font(), fonts=sorted(cards.FONTS),
+                built=f"{info['w']} x {info['h']} mm fob and a "
+                      f"{kinfo['segments']}-link keychain in {time.time() - t:.2f}s",
                 python=__import__("sys").version.split()[0])
 
 
@@ -195,6 +228,8 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
         if path in ("/", "/index.html"):
             self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+        elif path == "/favicon.ico":
+            self._send(204, b"", "image/x-icon")   # nothing to serve, and no 404 in the console
         elif path in ("/api/model", "/model"):
             try:
                 self._send(200, json.dumps(health()).encode(), "application/json")

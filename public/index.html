@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NFC cards and fobs</title>
+<title>Cards, fobs and keychains</title>
 <style>
   /* Styled on Figma's Simple Design System: Inter, a near-black brand colour
      on white, 1 px borders, 8 px radii, an 8-based spacing scale.  The tokens
@@ -102,6 +102,16 @@
   .tile svg { width: 100%; height: 40px; fill: none; stroke: var(--text-secondary);
               stroke-width: 2; stroke-linecap: round; }
   .tile[aria-pressed=true] svg { stroke: var(--text-default); }
+  /* The first question, asked as three open cards rather than a menu: one per
+     row, drawing of the thing on the left, what it is on the right.  Nothing
+     else on the page exists until one of them is picked. */
+  .tiles.stack { grid-template-columns: 1fr; }
+  .tile.row { flex-direction: row; align-items: center; gap: var(--space-400);
+              padding: var(--space-400); }
+  .tile.row svg { width: 76px; height: 30px; flex: none; }
+  .tile.row div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  #start { position: absolute; inset: 0; display: grid; place-items: center;
+           padding: 30px; text-align: center; color: var(--text-secondary); }
 
   /* Colour swatches: four Tags in a row */
   .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-200); }
@@ -184,28 +194,172 @@
 <body>
 <aside>
   <div>
-    <h1>NFC cards and fobs</h1>
-    <p class="sub">Pick a shape, fill it in, print it in two halves.</p>
+    <h1>Cards, fobs and keychains</h1>
+    <p class="sub">Pick one. The rest of the form is only ever what that one needs.</p>
   </div>
 
-  <section>
-    <h2>1 &middot; Shape</h2>
-    <div class="tiles" data-light="kind">
-      <button type="button" class="tile" data-kind="fob" aria-pressed="true">
-        <svg viewBox="0 0 62 34" aria-hidden="true"><rect x="1" y="1" width="60" height="32" rx="4"/><circle cx="8" cy="17" r="2.6"/><path d="M18 12h30M18 18h22"/></svg>
-        <b>Keyring fob</b><span>62 &times; 34 mm, with a ring hole</span>
+  <section id="pick">
+    <h2>What are you making?</h2>
+    <div class="tiles stack" data-light="kind">
+      <button type="button" class="tile row" data-kind="keychain" aria-pressed="false">
+        <svg viewBox="0 0 76 30" aria-hidden="true">
+          <path d="M16 3h48a12 12 0 0 1 0 24H16a12 12 0 0 1 0-24Z"/>
+          <circle cx="8" cy="15" r="3.4"/>
+          <path d="M26 21V9m0 6.5 6.5-6.5M26 15.5 32.5 21M41 21V9m0 12h8M57 9v12m0-12 5 7.5L67 9v12"/>
+        </svg>
+        <div><b>Name keychain</b><span>The word is the shape. Hinge it into links.</span></div>
       </button>
-      <button type="button" class="tile" data-kind="card" aria-pressed="false">
-        <svg viewBox="0 0 86 54" aria-hidden="true"><rect x="1" y="1" width="84" height="52" rx="3"/><path d="M10 18h44M10 28h30M10 38h36"/></svg>
-        <b>Business card</b><span>85.6 &times; 54 mm, wallet size</span>
+      <button type="button" class="tile row" data-kind="fob" aria-pressed="false">
+        <svg viewBox="0 0 76 30" aria-hidden="true">
+          <rect x="6" y="4" width="64" height="22" rx="4"/><circle cx="13" cy="15" r="2.4"/>
+          <path d="M22 11h36M22 17h26"/>
+        </svg>
+        <div><b>Keyring fob</b><span>62 &times; 34 mm, an NFC tag sealed inside.</span></div>
+      </button>
+      <button type="button" class="tile row" data-kind="card" aria-pressed="false">
+        <svg viewBox="0 0 76 30" aria-hidden="true">
+          <rect x="8" y="2" width="60" height="26" rx="2.5"/>
+          <path d="M15 10h34M15 16h22M15 21h27"/>
+        </svg>
+        <div><b>Business card</b><span>85.6 &times; 54 mm, wallet size, tap to share.</span></div>
       </button>
     </div>
-    <input type="hidden" id="kind" value="fob">
-    <p class="hint" id="shape_note">The fob is the one that lives on a keyring. The card is CR80,
-       the size of a credit card, so it sits in a wallet slot.</p>
+    <input type="hidden" id="kind" value="">
+    <p class="hint" id="shape_note">The keychain is a name you can read across a room.
+       The other two hold an NFC tag, so a phone held against them opens whatever link
+       you write to it.</p>
   </section>
 
-  <section>
+  <section data-for="keychain" hidden>
+    <h2>2 &middot; The word</h2>
+    <label class="field" data-light="text"><span>Text</span>
+      <input type="text" id="text" value="Kady" autocomplete="off" spellcheck="false"></label>
+    <p class="hint">Emoji work &mdash; 🔥 ⭐ 🔑 🏠 🐶 &mdash; and come out as outlines, because
+       they are taken from a monochrome face rather than the colour one your keyboard shows.
+       Put a <code>|</code> where a second line should start.</p>
+    <label class="field" data-light="kc_font"><span>Face</span>
+      <select id="kc_font"></select></label>
+    <p class="hint" id="font_note"></p>
+    <div class="field" data-light="kc_cap"><span>Letter height</span>
+      <div class="slider"><input type="range" id="kc_cap" min="8" max="45" step="1" value="18">
+        <output id="kc_cap_v">18 mm</output></div>
+    </div>
+    <div class="field" data-light="kc_spacing"><span>Letter spacing</span>
+      <div class="slider"><input type="range" id="kc_spacing" min="-3" max="6" step="0.25" value="0">
+        <output id="kc_spacing_v">normal</output></div>
+    </div>
+    <p class="hint">Negative spacing overlaps the strokes, which is how a joined-up face is
+       made to hold together with no backing behind it.</p>
+  </section>
+
+  <section data-for="keychain" hidden>
+    <h2>3 &middot; The shape behind it</h2>
+    <div class="tiles" data-light="kc_backing">
+      <button type="button" class="tile" data-backing="outline" aria-pressed="true">
+        <svg viewBox="0 0 76 30" aria-hidden="true"><path d="M13 5h14l5 10 5-10h14a10 10 0 0 1 0 20H51l-5-10-5 10H13a10 10 0 0 1 0-20Z"/></svg>
+        <b>Outline</b><span>The letters, fattened</span>
+      </button>
+      <button type="button" class="tile" data-backing="plate" aria-pressed="false">
+        <svg viewBox="0 0 76 30" aria-hidden="true"><rect x="6" y="3" width="64" height="24" rx="6"/><path d="M22 20V10m0 5 6-5m-6 5 6 5M40 20V10m0 10h8"/></svg>
+        <b>Plate</b><span>A rounded rectangle</span>
+      </button>
+      <button type="button" class="tile" data-backing="bar" aria-pressed="false">
+        <svg viewBox="0 0 76 30" aria-hidden="true"><rect x="6" y="11" width="64" height="9" rx="4.5"/><path d="M24 24V6m0 9 6-9m-6 9 6 9M42 24V6"/></svg>
+        <b>Bar</b><span>A strip through the middle</span>
+      </button>
+      <button type="button" class="tile" data-backing="none" aria-pressed="false">
+        <svg viewBox="0 0 76 30" aria-hidden="true"><path d="M20 23V7m0 8 8-8m-8 8 8 8M38 23V7m0 16h9M56 7v16m0-16 5 9 5-9v16"/></svg>
+        <b>Nothing</b><span>Bare letters</span>
+      </button>
+    </div>
+    <input type="hidden" id="kc_backing" value="outline">
+    <p class="hint" id="backing_note"></p>
+    <div class="field" data-light="kc_pad" id="pad_field"><span>How far it stands out</span>
+      <div class="slider"><input type="range" id="kc_pad" min="0.5" max="10" step="0.25" value="2.5">
+        <output id="kc_pad_v">2.5 mm</output></div>
+    </div>
+    <div class="field" data-light="kc_corner" id="corner_field" hidden><span>Corner radius</span>
+      <div class="slider"><input type="range" id="kc_corner" min="0" max="12" step="0.5" value="3">
+        <output id="kc_corner_v">3.0 mm</output></div>
+    </div>
+    <div class="row">
+      <div class="field" data-light="kc_base"><span>Backing</span>
+        <div class="slider"><input type="range" id="kc_base" min="1" max="6" step="0.2" value="3">
+          <output id="kc_base_v">3.0 mm</output></div>
+      </div>
+      <div class="field" data-light="kc_rise"><span>Letters proud</span>
+        <div class="slider"><input type="range" id="kc_rise" min="0" max="4" step="0.2" value="1.2">
+          <output id="kc_rise_v">1.2 mm</output></div>
+      </div>
+    </div>
+    <div class="field"><span>Colours</span>
+      <div class="swatches">
+        <label data-light="kc_body"><input type="color" id="kc_body" value="#1b2430">Backing</label>
+        <label data-light="kc_ink"><input type="color" id="kc_ink" value="#f4f6f8">Letters</label>
+      </div>
+    </div>
+    <p class="hint">Two filaments, one change, at the top of the backing. On a single-material
+       printer it all comes out in one colour and still reads, because the letters stand off it.</p>
+  </section>
+
+  <section data-for="keychain" hidden>
+    <h2>4 &middot; The key ring</h2>
+    <label class="field" data-light="kc_handle"><span>End</span>
+      <select id="kc_handle">
+        <option value="tab">Tab &mdash; a disc off the end with a hole in it</option>
+        <option value="loop">Loop &mdash; a ring on a short neck</option>
+        <option value="hole">Hole &mdash; straight through the backing, no tab</option>
+        <option value="none">Nothing</option>
+      </select>
+    </label>
+    <div class="row" id="handle_size_row">
+      <label class="field" data-light="kc_handle"><span>Which end</span>
+        <select id="kc_pos">
+          <option value="left">Left</option><option value="right">Right</option>
+          <option value="top">Top</option>
+        </select>
+      </label>
+      <div class="field" data-light="kc_handle"><span>Hole</span>
+        <div class="slider"><input type="range" id="kc_hole" min="2" max="9" step="0.5" value="4.5">
+          <output id="kc_hole_v">4.5 mm</output></div>
+      </div>
+    </div>
+    <p class="hint">4.5 mm takes the 25 mm split ring that comes on most key rings. The tab grows
+       with the hole to keep 1.8 mm of wall round it, which is what stops it tearing out.</p>
+  </section>
+
+  <section data-for="keychain" hidden>
+    <h2>5 &middot; Hinges</h2>
+    <p class="hint" id="hinge_note">One solid piece. Cut it into links and it comes off the plate
+       already articulated &mdash; nothing to glue, nothing to assemble.</p>
+    <button type="button" class="button primary" id="split" data-light="kc_hinge">
+      <svg viewBox="0 0 16 16"><path d="M2 8h3m6 0h3"/><circle cx="7" cy="8" r="2.2"/><circle cx="12.2" cy="8" r="2.2"/></svg>
+      Split it into links</button>
+    <div id="hinge_opts" hidden>
+      <div class="tiles" data-light="kc_hinge">
+        <button type="button" class="tile" data-hinge="pivot" aria-pressed="true">
+          <svg viewBox="0 0 76 30" aria-hidden="true"><path d="M6 8h22v14H6z"/><path d="M28 15h8"/><circle cx="41" cy="15" r="5"/><path d="M36 9a7.5 7.5 0 0 0 0 12"/><path d="M48 8h22v14H48z"/><path d="M46 10a8 8 0 0 1 0 10"/></svg>
+          <b>Pivot</b><span>Turns, and nothing else</span>
+        </button>
+        <button type="button" class="tile" data-hinge="chain" aria-pressed="false">
+          <svg viewBox="0 0 76 30" aria-hidden="true"><path d="M4 8h20v14H4z"/><path d="M24 15h12"/><circle cx="40" cy="15" r="5"/><path d="M34 9h12v12H34" /><path d="M52 8h20v14H52z"/></svg>
+          <b>Chain</b><span>Turns and slides, so it drapes</span>
+        </button>
+      </div>
+      <input type="hidden" id="kc_hinge" value="none">
+      <div class="field" data-light="kc_hinge"><span>Links</span>
+        <div class="slider"><input type="range" id="kc_segments" min="0" max="12" step="1" value="0">
+          <output id="kc_segments_v">one per letter</output></div>
+      </div>
+      <p class="hint">Cuts land on the gaps between letters wherever there are enough of them,
+         so the name comes apart the way it reads. Where there is no gap to use &mdash; a joined-up
+         face, or a word with a space in it &mdash; it says so below and puts the joint somewhere
+         there is material to hold one.</p>
+      <button type="button" class="button subtle" id="unsplit">Back to one piece</button>
+    </div>
+  </section>
+
+  <section data-for="card fob" hidden>
     <h2>2 &middot; Who you are</h2>
     <label class="field" data-light="name"><span>Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
     <label class="field" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
@@ -225,7 +379,7 @@
        rectangle in the body colour and it comes out at the rectangle's size.</p>
   </section>
 
-  <section>
+  <section data-for="card fob" hidden>
     <h2>3 &middot; How it looks</h2>
     <label class="field" data-light="preset"><span>Preset</span>
       <select id="preset"></select>
@@ -259,7 +413,7 @@
     <label class="check card-only" data-light="border"><input type="checkbox" id="border"><span>Border line round the card</span></label>
   </section>
 
-  <section>
+  <section data-for="card fob" hidden>
     <h2>4 &middot; The tap side</h2>
     <label class="field" data-light="tag_mode"><span>Tag fitting</span>
       <select id="tag_mode">
@@ -290,7 +444,7 @@
        code, and a coarser code prints on a bigger nozzle.</p>
   </section>
 
-  <section>
+  <section data-for="card fob" hidden>
     <h2>5 &middot; A batch of them</h2>
     <label class="field"><span>One person per line</span>
       <textarea id="batch" rows="4" spellcheck="false"
@@ -314,6 +468,7 @@
     </div>
     <div id="nogl">This browser has no WebGL, so there is no preview &mdash; the form and
       the downloads still work.</div>
+    <div id="start">Pick what you are making, over on the left.</div>
     <div id="building" hidden><i></i>Building</div>
     <div id="buttons">
       <button class="button subtle" id="flip"><svg viewBox="0 0 16 16"><path d="M2 8a6 6 0 0 1 10.4-4.1M14 8a6 6 0 0 1-10.4 4.1"/><path d="M12.5 1v3h-3M3.5 15v-3h3"/></svg>Flip</button>
@@ -330,7 +485,14 @@ const $ = id => document.getElementById(id);
 const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag_w",
                 "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
                 "look", "layout"];
+const KC_FIELDS = ["text", "kc_font", "kc_cap", "kc_spacing", "kc_backing", "kc_pad",
+                   "kc_corner", "kc_base", "kc_rise", "kc_handle", "kc_pos", "kc_hole",
+                   "kc_hinge", "kc_segments"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
+/* A keychain has two colours, not four: the backing is the body slot and the
+   letters the primary one, so its two swatches stand in at those positions. */
+const KC_COLOURS = ["kc_body", "c1", "kc_ink", "c3"];
+const paletteIds = () => $("kind").value === "keychain" ? KC_COLOURS : COLOURS;
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "";
 const specs = $("specs");
@@ -354,6 +516,22 @@ const PATTERNS = {
   hexband: "Hex band — solid hexagons along the bottom",
   badge: "Badge — the disc and the hex band together",
 };
+/* The faces src/cards.py ships, with what each is good for on a keychain --
+   which is mostly how fat its thinnest stroke is, because that is what has to
+   survive as a bar of plastic. */
+const FACES = {
+  "Erica One": "Erica One — fat, round, and the easiest of them to print",
+  "Boldonse": "Boldonse — heavy display, very wide",
+  "Outfit Bold": "Outfit Bold — clean geometric sans",
+  "National Park Bold": "National Park Bold — friendly, slightly rounded",
+  "Big Shoulders Bold": "Big Shoulders Bold — tall and condensed, fits a long name",
+  "Liberation Sans Bold": "Liberation Sans Bold — the plain one",
+  "Tektur": "Tektur — squared off, technical",
+  "Lora Bold": "Lora Bold — a serif, so watch the thin strokes",
+  "Silkscreen": "Silkscreen — pixel, all square corners",
+  "Nothing You Could Do": "Nothing You Could Do — handwriting; needs a backing",
+};
+
 const PRESETS = {
   printlab:  ["Print Lab — black, white lettering, cubes", "cubes", "centred", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
   student:   ["Student — dark card, name top left, address bottom right", "plain", "student", ["#1b2430", "#2a3644", "#f4f6f8", "#9fb0c0"]],
@@ -366,6 +544,8 @@ const PRESETS = {
   ember:     ["Ember — charcoal, orange, dots", "dots", "centred", ["#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0"]],
   plain:     ["Plain — grey body, gold lettering, no pattern", "plain", "centred", ["#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441"]],
 };
+for (const [k, v] of Object.entries(FACES)) $("kc_font").add(new Option(v, k));
+$("kc_font").value = "Erica One";
 for (const [k, v] of Object.entries(LAYOUTS)) $("layout").add(new Option(v, k));
 for (const [k, v] of Object.entries(PATTERNS)) $("look").add(new Option(v, k));
 for (const [k, v] of Object.entries(PRESETS)) $("preset").add(new Option(v[0], k));
@@ -480,6 +660,10 @@ let mode = "glued", info = null, stl = null, drag = null;
    +Z moves it up the screen: the tap side on top, the cavity and pins of the
    front half below it, and the tag between the two. */
 const CAMERA = { glued: [Math.PI, 0.34], apart: [0, -0.8], plate: [0, 0.22] };
+/* A card prints face down, so the side worth looking at is the one at z = 0
+   and the camera sits under it.  A keychain prints backing down with the
+   letters on top, so for that one the camera goes the other way about. */
+const upright = () => info && info.kind === "keychain";
 const FOV = 0.42;              // a longish lens: a card should read flat, not bulge
 
 if (!gl) {
@@ -631,6 +815,7 @@ function setMode(next, snap) {
     b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
   liftTo = mode === "apart" ? (parts[0] ? parts[0].lift : 14) : 0;
   [yawTo, pitchTo] = CAMERA[mode];
+  if (upright() && mode === "glued") yawTo = 0;
   frameView();
   if (snap) { lift = liftTo; yaw = yawTo; pitch = pitchTo; focus = [...focusTo]; dist = distTo; }
 }
@@ -665,6 +850,19 @@ const LIGHTS = {
   tag_w:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
   tag_h:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
   tag_thick:   { el: ["tag"], mode: "apart", label: "the tag in the joint" },
+  text:        { el: ["letters"], label: "the lettering" },
+  kc_font:     { el: ["letters"], label: "the lettering" },
+  kc_cap:      { el: ["letters"], label: "the lettering" },
+  kc_spacing:  { el: ["letters"], label: "the lettering" },
+  kc_rise:     { el: ["letters"], label: "the lettering" },
+  kc_backing:  { el: ["backing"], label: "the shape behind it" },
+  kc_pad:      { el: ["backing"], label: "the shape behind it" },
+  kc_corner:   { el: ["backing"], label: "the shape behind it" },
+  kc_base:     { el: ["backing"], label: "the shape behind it" },
+  kc_handle:   { el: ["backing"], label: "the ring end" },
+  kc_hinge:    { all: true, label: "the whole chain" },
+  kc_body:     { slot: 0, label: "the backing colour" },
+  kc_ink:      { slot: 2, label: "the letter colour" },
 };
 let light = null, lightKey = null;
 
@@ -696,7 +894,7 @@ function setLight(key) {
   if (light.mode && !$("modes").hidden) setMode(light.mode, false);
   else if (mode === "glued" && faces.size === 1) {
     if (faces.has("back")) yawTo = 0;
-    else if (faces.has("front")) yawTo = Math.PI;
+    else if (faces.has("front")) yawTo = upright() ? 0 : Math.PI;
   }
 }
 
@@ -715,7 +913,7 @@ function upload(bytes) {
   const n = dv.getUint32(80, true);
   const pos = new Float32Array(n * 9), nrm = new Float32Array(n * 9);
   const col = new Float32Array(n * 9);
-  const palette = COLOURS.map(id => rgb($(id).value)).concat([TAG_COLOUR]);
+  const palette = paletteIds().map(id => rgb($(id).value)).concat([TAG_COLOUR]);
 
   let o = 84, i = 0;
   parts = [];
@@ -770,7 +968,7 @@ function upload(bytes) {
 /* only the colours changed: repaint without re-reading the geometry */
 function recolour() {
   if (!gl || !stl) return;
-  const palette = COLOURS.map(id => rgb($(id).value)).concat([TAG_COLOUR]);
+  const palette = paletteIds().map(id => rgb($(id).value)).concat([TAG_COLOUR]);
   let i = 0;
   const col = [];
   for (const part of info.preview)
@@ -818,6 +1016,7 @@ function checkLink() {
 }
 
 function readout() {
+  if (info.kind === "keychain") return keychainReadout();
   const line = (k, v) => `<span>${k} <b>${v}</b></span>`;
   const split = info.parts.length > 1;
   const needs = (info.logo || info.qr)
@@ -849,6 +1048,49 @@ function readout() {
   ].join("");
 }
 
+/* What is worth knowing about a keychain is different from what is worth
+   knowing about a card: no cavity, no tag, but a narrowest stroke that decides
+   the nozzle, and -- the one that saves a wasted print -- whether the thing
+   comes off the plate in one piece or several. */
+function keychainReadout() {
+  const line = (k, v) => `<span>${k} <b>${v}</b></span>`;
+  const n = info.segments;
+  const pieces = info.loose + n;
+  specs.innerHTML = [
+    line("size", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.thick)} mm`),
+    line("uses", `${info.volume.toFixed(2)} cm&sup3;`),
+    n > 1
+      ? line("links", `${n} for ${info.letters} letter${info.letters === 1 ? "" : "s"}, ` +
+                      `${info.hinge} joints, ${mm(info.hinge_head)} mm heads, ` +
+                      `${info.hinge_clearance} mm clear all round`)
+      : line("built up", `${mm(info.base)} mm of backing, letters ${mm(info.rise)} mm proud`),
+    n > 1 ? line("comes apart at", `${mm(info.hinge_lift)} mm of lift`) : "",
+    line("lettering", `${info.font.replace(/\.ttf$/, "")}, ${mm(info.cap)} mm caps, ` +
+                      `narrowest stroke ${mm(info.stroke)} mm`),
+    info.nozzle
+      ? line("nozzle", `${info.nozzle} mm or finer`)
+      : `<span class="err">no nozzle worth naming prints a ${mm(info.stroke)} mm stroke
+         &mdash; a fatter face, or a bigger letter height</span>`,
+    info.backing === "outline" ? line("outline", `${mm(info.pad)} mm round the letters`) : "",
+    info.handle_hole ? line("ring hole", `${mm(info.handle_hole)} mm`) : "",
+    info.loose
+      ? `<span class="err">comes off the plate in ${pieces} pieces, not ${n === 1 ? "one" : n}
+         &mdash; ${info.backing === "none"
+           ? "close the letter spacing until they touch, or put a backing behind them"
+           : "widen the backing, or close the letter spacing"}</span>`
+      : "",
+    n > 1 && n < info.letters
+      ? `<span class="warn">${info.letters - n} of the gaps between letters could not take a
+         joint, so those letters ride on one link</span>` : "",
+    info.swept
+      ? `<span class="warn">${info.swept} sliver${info.swept === 1 ? "" : "s"} too small to
+         print swept out of the joints</span>` : "",
+    info.thin.length
+      ? `<span class="warn">${list(info.thin)} thinner than 0.8 mm &mdash; turn on thin-wall
+         detection, or use a fatter face</span>` : "",
+  ].join("");
+}
+
 let pending = null, seq = 0;
 
 const CAN_INFLATE = "DecompressionStream" in window;
@@ -862,7 +1104,25 @@ async function body(res) {
   return res.arrayBuffer();
 }
 
+function keychainParams() {
+  return {
+    kind: "keychain", gzip: CAN_INFLATE,
+    text: $("text").value, font: $("kc_font").value,
+    cap: $("kc_cap").value, spacing: $("kc_spacing").value,
+    backing: $("kc_backing").value, pad: $("kc_pad").value, corner: $("kc_corner").value,
+    base: $("kc_base").value, rise: $("kc_rise").value,
+    handle_type: $("kc_handle").value, handle_position: $("kc_pos").value,
+    handle_hole: $("kc_hole").value,
+    // The tab grows with the hole so the wall round it stays put; asking for a
+    // tab size as well would be one more control for nothing.
+    handle_size: (+$("kc_hole").value + 2 * 1.8 + 0.6).toFixed(2),
+    hinge: $("kc_hinge").value, segments: $("kc_segments").value,
+    colours: paletteIds().map(id => $(id).value),
+  };
+}
+
 function formParams() {
+  if ($("kind").value === "keychain") return keychainParams();
   const params = Object.fromEntries(FIELDS.map(f => [f, $(f).value]));
   params.border = $("border").checked;
   params.placeholder = $("placeholder").checked ? "box" : "";
@@ -876,6 +1136,7 @@ function formParams() {
 }
 
 async function rebuild() {
+  if (!$("kind").value) return;                    // nothing picked yet
   const params = formParams();
   const mine = ++seq;
   $("building").hidden = false;
@@ -953,25 +1214,125 @@ $("design_file").addEventListener("change", async () => {
     : "Replaces name, company, phone, logo and pattern with your own artwork, filling the face.";
   queue();
 });
-/* The shape is the first choice, and what is offered below follows from it:
-   a fob has no room for a border, so that control is not there for one. */
+/* The shape is the first choice and the only one on the page until it is made.
+   Everything else is tagged with the shapes it belongs to and stays hidden
+   until one of them is picked, so nobody reads a question about NFC tags on
+   the way to a keychain. */
+const SHAPE_NOTES = {
+  "": "The keychain is a name you can read across a room. The other two hold an NFC tag, so a phone held against them opens whatever link you write to it.",
+  keychain: "The word is the outline: whatever you type is the shape of the part. A backing behind it decides how much of the letterform survives, and hinges cut it into links that come off the plate already moving.",
+  fob: "The one that lives on a keyring. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.",
+  card: "CR80, the size of a credit card, so it sits in a wallet slot. A US card is 88.9 \u00d7 50.8 mm and a European one 85 \u00d7 55; this is the one that fits the slot either of them would.",
+};
+
 function shapeChosen() {
-  const card = $("kind").value === "card";
-  for (const el of document.querySelectorAll(".card-only")) el.hidden = !card;
-  $("shape_note").textContent = card
-    ? "CR80, the size of a credit card, so it sits in a wallet slot. A US card is 88.9 \u00d7 50.8 mm and a European one 85 \u00d7 55; this is the one that fits the slot either of them would."
-    : "The one that lives on a keyring. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.";
+  const kind = $("kind").value;
+  for (const el of document.querySelectorAll("[data-for]"))
+    el.hidden = !el.dataset.for.split(" ").includes(kind);
+  for (const el of document.querySelectorAll(".card-only")) el.hidden = kind !== "card";
+  $("shape_note").textContent = SHAPE_NOTES[kind];
+  $("start").hidden = !!kind;
+  $("hud").hidden = $("buttons").hidden = !kind;
+  if (!kind) {
+    specs.textContent = "nothing picked yet";
+    $("save").disabled = $("save_stl").disabled = true;
+    $("modes").hidden = true;
+  }
 }
-for (const tile of document.querySelectorAll(".tile"))
+for (const tile of document.querySelectorAll("#pick .tile"))
   tile.addEventListener("click", () => {
     if ($("kind").value === tile.dataset.kind) return;
     $("kind").value = tile.dataset.kind;
-    for (const t of document.querySelectorAll(".tile"))
+    for (const t of document.querySelectorAll("#pick .tile"))
       t.setAttribute("aria-pressed", String(t === tile));
     shapeChosen();
-    queue();
+    rebuild();
   });
-shapeChosen();
+
+/* ------------------------------------------------------------- keychain -- */
+const BACKING_NOTES = {
+  outline: "The letters, fattened until they touch. It grows the padding on its own if that is what it takes to keep the word in one piece.",
+  plate: "A rounded rectangle behind the lot. The sturdiest, and the one that copes with any face at any size.",
+  bar: "A strip through the middle of the line, with the ascenders and descenders standing out of it.",
+  none: "The letters and nothing else. They have to touch each other to hold together \u2014 close the spacing up until they do, or the readout will tell you how many pieces you are about to print.",
+};
+
+function backingChosen() {
+  const kind = $("kc_backing").value;
+  $("backing_note").textContent = BACKING_NOTES[kind];
+  $("pad_field").hidden = kind === "none" || kind === "bar";
+  $("corner_field").hidden = kind !== "plate";
+  for (const t of document.querySelectorAll("[data-backing]"))
+    t.setAttribute("aria-pressed", String(t.dataset.backing === kind));
+}
+for (const tile of document.querySelectorAll("[data-backing]"))
+  tile.addEventListener("click", () => {
+    $("kc_backing").value = tile.dataset.backing;
+    backingChosen();
+    rebuild();
+  });
+
+const HINGE_NOTES = {
+  none: "One solid piece. Cut it into links and it comes off the plate already articulated \u2014 nothing to glue, nothing to assemble.",
+  pivot: "Each link is a head on a stalk sitting in a socket that closes round it. It turns about the joint and does nothing else: the letters stay in a line.",
+  chain: "The same joint with a slot in it, so every link turns and slides. The strip prints closed up and hangs about a millimetre and a half longer at each joint, which is the slack that lets it drape.",
+};
+
+function hingeChosen() {
+  const kind = $("kc_hinge").value;
+  $("hinge_note").textContent = HINGE_NOTES[kind];
+  $("hinge_opts").hidden = kind === "none";
+  $("split").hidden = kind !== "none";
+  for (const t of document.querySelectorAll("[data-hinge]"))
+    t.setAttribute("aria-pressed", String(t.dataset.hinge === kind));
+}
+for (const tile of document.querySelectorAll("[data-hinge]"))
+  tile.addEventListener("click", () => {
+    $("kc_hinge").value = tile.dataset.hinge;
+    hingeChosen();
+    rebuild();
+  });
+$("split").addEventListener("click", () => {
+  // The whole point of the button: one click gets a working chain, cut where
+  // the letters leave room for it, and the controls to change it turn up only
+  // once there is something to change.
+  $("kc_hinge").value = "pivot";
+  $("kc_backing").value = $("kc_backing").value === "none" ? "outline" : $("kc_backing").value;
+  backingChosen();
+  hingeChosen();
+  rebuild();
+});
+$("unsplit").addEventListener("click", () => {
+  $("kc_hinge").value = "none";
+  hingeChosen();
+  rebuild();
+});
+$("kc_handle").addEventListener("change", () => {
+  $("handle_size_row").hidden = $("kc_handle").value === "none";
+});
+$("kc_font").addEventListener("change", () => {
+  $("font_note").textContent = FACES[$("kc_font").value];
+});
+
+/* The sliders say what they are in the units the part is in. */
+const READOUTS = {
+  kc_cap: v => `${(+v).toFixed(0)} mm`,
+  kc_spacing: v => +v ? `${v > 0 ? "+" : ""}${(+v).toFixed(2)} mm` : "normal",
+  kc_pad: v => `${(+v).toFixed(2)} mm`,
+  kc_corner: v => `${(+v).toFixed(1)} mm`,
+  kc_base: v => `${(+v).toFixed(1)} mm`,
+  kc_rise: v => +v ? `${(+v).toFixed(1)} mm` : "flush",
+  kc_hole: v => `${(+v).toFixed(1)} mm`,
+  kc_segments: v => +v ? `${v} links` : "one per letter",
+};
+for (const [id, fmt] of Object.entries(READOUTS)) {
+  const show = () => { $(`${id}_v`).textContent = fmt($(id).value); };
+  $(id).addEventListener("input", show);
+  show();
+}
+for (const f of KC_FIELDS) $(f).addEventListener("input", queue);
+for (const id of ["kc_body", "kc_ink"])
+  $(id).addEventListener("input", () => { recolour(); });
 
 function layoutChosen() {
   const lay = $("layout").value;
@@ -1020,6 +1381,11 @@ for (const b of $("modes").querySelectorAll("button"))
   b.addEventListener("click", () => setMode(b.dataset.mode, false));
 
 function stem() {
+  if ($("kind").value === "keychain") {
+    const word = ($("text").value || "keychain").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "keychain";
+    return `${word}_keychain` + ($("kc_hinge").value === "none" ? "" : "_links");
+  }
   if ($("batch").value.trim()) return `batch_${$("kind").value}`;
   const base = ($("name").value || $("company").value || "card")
     .toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "card";
@@ -1052,6 +1418,10 @@ async function download(format, type, ext) {
 $("save_stl").addEventListener("click", () => download("stl", "model/stl", "stl"));
 $("save").addEventListener("click", () => download("3mf", "model/3mf", "3mf"));
 
+backingChosen();
+hingeChosen();
+$("font_note").textContent = FACES[$("kc_font").value];
+shapeChosen();
 rebuild();
 </script>
 </body>

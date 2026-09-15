@@ -36,14 +36,14 @@ prints a joint that is either fused solid or falls open.
 from pathlib import Path
 
 import numpy as np
-import trimesh
 from shapely import affinity
 from shapely.geometry import Point, Polygon
 from shapely.geometry import box as box_2d
 from shapely.ops import unary_union
 
 import cards
-from cards import QUAD, SLOTS, boolean, flatten, narrowest, nozzle_for, prisms
+from cards import (QUAD, SLOTS, boolean, extent, flatten, narrowest,
+                   nozzle_for, prisms)
 
 # What a keychain is by default: a chunky one, because the failure mode of a
 # thin keychain is that it snaps in a pocket.
@@ -89,6 +89,185 @@ HINGE = dict(clearance=0.45, head=6.0, neck=2.4, wall=1.4, lip=1.0, band=0.6,
              slot=1.5, swing=35.0)
 HINGE_TYPES = ("none", "pivot", "chain")
 HINGE_SLOT = {"pivot": 0.0, "chain": HINGE["slot"]}
+
+def hinge_span(hinge, opts=None):
+    """How much gap a joint wants between one letter and the next.
+
+    The socket's ring is head/2 + clearance + wall from its centre, the tile
+    behind the stalk stops a clearance short of that, and a chain's slot adds
+    its own length -- so the whole assembly is that much either side of the
+    gap's middle, plus a millimetre so the tiles end on their own backing
+    rather than on a flat cut through a letter.  Under this, a joint eats into
+    the letters on both sides of it, which is exactly what it looked like.
+    """
+    o = {**HINGE, **(opts or {})}
+    return 2 * (o["head"] / 2.0 + 2 * o["clearance"] + o["wall"]
+                + HINGE_SLOT.get(hinge, 0.0)) + 1.0
+
+
+# A hinge needs all five bands stacked with something left in the middle for
+# the head's shoulder to be, so a backing thinner than this has nowhere to put
+# the capture: 2 * (band + clearance) is the floor and 0.5 mm of shoulder is
+# the least worth printing.
+MIN_HINGE_BASE = 2.6
+# and a head smaller than this is not worth calling a hinge.
+MIN_HEAD = 3.6
+
+
+# ---------------------------------------------------------------------------
+# the lettering, and what sits behind it
+# ---------------------------------------------------------------------------
+def lettering(text, font, cap, spacing=0.0, leading=LEADING, align="center"):
+    """The glyphs as polygons, centred on the origin, plus what they measure.
+
+    `spacing` is extra letterspacing in millimetres rather than in em, which
+    is what anyone setting a keychain actually wants to think in -- and going
+    negative with it is how a script face is made to work, by overlapping the
+    strokes until the word is one connected piece.
+    """
+    if not text.strip():
+        return [], 0.0, 0.0, 0.0
+    tracking = spacing * cards.cap_per_em(font) / cap if cap else 0.0
+    polys, w, h, got = cards.text_block(text, font, cap, None, tracking=tracking,
+                                        leading=leading, align=align)
+    return flatten(polys), w, h, got
+
+
+def join_pad(ink, pad=PAD, limit=6.0, step=0.25):
+    """The smallest outline padding, from `pad` up, that holds the word together.
+
+    An outline backing at a fixed padding is in two pieces about as often as
+    it is in one -- a T beside an o leaves a wide gap down at the baseline --
+    and two pieces is a keychain that comes off the plate in two pieces.
+    Growing the buffer until the letters merge is the fix nobody has to think
+    about, and the readout says what it settled on.  Returns `pad` unchanged
+    when even the limit will not do it, so the count still reports the truth.
+    """
+    united = unary_union(ink)
+    for i in range(int(limit / step) + 1):
+        got = pad + i * step
+        if len(flatten([united.buffer(got, quad_segs=QUAD, join_style=1)])) == 1:
+            return got
+    return pad
+
+
+def backing_poly(kind, ink, pad=PAD, corner=CORNER):
+    """The solid the lettering sits on, or None for `none`."""
+    if kind == "none" or not ink:
+        return None
+    if kind not in BACKINGS:
+        raise ValueError(f"no such backing: {kind} -- one of {', '.join(BACKINGS)}")
+    united = unary_union(ink)
+    if kind == "outline":
+        return united.buffer(pad, quad_segs=QUAD, join_style=1)
+    x0, y0, x1, y1 = united.bounds
+    if kind == "plate":
+        return cards.rounded_rect(x1 - x0 + 2 * pad, y1 - y0 + 2 * pad, corner,
+                                  (x0 + x1) / 2.0, (y0 + y1) / 2.0)
+    # bar: a strip through the middle of the line, sized so it meets every
+    # glyph that crosses the midline and lets the rest stand out of it.
+    height = max(0.5 * (y1 - y0), 6.0)
+    return cards.rounded_rect(x1 - x0 + 2 * pad, height, height / 2.0,
+                              (x0 + x1) / 2.0, (y0 + y1) / 2.0)
+
+
+def edge_point(body, pos, offset=0.0):
+    """(a point on the outline, the direction that is "out" from there).
+
+    The corner of a bounding box is often nowhere near the part -- the left of
+    a T is the end of its crossbar, three-quarters of the way up -- so a tab
+    hung on the box hangs in mid-air, welded to nothing.  This walks the
+    material instead and takes the point that is both furthest out and nearest
+    the middle of the side it is on, which is where anyone would put a key
+    ring by hand.  `offset` moves the middle it aims for.
+    """
+    if pos not in HANDLE_POSITIONS:
+        raise ValueError(f"no such handle position: {pos} -- "
+                         f"one of {', '.join(HANDLE_POSITIONS)}")
+    x0, y0, x1, y1 = body.bounds
+    along = (y0, y1) if pos in ("left", "right") else (x0, x1)
+    mid = (along[0] + along[1]) / 2.0 + offset
+    best = None
+    for t in np.linspace(along[0] + 0.5, along[1] - 0.5, 64):
+        strip = (box_2d(-1e4, t - 0.4, 1e4, t + 0.4) if pos in ("left", "right")
+                 else box_2d(t - 0.4, -1e4, t + 0.4, 1e4))
+        cut = body.intersection(strip)
+        if cut.is_empty:
+            continue
+        b = cut.bounds
+        reach = {"left": b[0], "right": -b[2], "top": -b[3]}[pos]
+        # A tenth of a millimetre of reach traded for a millimetre nearer the
+        # middle: enough to keep the tab off the extreme corner of a letter
+        # without letting it drift in to somewhere it would not hang straight.
+        score = reach + 0.1 * abs(t - mid)
+        if best is None or score < best[0]:
+            point = ({"left": (b[0], t), "right": (b[2], t)}.get(pos) or (t, b[3]))
+            best = (score, np.array(point, float))
+    if best is None:
+        raise ValueError("there is no edge to hang a handle from")
+    return best[1], np.array({"left": (-1.0, 0.0), "right": (1.0, 0.0),
+                              "top": (0.0, 1.0)}[pos])
+
+
+def handle_shapes(body, spec):
+    """(what the handle adds, the hole it cuts).
+
+    The tab and the loop are unioned into the body before anything is cut, so
+    a keychain with no backing still has something solid to hang from.
+    """
+    kind = spec["type"]
+    if kind == "none" or body is None or body.is_empty:
+        return None, None
+    if kind not in HANDLE_TYPES:
+        raise ValueError(f"no such handle: {kind} -- one of {', '.join(HANDLE_TYPES)}")
+    size, hole = float(spec["size"]), float(spec["hole"])
+    if hole + 2 * HANDLE_WALL > size:
+        raise ValueError(f"a {hole:.1f} mm hole in a {size:.1f} mm tab leaves "
+                         f"{(size - hole) / 2:.2f} mm of wall -- widen the tab to "
+                         f"{hole + 2 * HANDLE_WALL:.1f} mm or shrink the hole")
+
+    anchor, out = edge_point(body, spec["position"], float(spec.get("offset", 0.0)))
+
+    if kind == "hole":
+        # No tab: the hole goes inside the material, a wall's width in from
+        # the edge, which is only sound when there is a backing to put it in.
+        centre = anchor - out * (hole / 2.0 + HANDLE_WALL)
+        return None, Point(centre).buffer(hole / 2.0, quad_segs=QUAD)
+
+    # A tab sits mostly outside the body and overlaps it by a third of its
+    # width, which is enough of a weld that the neck is never the weak point.
+    reach = size * (0.32 if kind == "tab" else 0.85)
+    centre = anchor + out * reach
+    add = Point(centre).buffer(size / 2.0, quad_segs=QUAD)
+    if kind == "loop":
+        # The neck: a bar from inside the body out to the ring, so the loop
+        # stands clear rather than merging into the first letter.
+        mid = (anchor + centre) / 2.0
+        span = float(np.hypot(*(centre - anchor))) + size / 2.0
+        neck = box_2d(-span / 2.0, -size * 0.22, span / 2.0, size * 0.22)
+        neck = affinity.rotate(neck, float(np.degrees(np.arctan2(out[1], out[0]))),
+                               origin=(0, 0))
+        add = unary_union([add, affinity.translate(neck, *mid)])
+    return add, Point(centre).buffer(hole / 2.0, quad_segs=QUAD)
+
+
+# ---------------------------------------------------------------------------
+# hinges
+# ---------------------------------------------------------------------------
+def hinge_span(hinge, opts=None):
+    """How much gap a joint wants between one letter and the next.
+
+    The socket's ring is head/2 + clearance + wall from its centre, the tile
+    behind the stalk stops a clearance short of that, and a chain's slot adds
+    its own length -- so the whole assembly is that much either side of the
+    gap's middle, plus a millimetre so the tiles end on their own backing
+    rather than on a flat cut through a letter.  Under this, a joint eats into
+    the letters on both sides of it, which is exactly what it looked like.
+    """
+    o = {**HINGE, **(opts or {})}
+    return 2 * (o["head"] / 2.0 + 2 * o["clearance"] + o["wall"]
+                + HINGE_SLOT.get(hinge, 0.0)) + 1.0
+
 
 # A hinge needs all five bands stacked with something left in the middle for
 # the head's shoulder to be, so a backing thinner than this has nowhere to put
@@ -256,86 +435,183 @@ def column_gaps(ink):
     return [((a[1] + b[0]) / 2.0, b[0] - a[1]) for a, b in zip(merged, merged[1:])]
 
 
-def room_at(outline, x, opts=None):
-    """(centre, height) if a hinge fits across the material at `x`, else None.
+def columns(ink):
+    """The glyphs grouped into the columns they stand in, left to right.
 
-    Two ways it does not fit: there is nothing there at all -- the gap between
-    two words, where an outline backing has parted company with itself -- or
-    there is something but it is too narrow a waist to get a socket into.
+    Each column is (polygons, x0, x1, y0, y1).  Shapes that overlap in x -- an
+    accent over its letter, or two glyphs of a joined-up face -- are one
+    column, because a knife could not pass between them and neither can a
+    joint.
     """
-    try:
-        centre, height = joint_at(outline, x)
-    except ValueError:
-        return None
+    out = []
+    for poly in sorted(ink, key=lambda p: p.bounds[0]):
+        x0, y0, x1, y1 = poly.bounds
+        if out and x0 <= out[-1][2]:
+            got = out[-1]
+            out[-1] = (got[0] + [poly], got[1], max(got[2], x1),
+                       min(got[3], y0), max(got[4], y1))
+        else:
+            out.append(([poly], x0, x1, y0, y1))
+    return out
+
+
+def weld_band(left, right, pad):
+    """How much of a band two neighbouring columns have in common where they
+    face each other, once each has its outline backing round it.
+
+    Measured the way joint_at() measures it -- a couple of millimetres into
+    each tile, not across the whole letter -- because that is where the stalk
+    has to land.  A T beside an o overlap over the whole x-height on paper;
+    what actually faces the o is the end of the crossbar, three quarters of
+    the way up, and a millimetre of it lines up with anything.  Shifting the
+    columns apart in x does not change any of that, so this can be asked
+    before they are laid out.
+    """
+    out = []
+    for col, way in ((left, 1.0), (right, -1.0)):
+        shape = unary_union(col[0]).buffer(pad, quad_segs=QUAD, join_style=1)
+        face = shape.bounds[2] if way > 0 else shape.bounds[0]
+        lo, hi = sorted((face, face - way * INTO_TILE))
+        pieces = flatten([shape.intersection(box_2d(lo, -1e4, hi, 1e4))])
+        if not pieces:
+            return 0.0
+        big = max(pieces, key=lambda p: p.area)
+        out.append((big.bounds[1], big.bounds[3]))
+    return min(out[0][1], out[1][1]) - max(out[0][0], out[1][0])
+
+
+def spread_for_hinges(ink, want, span, pad, backing="outline", opts=None):
+    """(the lettering laid out with room for its joints, where the joints go).
+
+    Letters set for reading stand a millimetre or two apart and a joint wants
+    ten, so the gaps that are going to hold one are opened to `span` and every
+    other gap is left exactly as it was.  That second half matters as much as
+    the first: open all of them and a link carrying two letters is two tiles
+    with nothing between them, which prints as two tiles.
+
+    A gap can only hold a joint where the letters either side of it overlap
+    enough for a socket to be held at both ends -- a T beside a comma do not --
+    so those gaps are never chosen and never opened, and the two letters ride
+    on one tile.
+    """
+    cols = columns(ink)
+    if len(cols) < 2:
+        raise ValueError("there is no gap between letters here to put a joint in "
+                         "-- open the letter spacing up, or pick a face whose "
+                         "letters do not join into one another")
     o = {**HINGE, **(opts or {})}
-    if height - 0.8 - 2 * (o["clearance"] + o["wall"]) < MIN_HEAD:
-        return None
-    return centre, height
+    # The same question hinge_profiles asks: is there a band these two letters
+    # have in common wide enough to weld a stalk across?  How *tall* the tiles
+    # are only decides how big the ring may be, so it is not asked here.
+    need = o["neck"] + 2 * o["clearance"]
+    # A plate or a bar runs the whole length behind the letters, so every gap
+    # in one has the full height of the backing to weld across.  Only the
+    # outline has tiles that end where the letters do.
+    viable = [i for i in range(len(cols) - 1)
+              if backing != "outline"
+              or weld_band(cols[i], cols[i + 1], pad) >= need]
+    if not viable:
+        raise ValueError("no two letters here stand level with each other for long "
+                         "enough to hold a joint between them -- try a plate backing")
+
+    # A gap the backing does not bridge on its own -- the space between two
+    # words, most often -- is already two tiles, so it *has* to have a joint
+    # whether or not the link count asked for one.  Anything else is a choice.
+    must = [] if backing != "outline" else [
+        i for i in range(len(cols) - 1) if cols[i + 1][1] - cols[i][2] >= 2 * pad]
+    short = [i for i in must if i not in viable]
+    if short:
+        raise ValueError("the letters either side of a gap this wide have to hold a "
+                         "joint between them, and here they do not stand level "
+                         "enough to -- close the letter spacing, or put a plate "
+                         "behind it")
+
+    k = max(len(must) + 1, 2)
+    k = max(k, min(int(want) if int(want or 0) >= 2 else len(cols), len(viable) + 1))
+    free, picks = [i for i in viable if i not in must], list(must)
+    for i in range(1, k):                       # spread the rest over the word
+        if len(picks) >= k - 1 or not free:
+            break
+        pick = min(free, key=lambda g: abs((g + 1) - i * len(cols) / k))
+        free.remove(pick)
+        picks.append(pick)
+    picks = set(picks)
+
+    out, cuts, shift = [], [], 0.0
+    for j, col in enumerate(cols):
+        out += [affinity.translate(poly, shift, 0.0) for poly in col[0]]
+        if j in picks:
+            gap = cols[j + 1][1] - col[2]
+            grow = max(0.0, span - gap)
+            cuts.append(col[2] + shift + (gap + grow) / 2.0)
+            shift += grow
+    return out, cuts
 
 
-def nearest_room(outline, x, opts=None, reach=10.0, step=0.5):
-    """The x nearest to `x` where a hinge fits, or None within `reach`."""
-    for d in np.arange(0.0, reach + step, step):
-        for cand in ((x,) if d == 0 else (x - d, x + d)):
-            if room_at(outline, cand, opts) is not None:
-                return float(cand)
+# How far a stalk or an arm reaches past the edge of the tile it joins, and how
+# far in the band it has to fit is measured.  The leading edge of a rounded
+# outline is a sliver a fraction of a millimetre tall: weld to that and the
+# joint hangs off a corner, size a socket on it and the socket fits nothing.
+INTO_TILE = 2.5
+
+
+INTO_BODY = 8.0          # and how far in the tile is measured for its height
+
+
+def band_near(outline, x, step, reach=14.0):
+    """(where, the band to weld to, the band to size against) for the nearest
+    tile to `x` in direction `step`.
+
+    Two bands, because they answer different questions.  The near one, a
+    couple of millimetres into the tile, is where a stalk has to land to be
+    welded to anything.  The wide one, most of a centimetre in, is how tall
+    the tile really is -- and sizing a socket on the near band instead gets a
+    socket sized on the tip of a K, which is nothing at all.
+    """
+    way = 1.0 if step > 0 else -1.0
+
+    def band(depth):
+        lo, hi = sorted((at, at + way * depth))
+        pieces = flatten([outline.intersection(box_2d(lo, -1e4, hi, 1e4))])
+        big = max(pieces, key=lambda p: p.area)
+        return big.bounds[1], big.bounds[3]
+
+    for d in np.arange(0.0, reach + abs(step), abs(step)):
+        at = x + way * d
+        if not flatten([outline.intersection(box_2d(at - 0.15, -1e4, at + 0.15, 1e4))]):
+            continue
+        return float(at), band(INTO_TILE), band(INTO_BODY)
     return None
 
 
-def cut_positions(ink, outline, n, opts=None):
-    """(x positions, whether every one of them landed on a gap between letters).
-
-    Cutting on a gap is what makes an articulated name read as one letter per
-    link, so the gaps are used first, nearest to an even spacing.  Where there
-    are not enough of them -- a script face whose letters all touch -- the rest
-    fall on even spacings instead and the readout says so.
-
-    Every position is checked for material before it is kept.  A name with a
-    space in it comes back with fewer segments than were asked for rather than
-    with a joint hanging in the air between the words, which is the one
-    failure here that would print and then fall apart in the hand.
-    """
-    if n < 2:
-        return [], True
-    o = {**HINGE, **(opts or {})}
-    apart = o["head"] + 2 * (o["clearance"] + o["wall"]) + 1.0
-    x0, _, x1, _ = outline.bounds
-    want = [x0 + i * (x1 - x0) / n for i in range(1, n)]
-    free = [c for c, _ in column_gaps(ink) if room_at(outline, c, opts) is not None]
-
-    out, on_gaps = [], True
-    for target in want:
-        pick = min(free, key=lambda g: abs(g - target)) if free else None
-        if pick is None:
-            pick = nearest_room(outline, target, opts)
-            on_gaps = False
-        else:
-            free.remove(pick)
-        # Two joints closer together than one ring is wide would eat each
-        # other; better a longer segment than a broken one.
-        if pick is not None and all(abs(pick - got) >= apart for got in out):
-            out.append(pick)
-    return sorted(out), on_gaps and len(out) == n - 1
-
-
 def joint_at(outline, x):
-    """(centre, height) of the material the cut at `x` runs through.
+    """(centre, height) of the material a joint at `x` has to fit between.
 
-    The height is what decides how big a hinge will fit, and the centre is
-    where it goes: halfway up the biggest piece of plastic at that x, not
-    halfway up the whole part, so a joint under a descender still lands in
-    the middle of something.
+    Once the letters are spaced for hinges there is nothing at all at `x` --
+    it is the gap -- so this measures the near end of the tile on each side
+    and takes the band they have in common, which is the only height a joint
+    can sit at and be held at both ends.  Where the backing runs straight
+    through, both measurements land on the same strip and it comes to the
+    same thing.
     """
-    strip = outline.intersection(box_2d(x - 0.3, -1e4, x + 0.3, 1e4))
-    pieces = flatten([strip])
-    if not pieces:
+    left, right = band_near(outline, x, -0.5), band_near(outline, x, 0.5)
+    if left is None or right is None:
         raise ValueError(f"nothing to hinge at x = {x:.1f} mm")
-    big = max(pieces, key=lambda p: p.area)
-    _, y0, _, y1 = big.bounds
-    return np.array([x, (y0 + y1) / 2.0]), y1 - y0
+    weld = (max(left[1][0], right[1][0]), min(left[1][1], right[1][1]))
+    if weld[1] - weld[0] <= 0:
+        raise ValueError(f"the two sides of x = {x:.1f} mm do not stand level "
+                         "with each other")
+    y = (weld[0] + weld[1]) / 2.0
+    # How much room there is, measured about the height the joint will sit at
+    # rather than about the middle of anything: a socket centred low down has
+    # the tile below it to fit into, not the tile's whole height.
+    wide = (max(left[2][0], right[2][0]), min(left[2][1], right[2][1]))
+    room = 2.0 * min(y - wide[0], wide[1] - y)
+    return np.array([x, y]), room, weld[1] - weld[0], left[0], right[0]
 
 
-def hinge_profiles(centre, height, slot, opts):
+def hinge_profiles(centre, height, slot, opts, left_x=None, right_x=None,
+                   weld=None):
     """The 2-D pieces of one joint, and the head it settled on.
 
     Returns a dict of polygons.  `head_*` and `neck` belong to the segment on
@@ -347,10 +623,13 @@ def hinge_profiles(centre, height, slot, opts):
 
     so the socket's inner edge, where it is narrow, stands `lip - clearance`
     inside the widest part of the head.  Stack them -- socket narrow at the
-    bottom and the top, head wide only in the middle -- and the head cannot
-    come up out of the plane it was printed in.  In the plane, the throat is
-    neck + 2*clearance wide against a head of `head`, so it cannot come out
-    sideways either.  Nothing is glued and nothing is assembled.
+    bottom and the top, head wide only in the middle -- and lifting the head
+    out means raising it clear of the top lip, which is base - band -
+    clearance: about 2 mm of the 3 mm the backing is thick.  That is far more
+    than a pocket will ever do to it and much less than forever, which is the
+    honest way to put it.  In the plane it is properly captive: the throat is
+    neck + 2*clearance wide against a head of `head`, and no amount of pulling
+    gets one through the other.  Nothing is glued and nothing is assembled.
 
     The two do not change width at the same height: the socket goes wide at
     `band` and the head at `band + clearance`, which is what puts a real gap
@@ -363,15 +642,29 @@ def hinge_profiles(centre, height, slot, opts):
     c, wall, lip = o["clearance"], o["wall"], o["lip"]
     neck = o["neck"]
 
-    # The whole joint has to fit across the material, with a little to spare
-    # so the ring is not the outline.  Shrinking the head is much better than
-    # refusing: a hinge in a small keychain is still a hinge.
-    head = min(float(o["head"]), max(0.0, (height - 0.8)) - 2 * (c + wall))
-    if head < MIN_HEAD:
+    # Two different questions, and only one of them can refuse.
+    #
+    # `height` is how tall the tiles are where the joint meets them, and all it
+    # decides is how big the ring may be before it stands out past the letters.
+    # It is a matter of looks, not of soundness -- the ring sits in the gap,
+    # where there is nothing for it to foul -- so a short one shrinks the head
+    # and, below the smallest head worth the name, simply lets it overhang.
+    #
+    # `weld` is the band the two tiles have in common at the joint, and that
+    # one is structural: no overlap, no stalk, and the head is welded to air.
+    head = max(MIN_HEAD, min(float(o["head"]),
+                             max(0.0, height - 0.8) - 2 * (c + wall)))
+    # The stalk shrinks with the head it carries.  Left at full width while the
+    # head came down it ended up wider than the cavity the head sits in, and
+    # the socket closed onto it with fifty microns to spare -- which prints as
+    # one solid piece.  The lip does *not* scale: it is what holds the head
+    # down, and lip minus clearance is the whole of that grip.
+    neck *= head / float(o["head"])
+    if weld is not None and weld < neck + 2 * c:
         raise ValueError(
-            f"a hinge needs about {MIN_HEAD + 2 * (c + wall) + 0.8:.0f} mm of material "
-            f"across the joint and there is {height:.1f} mm -- raise the size, "
-            f"add a backing, or ask for fewer segments")
+            f"the letters either side of this joint only stand level with each "
+            f"other for {weld:.1f} mm, and a stalk needs {neck + 2 * c:.1f} -- "
+            f"ask for fewer links, or put a plate behind it")
     r = head / 2.0
     p = np.asarray(centre, float)            # where the head is drawn
     q = p - [slot, 0.0]                      # the mouth end of the socket
@@ -394,11 +687,23 @@ def hinge_profiles(centre, height, slot, opts):
         (q[0] - (r + c), p[1] - throat), (p[0], p[1] - throat)])
 
     edge = q[0] - (r + c + wall) - c        # where the left segment stops
+
+    # Both halves of the joint sit in the gap between two letters, which is
+    # wider than either of them: the stalk has to reach back to the tile it
+    # hangs from and the ring has to reach forward to the tile it belongs to.
+    # Without that arm the ring prints as a loose washer lying in the gap --
+    # which is exactly what it did, and it looked right on screen.
+    start = min(edge, left_x if left_x is not None else edge) - INTO_TILE
+    ring = span(r + c + wall)
+    if right_x is not None and right_x + INTO_TILE > p[0]:
+        ring = unary_union([ring, box_2d(p[0], p[1] - (neck / 2.0 + wall),
+                                         right_x + INTO_TILE,
+                                         p[1] + (neck / 2.0 + wall))])
     return dict(
         head_wide=disc(p, r), head_narrow=disc(p, r - lip),
         cav_wide=span(r + c), cav_narrow=span(r - lip + c),
-        ring=span(r + c + wall).buffer(0),
-        neck=box_2d(edge - 0.5, p[1] - neck / 2.0, p[0], p[1] + neck / 2.0),
+        ring=ring.buffer(0),
+        neck=box_2d(start, p[1] - neck / 2.0, p[0], p[1] + neck / 2.0),
         mouth=mouth, edge=edge, head=head, band=o["band"],
         clear=c)
 
@@ -509,12 +814,39 @@ def build(text="Keychain", font=None, cap=CAP, spacing=0.0, leading=LEADING,
     spec = {**HANDLE, **(handle or {})}
     colours = tuple(colours or cards.COLOURS)
 
+    if hinge not in HINGE_TYPES:
+        raise ValueError(f"no such hinge: {hinge} -- one of {', '.join(HINGE_TYPES)}")
+    hinged = hinge != "none"
+    if hinged and backing == "none":
+        raise ValueError("a hinge needs a backing to sit in -- pick outline, "
+                         "plate or bar, or turn the hinge off")
+    if hinged and base < MIN_HINGE_BASE:
+        raise ValueError(f"a hinged joint needs a backing at least "
+                         f"{MIN_HINGE_BASE:.1f} mm thick to fit the capture in; "
+                         f"this one is {base:.1f} mm")
+
     ink, ink_w, ink_h, cap_got = lettering(text, font, cap, spacing, leading, align)
     if not ink:
         raise ValueError("there is no text to make a keychain out of")
 
+    # Settled before anything is spread apart, so the padding that joins two
+    # letters into one tile is chosen against the spacing they were set at
+    # rather than against a gap that is about to hold a joint.
     if backing == "outline" and join:
         pad = join_pad(ink, pad)
+
+    cuts = []
+    if hinged:
+        if len([ln for ln in text.replace("|", "\n").split("\n") if ln.strip()]) > 1:
+            raise ValueError("a hinged keychain is one line of letters -- the links "
+                             "run left to right, and a second line has no chain to "
+                             "be part of")
+        ink, cuts = spread_for_hinges(ink, segments, hinge_span(hinge, hinge_opts),
+                                      pad, backing, hinge_opts)
+        x0, _, x1, _ = extent(ink)
+        ink = [affinity.translate(poly, -(x0 + x1) / 2.0, 0.0) for poly in ink]
+        cuts = [x - (x0 + x1) / 2.0 for x in cuts]
+        ink_w = x1 - x0
     body = backing_poly(backing, ink, pad, corner)
     add, hole = handle_shapes(body if body is not None else unary_union(ink), spec)
 
@@ -528,17 +860,6 @@ def build(text="Keychain", font=None, cap=CAP, spacing=0.0, leading=LEADING,
         outline = None
         letters = unary_union(ink + ([add] if add is not None else []))
 
-    hinged = hinge != "none" and hinge in HINGE_TYPES
-    if hinge not in HINGE_TYPES:
-        raise ValueError(f"no such hinge: {hinge} -- one of {', '.join(HINGE_TYPES)}")
-    if hinged and outline is None:
-        raise ValueError("a hinge needs a backing to sit in -- pick outline, "
-                         "plate or bar, or turn the hinge off")
-    if hinged and base < MIN_HINGE_BASE:
-        raise ValueError(f"a hinged joint needs a backing at least "
-                         f"{MIN_HINGE_BASE:.1f} mm thick to fit the capture in; "
-                         f"this one is {base:.1f} mm")
-
     # What the letters and the backing actually are, once the ring hole is out
     # of them.  The hole goes through everything: cut it from both.
     if hole is not None:
@@ -546,20 +867,13 @@ def build(text="Keychain", font=None, cap=CAP, spacing=0.0, leading=LEADING,
             outline = outline.difference(hole)
         letters = letters.difference(hole)
 
-    joints, cuts, on_gaps, segs, swept = [], [], True, 1, 0
+    joints, segs, swept = [], 1, 0
     if hinged:
-        want = int(segments) if int(segments or 0) >= 2 else len(column_gaps(ink)) + 1
-        segs = max(2, min(want, 24))
-        cuts, on_gaps = cut_positions(ink, outline, segs, hinge_opts)
-        if not cuts:
-            raise ValueError("there is nowhere on this one to put a hinge -- a "
-                             "joint needs a run of material about "
-                             f"{MIN_HEAD + 2 * (HINGE['clearance'] + HINGE['wall']) + 0.8:.0f} mm "
-                             "across, so raise the size or widen the backing")
         slot = HINGE_SLOT[hinge]
         for x in cuts:
-            centre, height = joint_at(outline, x)
-            joints.append({**hinge_profiles(centre, height, slot, hinge_opts),
+            centre, height, weld, left_x, right_x = joint_at(outline, x)
+            joints.append({**hinge_profiles(centre, height, slot, hinge_opts,
+                                            left_x, right_x, weld),
                            "centre": centre})
         segs = len(cuts) + 1
 
@@ -589,7 +903,17 @@ def build(text="Keychain", font=None, cap=CAP, spacing=0.0, leading=LEADING,
 
     ink_z = base - 0.01 if outline is not None else 0.0
     ink_t = (rise + 0.01) if outline is not None else (base + rise)
-    ink_polys = flatten([letters])
+    # Clipping the lettering to its segment, and cutting the ring hole, both
+    # leave slivers now and then -- the tail of a Y on the wrong side of a
+    # joint.  A sliver narrower than a nozzle prints as a wisp or as nothing,
+    # so it goes the same way the backing's specks do.
+    ink_polys, wisps = [], 0
+    for poly in flatten([letters]):
+        if poly.area < 0.8 or cards.stroke_width(poly) < 0.4:
+            wisps += 1
+        else:
+            ink_polys.append(poly)
+    swept += wisps
     if not ink_polys:
         raise ValueError("the ring hole has eaten the lettering -- move the handle")
     if outline is None:
@@ -615,7 +939,11 @@ def build(text="Keychain", font=None, cap=CAP, spacing=0.0, leading=LEADING,
     # with no backing, and finding out here beats finding out in an hour.
     whole = unary_union(pieces + ink_polys)
     x0, y0, x1, y1 = whole.bounds
-    stroke = narrowest(ink_polys)
+    # Measured on the glyphs as the font drew them, not on what is left of
+    # them after a joint has cut one in half: the question the number answers
+    # is whether this face at this size prints, and half a letter is not a
+    # stroke anybody chose.
+    stroke = narrowest(ink)
     loose = len(flatten([whole])) - (segs if joints else 1)
     info = dict(
         kind="keychain", label=label or "keychain", text=text,
@@ -625,11 +953,13 @@ def build(text="Keychain", font=None, cap=CAP, spacing=0.0, leading=LEADING,
         handle=spec["type"], handle_hole=round(float(spec["hole"]), 2)
         if spec["type"] != "none" else None,
         hinge=hinge if joints else "none", segments=segs if joints else 1,
-        cuts=[round(float(x), 2) for x in cuts], hinge_on_gaps=on_gaps,
+        cuts=[round(float(x), 2) for x in cuts],
+        letters=len(columns(ink)), spacing=round(spacing, 2),
         hinge_head=round(joints[0]["head"], 2) if joints else None,
         hinge_clearance=round({**HINGE, **(hinge_opts or {})}["clearance"], 2)
         if joints else None,
         hinge_band=round(band, 2) if joints else None, swept=swept,
+        hinge_lift=round(base - band - joints[0]["clear"], 2) if joints else None,
         slots=sorted(part["slots"], key=SLOTS.index),
         part_slots={"keychain": sorted(part["slots"], key=SLOTS.index)},
         parts=["keychain"], stroke=round(stroke, 2),
