@@ -56,7 +56,8 @@ def preview(parts, info, row_w):
     """(bytes, description): every slot of every part, one after another in
     a binary STL, each in its own coordinates, plus where each goes -- its
     shift on the plate, and its transform into the assembled card -- so the
-    page can draw either arrangement and colour every triangle by slot.
+    page can draw either arrangement, colour every triangle by slot, and light
+    up one field at a time.  A run is [colour slot, field, face, triangles].
 
     A split body also gets the NFC tag itself, as a slab in the joint.  It is
     not a printed part and has no place on the plate; it is there so that
@@ -65,14 +66,12 @@ def preview(parts, info, row_w):
     meshes, described = [], []
     assembled = dict((id(p), m) for p, m in cards.assembly(parts, row_w=row_w))
     for part, shift in cards.layout(parts, row_w=row_w):
-        slots = []
-        for slot in cards.SLOTS:
-            mesh = part["slots"].get(slot)
-            if mesh is None:
-                continue
-            meshes.append(mesh)
-            slots.append([cards.SLOTS.index(slot), int(len(mesh.faces))])
-        described.append(dict(name=part["name"], card=part.get("card", 0), slots=slots,
+        runs = []
+        for g in part["groups"]:
+            meshes.append(g["mesh"])
+            runs.append([cards.SLOTS.index(g["slot"]), g["element"], g["face"],
+                         int(len(g["mesh"].faces))])
+        described.append(dict(name=part["name"], card=part.get("card", 0), slots=runs,
                               plate=[round(float(v), 4) for v in shift],
                               assembled=[round(float(v), 6)
                                          for v in assembled[id(part)].ravel()]))
@@ -82,7 +81,8 @@ def preview(parts, info, row_w):
             place = assembled[id(part)] @ trimesh.transformations.translation_matrix(
                 info["joint"])
             described.append(dict(name="tag", card=part.get("card", 0), tag=True,
-                                  slots=[[len(cards.SLOTS), int(len(slab.faces))]],
+                                  slots=[[len(cards.SLOTS), "tag", "joint",
+                                      int(len(slab.faces))]],
                                   plate=None,
                                   assembled=[round(float(v), 6) for v in place.ravel()]))
     mesh = trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]

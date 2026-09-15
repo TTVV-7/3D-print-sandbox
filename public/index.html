@@ -87,6 +87,22 @@
   .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--brand); border-radius: var(--radius-100); cursor: pointer; }
   .check input:disabled + span { color: var(--text-tertiary); }
 
+  /* Shape tiles: the first choice, and the one everything else follows from */
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-300); }
+  .tile {
+    font: inherit; text-align: left; display: flex; flex-direction: column;
+    gap: var(--space-200); padding: var(--space-300); cursor: pointer;
+    border: 1px solid var(--border-default); border-radius: var(--radius-200);
+    background: var(--bg-default); color: var(--text-default);
+  }
+  .tile:hover { background: var(--bg-tertiary); }
+  .tile[aria-pressed=true] { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+  .tile b { font-weight: 600; }
+  .tile span { font-size: 13px; line-height: 1.3; color: var(--text-secondary); }
+  .tile svg { width: 100%; height: 40px; fill: none; stroke: var(--text-secondary);
+              stroke-width: 2; stroke-linecap: round; }
+  .tile[aria-pressed=true] svg { stroke: var(--text-default); }
+
   /* Colour swatches: four Tags in a row */
   .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-200); }
   .swatches label { display: flex; flex-direction: column; align-items: center; gap: var(--space-100);
@@ -169,72 +185,83 @@
 <aside>
   <div>
     <h1>NFC cards and fobs</h1>
-    <p class="sub">Two halves, four colours, one tap.</p>
+    <p class="sub">Pick a shape, fill it in, print it in two halves.</p>
   </div>
 
   <section>
-    <h2>Who</h2>
-    <label class="field"><span>Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
-    <label class="field"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
-    <label class="field"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
-    <label class="field"><span>Role or slogan</span><input type="text" id="role" value="" autocomplete="off" placeholder="Undergraduate at xxx"></label>
-    <label class="field"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="you@example.com"></label>
-    <p class="hint">A long line shrinks to fit. Past a point that stops being printable &mdash;
-       put a <code>|</code> where it should break instead, and both halves stay full size.
-       Role and email are only used by the layouts that have a place for them.</p>
-    <label class="field"><span>Logo (SVG)</span><input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
-    <p class="hint" id="logo_note">Goes on the front beside the name. Flat fills only &mdash; strokes,
-       gradients and text objects are ignored, so export the logo as outlines first. Each fill
-       colour in the file goes to whichever of the four colours below it is nearest.</p>
-    <label class="field"><span>Full front design (SVG)</span><input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
-    <p class="hint" id="design_note">Replaces name, company, phone, logo and pattern with your own
-       artwork, filling the face. Draw it on a rectangle in the body colour and it comes out at the
-       rectangle's size.</p>
+    <h2>1 &middot; Shape</h2>
+    <div class="tiles" data-light="kind">
+      <button type="button" class="tile" data-kind="fob" aria-pressed="true">
+        <svg viewBox="0 0 62 34" aria-hidden="true"><rect x="1" y="1" width="60" height="32" rx="4"/><circle cx="8" cy="17" r="2.6"/><path d="M18 12h30M18 18h22"/></svg>
+        <b>Keyring fob</b><span>62 &times; 34 mm, with a ring hole</span>
+      </button>
+      <button type="button" class="tile" data-kind="card" aria-pressed="false">
+        <svg viewBox="0 0 86 54" aria-hidden="true"><rect x="1" y="1" width="84" height="52" rx="3"/><path d="M10 18h44M10 28h30M10 38h36"/></svg>
+        <b>Business card</b><span>85.6 &times; 54 mm, wallet size</span>
+      </button>
+    </div>
+    <input type="hidden" id="kind" value="fob">
+    <p class="hint" id="shape_note">The fob is the one that lives on a keyring. The card is CR80,
+       the size of a credit card, so it sits in a wallet slot.</p>
   </section>
 
   <section>
-    <h2>Look</h2>
-    <label class="field"><span>Preset</span>
+    <h2>2 &middot; Who you are</h2>
+    <label class="field" data-light="name"><span>Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
+    <label class="field" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
+    <label class="field" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
+    <label class="field" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
+    <label class="field" data-light="email"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
+    <p class="hint">Name, company, title, phone and email are the five every guide to business
+       cards agrees on, and five to seven things is where a card stops being read. Leave any of
+       them empty and the line goes away. A long one shrinks to fit; past the point where that
+       stops being printable, put a <code>|</code> where it should break instead.</p>
+    <label class="field" data-light="logo_file"><span>Logo (SVG)</span><input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
+    <p class="hint" id="logo_note">Goes beside the name. Flat fills only &mdash; strokes, gradients
+       and text objects are ignored, so export the logo as outlines first. Each fill colour in the
+       file goes to whichever of the four colours it is nearest.</p>
+    <label class="field" data-light="design_file"><span>Full front design (SVG)</span><input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
+    <p class="hint" id="design_note">Replaces the whole front with your own artwork. Draw it on a
+       rectangle in the body colour and it comes out at the rectangle's size.</p>
+  </section>
+
+  <section>
+    <h2>3 &middot; How it looks</h2>
+    <label class="field" data-light="preset"><span>Preset</span>
       <select id="preset"></select>
     </label>
-    <label class="field"><span>Layout</span>
+    <label class="field" data-light="layout"><span>Layout</span>
       <select id="layout"></select>
     </label>
-    <label class="check"><input type="checkbox" id="placeholder"><span>Empty square where a logo would go</span></label>
-    <label class="field"><span>Background pattern</span>
+    <p class="hint" id="layout_note"></p>
+    <label class="check" data-light="logo_file"><input type="checkbox" id="placeholder"><span>Empty square where a logo would go</span></label>
+    <label class="field" data-light="look"><span>Background pattern</span>
       <select id="look"></select>
     </label>
     <div class="field"><span>Colours</span>
       <div class="swatches">
-        <label><input type="color" id="c0" value="#141414">Body</label>
-        <label><input type="color" id="c1" value="#2e2e2e">Pattern</label>
-        <label><input type="color" id="c2" value="#f2f2f2">Primary</label>
-        <label><input type="color" id="c3" value="#9a9a9a">Secondary</label>
+        <label data-light="c0"><input type="color" id="c0" value="#141414">Body</label>
+        <label data-light="c1"><input type="color" id="c1" value="#2e2e2e">Pattern</label>
+        <label data-light="c2"><input type="color" id="c2" value="#f2f2f2">Primary</label>
+        <label data-light="c3"><input type="color" id="c3" value="#9a9a9a">Secondary</label>
       </div>
     </div>
     <p class="hint">Every colour is an inlay in one thin face layer &mdash; the first 0.6 mm of each
        half as it prints &mdash; so a multi-material printer does all its changes in three layers
        and the rest of the part in the body colour. Primary is the name, phone and logo;
-       secondary the quieter lines and the tap wording. The 3MF carries all four; the STL is
-       one solid.</p>
-    <div class="field"><span>Relief</span>
+       secondary the quieter lines and the tap wording.</p>
+    <div class="field" data-light="rise"><span>Relief</span>
       <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
     </div>
     <p class="hint">How far the lettering stands off the face. Flush is a smooth card with every
        colour in the face layer. 1.2 mm you can feel with a thumb, at the cost of a colour change
        on every layer of the relief.</p>
-    <label class="check"><input type="checkbox" id="border"><span>Border line (card only)</span></label>
+    <label class="check card-only" data-light="border"><input type="checkbox" id="border"><span>Border line round the card</span></label>
   </section>
 
   <section>
-    <h2>Body</h2>
-    <label class="field"><span>Shape</span>
-      <select id="kind">
-        <option value="fob">Keyring fob &mdash; 62 &times; 34 mm, with a ring hole</option>
-        <option value="card">Card &mdash; 85.6 &times; 54 mm, wallet size</option>
-      </select>
-    </label>
-    <label class="field"><span>Tag fitting</span>
+    <h2>4 &middot; The tap side</h2>
+    <label class="field" data-light="tag_mode"><span>Tag fitting</span>
       <select id="tag_mode">
         <option value="split">Two halves &mdash; tag glued between them</option>
         <option value="pocket">Pocket &mdash; open recess, stick the tag in after</option>
@@ -245,37 +272,33 @@
        a three-pin key so they only go together one way. Glue the flat border outside the cavity
        and clamp; the tag ends up sealed in the middle with nothing showing.</p>
     <div class="row">
-      <label class="field"><span>Tag width</span><input type="text" id="tag_w" value="35" autocomplete="off" inputmode="decimal"></label>
-      <label class="field"><span>Tag height</span><input type="text" id="tag_h" value="22" autocomplete="off" inputmode="decimal"></label>
-      <label class="field"><span>Thick</span><input type="text" id="tag_thick" value="0.5" autocomplete="off" inputmode="decimal"></label>
+      <label class="field" data-light="tag_w"><span>Tag width</span><input type="text" id="tag_w" value="35" autocomplete="off" inputmode="decimal"></label>
+      <label class="field" data-light="tag_h"><span>Tag height</span><input type="text" id="tag_h" value="22" autocomplete="off" inputmode="decimal"></label>
+      <label class="field" data-light="tag_thick"><span>Thick</span><input type="text" id="tag_thick" value="0.5" autocomplete="off" inputmode="decimal"></label>
     </div>
     <p class="hint">Millimetres, measured off your own tags. The cavity adds 0.4 mm of slack, and
        the fob grows if it has to.</p>
-  </section>
-
-  <section>
-    <h2>Tap side</h2>
-    <label class="field"><span>Wording under the arcs</span><input type="text" id="tap" value="TAP HERE" autocomplete="off"></label>
+    <label class="field" data-light="tap"><span>Wording under the arcs</span><input type="text" id="tap" value="TAP HERE" autocomplete="off"></label>
     <p class="hint">Use <code>|</code> to split lines. Leave it empty for arcs alone &mdash;
        which is what the fob gets anyway, there is no room for text beside its cavity.</p>
-    <label class="field"><span>Link</span><input type="text" id="link" value="" autocomplete="off" placeholder="https://..."></label>
+    <label class="field" data-light="link"><span>Link</span><input type="text" id="link" value="" autocomplete="off" placeholder="https://..."></label>
     <p class="hint" id="linkfit">Nothing here writes the tag &mdash; that is a phone job
        (NFC Tools and the like). This counts the bytes it would take.</p>
-    <label class="check"><input type="checkbox" id="qr"><span>QR code for the link on the back</span></label>
-    <p class="hint">For phones that don't tap. A shorter link is a coarser code, and a coarser code
-       prints on a bigger nozzle &mdash; the readout says which. Scanners like dark modules on a
-       light ground; a light code on a dark body is inverted, which most phones read and some don't.</p>
+    <label class="check" data-light="qr"><input type="checkbox" id="qr"><span>QR code for the link on the back</span></label>
+    <p class="hint">For phones that don't tap, and the one addition worth making to a modern card:
+       a short link you control can be re-pointed without reprinting. A shorter link is a coarser
+       code, and a coarser code prints on a bigger nozzle.</p>
   </section>
 
   <section>
-    <h2>Batch</h2>
+    <h2>5 &middot; A batch of them</h2>
     <label class="field"><span>One person per line</span>
       <textarea id="batch" rows="4" spellcheck="false"
         placeholder="Jane Doe, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
     </label>
     <p class="hint">Name, company, phone, link &mdash; commas or tabs, so a spreadsheet pastes
-       straight in. Company and link may be blank. While there is anything here, the preview
-       and the downloads are the whole batch on one plate, sharing the settings above.</p>
+       straight in. The title and email above are shared by the whole batch. While there is
+       anything here, the preview and the downloads are the whole batch on one plate.</p>
     <label class="field"><span>Plate width</span><input type="text" id="bed" value="220" autocomplete="off" inputmode="decimal"></label>
   </section>
 </aside>
@@ -407,6 +430,7 @@ void main() {
 const FRAG = `
 precision mediump float;
 varying vec3 vN; varying vec3 vC;
+uniform float uHi;          // 1 this group is lit, -1 something else is, 0 nothing
 void main() {
   // Two-sided: a back face is lit as though it faced us.  With culling off,
   // the pinholes a sliver leaves in a flat face show the inside of the solid
@@ -419,7 +443,13 @@ void main() {
   float d = max(dot(n, key), 0.0) * 0.70 + max(dot(n, fill), 0.0) * 0.22 + 0.30;
   vec3 h = normalize(key + vec3(0.0, 0.0, 1.0));
   float s = pow(max(dot(n, h), 0.0), 40.0) * 0.25;
-  gl_FragColor = vec4(vC * d + s, 1.0);
+  // Putting the cursor in a box lights up what it makes: that field goes a
+  // colour no filament here is, and the rest of the part loses its own, so
+  // the answer to "which bit is this?" is the only coloured thing on screen.
+  vec3 c = vC;
+  if (uHi > 0.5) c = vec3(0.10, 0.76, 1.0);
+  else if (uHi < -0.5) c = mix(c, vec3(dot(c, vec3(0.299, 0.587, 0.114))), 0.78);
+  gl_FragColor = vec4(c * d + s, 1.0);
 }`;
 
 /* ------------------------------------------------------------- the view --
@@ -475,6 +505,7 @@ if (!gl) {
     col: gl.getAttribLocation(prog, "aCol"),
     mvp: gl.getUniformLocation(prog, "uMVP"),
     model: gl.getUniformLocation(prog, "uModel"),
+    hi: gl.getUniformLocation(prog, "uHi"),
   };
   for (const k of ["pos", "nrm", "col"]) {
     buf[k] = gl.createBuffer();
@@ -556,7 +587,10 @@ function frame() {
     const model = place(part, lift);
     gl.uniformMatrix4fv(loc.mvp, false, M.mul(M.mul(proj, view), model));
     gl.uniformMatrix4fv(loc.model, false, M.mul(turn, model));
-    gl.drawArrays(gl.TRIANGLES, part.start, part.count);
+    for (const g of part.groups) {
+      gl.uniform1f(loc.hi, !light ? 0 : (lit(g) ? 1 : -1));
+      gl.drawArrays(gl.TRIANGLES, g.start, g.count);
+    }
   }
 }
 
@@ -601,6 +635,71 @@ function setMode(next, snap) {
   if (snap) { lift = liftTo; yaw = yawTo; pitch = pitchTo; focus = [...focusTo]; dist = distTo; }
 }
 
+/* ---------------------------------------------------------- highlighting --
+   Every run of triangles knows the field it came from, so a control can say
+   "this one" and the viewer can answer.  Putting the cursor in a box -- or
+   just running it over one -- lights that field up and greys the rest. */
+const HUD_IDLE = "drag to turn \u00b7 scroll to zoom";
+const LIGHTS = {
+  kind:        { all: true, label: "the whole part" },
+  name:        { el: ["name"], label: "the name" },
+  company:     { el: ["company"], label: "the company" },
+  role:        { el: ["role"], label: "the title" },
+  phone:       { el: ["phone"], label: "the phone number" },
+  email:       { el: ["email"], label: "the email" },
+  logo_file:   { el: ["logo", "design"], label: "the logo" },
+  design_file: { el: ["design", "logo"], label: "the design" },
+  preset:      { ink: true, label: "everything in the face" },
+  layout:      { face: "front", label: "the front" },
+  look:        { el: ["pattern"], label: "the pattern" },
+  border:      { el: ["border"], label: "the border" },
+  rise:        { ink: true, label: "everything in the face" },
+  c0:          { slot: 0, label: "the body colour" },
+  c1:          { slot: 1, label: "the pattern colour" },
+  c2:          { slot: 2, label: "the primary colour" },
+  c3:          { slot: 3, label: "the secondary colour" },
+  tap:         { el: ["tap", "arcs"], label: "the tap mark" },
+  link:        { el: ["qr"], label: "the QR code" },
+  qr:          { el: ["qr"], label: "the QR code" },
+  tag_mode:    { el: ["tag"], mode: "apart", label: "the tag in the joint" },
+  tag_w:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
+  tag_h:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
+  tag_thick:   { el: ["tag"], mode: "apart", label: "the tag in the joint" },
+};
+let light = null, lightKey = null;
+
+function lit(g) {
+  if (!light) return false;
+  if (light.all) return true;
+  if (light.slot !== undefined) return g.slot === light.slot;
+  if (light.ink) return g.element !== "body" && g.element !== "tag";
+  if (light.el) return light.el.includes(g.element);
+  if (light.face) return g.face === light.face;
+  return false;
+}
+
+function setLight(key) {
+  if (key === lightKey) return;
+  lightKey = key;
+  light = (key && LIGHTS[key]) || null;
+  if (!light) { $("hud").textContent = HUD_IDLE; return; }
+  const faces = new Set();
+  for (const p of parts) for (const g of p.groups) if (lit(g)) faces.add(g.face);
+  if (!faces.size) {
+    $("hud").textContent = `nothing on the part for ${light.label} yet`;
+    return;
+  }
+  $("hud").textContent = `showing ${light.label}`;
+  // Turn whatever it is towards the camera: the tag only exists in the open
+  // joint, and there is no point lighting up the back of a card you are
+  // looking at the front of.
+  if (light.mode && !$("modes").hidden) setMode(light.mode, false);
+  else if (mode === "glued" && faces.size === 1) {
+    if (faces.has("back")) yawTo = 0;
+    else if (faces.has("front")) yawTo = Math.PI;
+  }
+}
+
 /* ------------------------------------------------------------ the model --
    Binary STL: 80-byte header, a triangle count, then 50 bytes per triangle.
    The stored facet normal is used, and only recomputed when it is missing or
@@ -609,8 +708,8 @@ function setMode(next, snap) {
    points anywhere at all -- which showed up as dark speckles scattered over
    the flat faces.  The writer computed those normals in double precision
    from the geometry before it was rounded, so they are the better source.
-   info.preview says which triangles are which part, and which colour slot
-   each run of them is. */
+   info.preview says which triangles are which part, and for each run of them
+   the colour slot, the field it came from and the face it is on. */
 function upload(bytes) {
   const dv = new DataView(bytes);
   const n = dv.getUint32(80, true);
@@ -623,8 +722,10 @@ function upload(bytes) {
   for (const part of info.preview) {
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     const start = i / 3;
-    for (const [slot, faces] of part.slots) {
+    const groups = [];
+    for (const [slot, element, face, faces] of part.slots) {
       const c = palette[slot];
+      groups.push({ slot, element, face, start: i / 3, count: faces * 3 });
       for (let f = 0; f < faces; f++, i += 9) {
         let nx = dv.getFloat32(o, true), ny = dv.getFloat32(o + 4, true),
             nz = dv.getFloat32(o + 8, true);
@@ -652,6 +753,7 @@ function upload(bytes) {
       }
     }
     parts.push({ name: part.name, start, count: i / 3 - start, lo, hi, tag: !!part.tag,
+                 groups,
                  plate: part.plate, assembled: M.fromRows(part.assembled),
                  // far enough that the halves clear each other on screen at
                  // the exploded view's angle, rather than overlapping
@@ -672,7 +774,7 @@ function recolour() {
   let i = 0;
   const col = [];
   for (const part of info.preview)
-    for (const [slot, faces] of part.slots) {
+    for (const [slot, , , faces] of part.slots) {
       const c = palette[slot];
       for (let f = 0; f < faces * 3; f++) col.push(c[0], c[1], c[2]);
     }
@@ -809,6 +911,28 @@ async function rebuild() {
 
 const queue = () => { clearTimeout(pending); pending = setTimeout(rebuild, 300); };
 
+/* A control lights up what it makes: the focused one wins, and the hovered
+   one fills in while nothing has focus. */
+const aside = document.querySelector("aside");
+let focusedKey = null, hoverKey = null;
+const lightKeyOf = el => {
+  for (let n = el; n && n !== aside; n = n.parentElement) {
+    if (n.dataset && n.dataset.light) return n.dataset.light;
+    if (n.id && LIGHTS[n.id]) return n.id;
+  }
+  return null;
+};
+aside.addEventListener("focusin", e => {
+  focusedKey = lightKeyOf(e.target);
+  setLight(focusedKey || hoverKey);
+});
+aside.addEventListener("focusout", () => { focusedKey = null; setLight(hoverKey); });
+aside.addEventListener("pointerover", e => {
+  hoverKey = lightKeyOf(e.target);
+  setLight(focusedKey || hoverKey);
+});
+aside.addEventListener("pointerleave", () => { hoverKey = null; setLight(focusedKey); });
+
 $("link").addEventListener("input", checkLink);
 for (const f of FIELDS) $(f).addEventListener("input", queue);
 $("border").addEventListener("change", queue);
@@ -829,10 +953,36 @@ $("design_file").addEventListener("change", async () => {
     : "Replaces name, company, phone, logo and pattern with your own artwork, filling the face.";
   queue();
 });
-$("kind").addEventListener("change", () => {
-  $("border").disabled = $("kind").value !== "card";
-});
-$("kind").dispatchEvent(new Event("change"));
+/* The shape is the first choice, and what is offered below follows from it:
+   a fob has no room for a border, so that control is not there for one. */
+function shapeChosen() {
+  const card = $("kind").value === "card";
+  for (const el of document.querySelectorAll(".card-only")) el.hidden = !card;
+  $("shape_note").textContent = card
+    ? "CR80, the size of a credit card, so it sits in a wallet slot. A US card is 88.9 \u00d7 50.8 mm and a European one 85 \u00d7 55; this is the one that fits the slot either of them would."
+    : "The one that lives on a keyring. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.";
+}
+for (const tile of document.querySelectorAll(".tile"))
+  tile.addEventListener("click", () => {
+    if ($("kind").value === tile.dataset.kind) return;
+    $("kind").value = tile.dataset.kind;
+    for (const t of document.querySelectorAll(".tile"))
+      t.setAttribute("aria-pressed", String(t === tile));
+    shapeChosen();
+    queue();
+  });
+shapeChosen();
+
+function layoutChosen() {
+  const lay = $("layout").value;
+  $("layout_note").textContent = {
+    centred: "Everything stacked and centred, with a logo to the left of it. The one that copes with a fob.",
+    student: "Name top left, a logo square top right, title and company under the name, email along the bottom right. Shows the email where it has one, the phone otherwise.",
+    corporate: "A mark and the company across the top, you in the bottom left. Drawn to sit on the badge pattern.",
+  }[lay] || "";
+}
+$("layout").addEventListener("change", layoutChosen);
+layoutChosen();
 const MODE_NOTES = {
   split: "Two halves print face down on one plate, each with half the cavity and a three-pin " +
          "key so they only go together one way. Glue the flat border outside the cavity and " +
@@ -857,6 +1007,7 @@ $("preset").addEventListener("change", () => {
   $("look").value = p[1];
   $("layout").value = p[2];
   p[3].forEach((c, i) => { $(COLOURS[i]).value = c; });
+  layoutChosen();
   queue();
 });
 for (const id of ["look", "layout"])

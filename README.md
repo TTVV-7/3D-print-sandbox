@@ -13,7 +13,7 @@ the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
 
 # NFC cards and fobs
 
-A few fields in, a keyring fob or a business card out: your details on the
+Five fields in, a keyring fob or a business card out: your details on the
 front, laid out by one of three layouts; a pocket for an NFC tag and the
 contactless arcs on the back.
 Tapping a phone to it opens whatever you wrote on the tag -- a listing, a
@@ -36,6 +36,38 @@ Top, the two faces of the finished fob.  Bottom left, what it is: two halves and
 the tag that goes between them.  Bottom right, the same two halves as they print,
 both face down on one plate.
 
+## What goes on it
+
+The field list is not arbitrary.  Every guide to business cards names the same
+five things -- **name, job title, company, phone, email** -- and then warns
+against a sixth and a seventh: a card with five to seven pieces of contact
+information gets followed up on, and one with ten does not
+([Wave Connect](https://wavecnct.com/blogs/news/what-to-put-on-business-card),
+[Vistaprint](https://www.vistaprint.com/hub/business-card-information-essentials),
+[UPrinting](https://www.uprinting.com/10-parts-of-modern-business-cards.html)).
+So those five are the fields, each one optional, and the rest -- fax numbers,
+a postal address, a row of social handles -- is deliberately not offered.
+
+The one modern addition worth making is a link, which is what this thing is
+for: an NFC tag and a QR code both point at a URL you control and can
+re-point later without reprinting a single card.
+
+On size, there are three standards and they are close enough to be confusing:
+
+| | Size | Where |
+|---|---|---|
+| US | 88.9 x 50.8 mm (3.5 x 2 in) | North America |
+| ISO 7810 ID-1 / CR80 | **85.6 x 54 mm** | credit cards, and what this generates |
+| EU / UK | 85 x 55 mm | Europe |
+
+The card here is CR80, the credit-card outline, because that is the one that
+fits the card slot in a wallet -- the place a plastic card has to survive
+([Gelato](https://www.gelato.com/blog/business-card-size-guide),
+[PrintPlace](https://www.printplace.com/articles/standard-business-card-sizes),
+[Blank Plastic Cards](https://www.blankplasticcards.com/blog/what-is-cr80-card-size-the-complete-guide-to-standard-plastic-card-dimensions/)).
+A US card is 3.3 mm wider and 3.2 mm shorter, a European one 0.6 mm narrower
+and 1 mm taller; `CARD` in `src/cards.py` is two numbers if you want either.
+
 ## The app
 
 ```
@@ -45,6 +77,21 @@ python3 src/app.py
 
 opens `http://127.0.0.1:8765`.  Type in the boxes and the part rebuilds as you
 go, about half a second a time.
+
+The panel goes in the order the decisions do.  **Shape** comes first, because a
+fob and a card are different objects and everything below reads differently for
+each -- a fob has no border to draw, and five lines of type on one come out
+small enough that you want to leave the title or the email off it.  Then who
+you are, then how it looks, then the tap side, then a batch of them.
+
+**Every control lights up what it makes.**  Put the cursor in the Email box, or
+just run it over the label, and the email on the part turns cyan while
+everything else goes grey; the readout at the top left names what you are
+looking at.  If the thing lives on the other face -- the tap mark, the QR code
+-- the part turns over to show you.  If it is the tag itself, the view opens
+the joint and lights the tag sitting in it.  It is the quickest way to answer
+"which bit does this change?", and it needs no explaining: every run of
+triangles the server sends carries the field it came from.
 
 The viewer has three views of the same part, because a thing that prints in two
 pieces and arrives as one needs both told: **Glued up** is the finished fob,
@@ -182,9 +229,9 @@ place for them.
 
 | `--layout` | What it is | Uses |
 |---|---|---|
-| `centred` | Name, company, a rule and phone stacked in the middle, with a logo to the left of them.  The one that copes with a fob. | name, company, phone, logo |
-| `student` | Name big at the top left, a logo square at the top right, two lines of who-you-are under the name, and an address along the bottom right behind a pair of chevrons. | name, role, company, email or phone, logo |
-| `corporate` | A mark and the company across the top left, a slogan under it, the person down in the bottom left.  Leaves its bottom eighth clear for a `badge` pattern. | company, role, name, phone, logo |
+| `centred` | Name, company, title, a rule, then phone and email, stacked in the middle, with a logo to the left of them.  Shrinks to fit rather than running off the face, which is what six lines on a fob would otherwise do.  The one that copes with a fob. | all five, logo |
+| `student` | Name big at the top left, a logo square at the top right, two lines of who-you-are under the name, and an address along the bottom right behind a pair of chevrons. | name, title, company, email or phone, logo |
+| `corporate` | A mark and the company across the top left, a slogan under it, the person down in the bottom left.  Leaves its bottom eighth clear for a `badge` pattern. | company, title, name, phone, email, logo |
 
 The chevrons in front of the address are built from a polyline in
 `cards.chevrons()` rather than set from the font's own `>`, for the reason the
@@ -398,9 +445,11 @@ function taking the content box and the fields and returning polygons by colour
 slot, plus a line in that dict and one in `LAYOUT_TITLES`.
 
 Both bodies are prismatic, so everything is a shapely polygon extruded between
-two heights.  Each colour is kept as its own solid, cut out of the body and
-dropped back into the hole; that separation is what the 3MF's four materials
-are, and welding them is what the STL is.  `export_3mf()` writes the file by
+two heights.  Every piece is kept as its own solid, cut out of the body and
+dropped back into the hole, and filed under two things: the **colour** it
+prints in, which is what the 3MF's four materials are, and the **field** it
+came from, which is what lets the app light one up at a time.  Welding the lot
+is what the STL is.  `export_3mf()` writes the file by
 hand -- one object per part, one component per colour, four base materials --
 because the structure is the whole point and forty lines of XML put it exactly
 where the slicers look.
