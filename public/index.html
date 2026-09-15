@@ -236,9 +236,14 @@
 
   <section>
     <h2>3 &middot; How it looks</h2>
+    <label class="field for-name" data-light="font"><span>Face</span>
+      <select id="font"></select>
+    </label>
+    <p class="hint for-name" id="font_note"></p>
     <div class="field for-name" data-light="cap"><span>Letter height</span>
       <div class="slider"><input type="range" id="cap" min="8" max="26" step="0.5" value="14"><output id="cap_v">14 mm</output></div>
     </div>
+    <p class="hint for-name" id="cap_note"></p>
     <div class="field for-name" data-light="ring_d"><span>Ring hole</span>
       <div class="slider"><input type="range" id="ring_d" min="0" max="9" step="0.5" value="5"><output id="ring_v">5 mm</output></div>
     </div>
@@ -354,7 +359,7 @@
 const $ = id => document.getElementById(id);
 const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag_w",
                 "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
-                "look", "layout", "cap", "ring_d"];
+                "look", "layout", "cap", "ring_d", "font"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "";
@@ -379,6 +384,30 @@ const PATTERNS = {
   hexband: "Hex band — solid hexagons along the bottom",
   badge: "Badge — the disc and the hex band together",
 };
+/* The faces a name keyring can be set in, as src/typefaces.py has them: what
+   to call it, what it is, and the letter height under which the weld starts
+   shutting that face's counters.  A slab or a script wants a taller letter
+   than the sans does before its a is a hole rather than a dent, so picking one
+   moves the slider with it. */
+const FACES = {
+  sans:      ["Sans \u2014 Liberation Sans Bold", 10,
+              "Plain and heavy. The one that fits any name and any length."],
+  geometric: ["Geometric \u2014 Poppins Bold", 12,
+              "Circular bowls and a single-storey a \u2014 the widest counters here, and the one " +
+              "that holds up smallest after the sans."],
+  rounded:   ["Rounded \u2014 Chewy", 16,
+              "Soft and bouncy, drawn with a fat marker. Latin-1 only, so no Polish or Turkish accents."],
+  script:    ["Script \u2014 Pacifico", 20,
+              "A brush script: the letters run into each other before the weld is asked to do " +
+              "anything, which is what a name keyring usually wants. Its lower case is small for " +
+              "its capitals, so it needs the most height of the six."],
+  slab:      ["Slab \u2014 Alfa Slab One", 18,
+              "Fat slab serifs, heavy enough that the weld is barely needed. Its counters are " +
+              "slots rather than holes, so it wants a tall letter to keep them open."],
+  condensed: ["Condensed \u2014 Bebas Neue", 16,
+              "Tall narrow capitals \u2014 lower case comes out as capitals too. The one for a long " +
+              "name, at about two thirds the width."],
+};
 const PRESETS = {
   printlab:  ["Print Lab — black, white lettering, cubes", "cubes", "centred", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
   student:   ["Student — dark card, name top left, address bottom right", "plain", "student", ["#1b2430", "#2a3644", "#f4f6f8", "#9fb0c0"]],
@@ -391,6 +420,7 @@ const PRESETS = {
   ember:     ["Ember — charcoal, orange, dots", "dots", "centred", ["#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0"]],
   plain:     ["Plain — grey body, gold lettering, no pattern", "plain", "centred", ["#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441"]],
 };
+for (const [k, v] of Object.entries(FACES)) $("font").add(new Option(v[0], k));
 for (const [k, v] of Object.entries(LAYOUTS)) $("layout").add(new Option(v, k));
 for (const [k, v] of Object.entries(PATTERNS)) $("look").add(new Option(v, k));
 for (const [k, v] of Object.entries(PRESETS)) $("preset").add(new Option(v[0], k));
@@ -691,6 +721,7 @@ const LIGHTS = {
   tap:         { el: ["tap", "arcs"], label: "the tap mark" },
   link:        { el: ["qr"], label: "the QR code" },
   qr:          { el: ["qr"], label: "the QR code" },
+  font:        { all: true, label: "the whole word" },
   cap:         { all: true, label: "the whole word" },
   ring_d:      { all: true, label: "the ring tab" },
   outline:     { el: ["name"], label: "the raised letters" },
@@ -888,9 +919,11 @@ function readout() {
    size, a weld and however many bridges it took to hold together. */
 function wordReadout(line) {
   const ties = info.bridges;
+  const shut = info.shut;
   specs.innerHTML = [
     info.batch ? line("batch", `${info.batch} keyrings`) : "",
     line("size", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.total_z)} mm`),
+    line("face", info.typeface_name),
     line("letters", `${mm(info.cap)} mm caps, ${mm(info.thick)} mm body`),
     line("outline", `${info.weld} mm round the letters`),
     ties ? line("bridges", `${ties} to hold the loose ${ties === 1 ? "piece" : "pieces"} on`) : "",
@@ -898,7 +931,10 @@ function wordReadout(line) {
     info.counter ? line("smallest counter", `${mm(info.counter)} mm`) : "",
     line("uses", `${info.volume.toFixed(2)} cm&sup3;`),
     info.rise ? line("colour change at", `${mm(info.thick)} mm`) : "",
-    info.thin.length
+    shut
+      ? `<span class="warn">${shut} counter${shut === 1 ? "" : "s"} welded shut &mdash; the a or
+         the e has filled in. ${info.typeface_name} wants ${info.min_cap} mm caps or more.</span>`
+      : info.thin.length
       ? `<span class="warn">${list(info.thin)} tight &mdash; raise the letter height, or turn
          on thin-wall detection</span>` : "",
   ].join("");
@@ -1082,7 +1118,34 @@ $("flip").addEventListener("click", () => { yawTo += Math.PI; });
 $("rise").addEventListener("input", () => {
   $("rise_v").textContent = +$("rise").value ? `${$("rise").value} mm` : "flush";
 });
-$("cap").addEventListener("input", () => { $("cap_v").textContent = `${$("cap").value} mm`; });
+/* Picking a face moves the letter height with it.  Each one has a height under
+   which the weld shuts its own counters, and a slab at the sans's 14 mm is a
+   row of blobs rather than a name -- so the slider jumps to the new face's
+   floor when it is sitting on the old one's, and is pushed up to it when it is
+   under it.  Above the floor, whatever was set stays set. */
+function faceChosen(previous) {
+  const face = FACES[$("font").value] || FACES.sans;
+  const cap = $("cap"), floor = face[1], was = FACES[previous];
+  $("font_note").textContent = face[2];
+  if ((was && +cap.value === Math.max(14, was[1])) || +cap.value < floor)
+    cap.value = Math.max(14, floor);
+  cap.dispatchEvent(new Event("input"));
+}
+$("font").addEventListener("change", e => {
+  faceChosen(e.target.dataset.was);
+  e.target.dataset.was = e.target.value;
+});
+$("font").dataset.was = $("font").value;
+$("cap").addEventListener("input", () => {
+  const face = FACES[$("font").value] || FACES.sans;
+  $("cap_v").textContent = `${$("cap").value} mm`;
+  $("cap_note").innerHTML = +$("cap").value < face[1]
+    ? `Under the ${face[1]} mm this face wants: its counters &mdash; the holes in a, e and o &mdash;
+       weld shut below that, and the readout says how many did.`
+    : "How tall the capitals are. Everything else follows from it, including how wide the word " +
+      "comes out.";
+});
+faceChosen();
 $("ring_d").addEventListener("input", () => {
   $("ring_v").textContent = +$("ring_d").value ? `${$("ring_d").value} mm` : "none";
 });

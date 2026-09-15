@@ -7,7 +7,8 @@ the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
   wallet card, printed as two halves with an NFC tag glued between them, in up
   to four colours, in one of three layouts.  Comes with a browser front end.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
-  printable piece, with a tab for the ring.  Same app, third shape.
+  printable piece, with a tab for the ring, in one of six faces.  Same app,
+  third shape.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
 
@@ -295,10 +296,12 @@ way, so they correspond vertex for vertex and skin cleanly.  `--chamfer 0` for a
 square edge.  Only the outer faces get it; the glue joint stays square.
 
 Lettering is pulled straight out of a TTF by `src/trace_text.py` -- glyph
-outlines as curves, flattened, not rasterised and re-traced.  The default is
-whichever of Liberation Sans Bold, DejaVu Sans Bold or Arial Bold is on the
-machine; `--font` takes any other.  A heavy sans is the right answer, because
-every stroke has to survive as a 0.6 mm-deep inlay.
+outlines as curves, flattened, not rasterised and re-traced.  A card is always
+set in the sans: whichever of Liberation Sans Bold, DejaVu Sans Bold or Arial
+Bold is on the machine, `--font` for any other.  A heavy sans is the right
+answer here, because every stroke has to survive as a 0.6 mm-deep inlay.  The
+[name keyrings](#the-six-faces), whose letters are ten times the size and are
+the object rather than a label on one, have six faces to choose from.
 
 ## The tag, and the arcs
 
@@ -442,7 +445,9 @@ of it, `CHAMFER` the edge break, `QR_QUIET` and `QR_MIN_MODULE` the code's
 margins, `NOZZLES` the sizes the readout will name, `MIN_STROKE` the
 printability threshold the warnings use.  `src/looks.py` holds the patterns and
 the presets -- a new pattern is a function returning shapely polygons and a line
-in `PATTERNS`.  The layouts are `LAYOUTS` in `src/cards.py`: a new one is a
+in `PATTERNS`.  `src/typefaces.py` holds the keyring faces: a new one is a TTF
+in `src/fonts`, its licence beside it, and a line in `FACES` saying what weld,
+what letter spacing and what smallest letter height it needs.  The layouts are `LAYOUTS` in `src/cards.py`: a new one is a
 function taking the content box and the fields and returning polygons by colour
 slot, plus a line in that dict and one in `LAYOUT_TITLES`.
 
@@ -485,8 +490,9 @@ with other people's phone numbers.
 
 # Name keyrings
 
-No card, no tag, nothing to hold but the word.  Type a name, get the name: set
-tight, welded into one solid, with a tab at the left for the split ring.
+No card, no tag, nothing to hold but the word.  Type a name, pick a face, get
+the name: set tight, welded into one solid, with a tab at the left for the
+split ring.
 
 ![a name keyring](previews/keyring_front.png)
 
@@ -499,6 +505,9 @@ pieces rattling round the print bed.  Three steps make it one:
    foot and the T's arm.  Here each letter is walked left until shapely says
    its ink is a fifth of a millimetre from its neighbour's -- past touching,
    in fact, so most pairs are already joined before anything else happens.
+   How far is the face's own business: a condensed face is mostly vertical
+   stems, and an I welded to an E is one fat stem rather than two letters, so
+   that one is set a third of a millimetre *clear* and left to the weld.
 2. **Every glyph is grown by `weld` mm and the lot unioned.**  That closes
    whatever gap is left and fattens the thin strokes while it is there, and it
    is also the small outline you can see round the letters on every
@@ -521,15 +530,50 @@ same object in one colour.
 
 | | |
 |---|---|
-| Letters | 14 mm caps by default, 8 to 26 mm |
+| Letters | 14 mm caps by default, 8 to 26 mm -- some faces start taller |
 | Body | 3 mm, with the letters 1.2 mm proud of it -- 4.2 mm over all |
-| Outline | 0.5 mm round the word |
+| Outline | 0.35 to 0.5 mm round the word, depending on the face |
 | Ring hole | Ø5 mm, which takes a split ring or a lobster clasp; 0 drops the tab |
 | A six-letter name | about 65 x 16 mm and 2.5 cm³ |
 
 Everything about it is one number in `src/nametag.py`: `CAP`, `THICK`, `RISE`,
 `WELD`, `GAP` for how tight the setting is, `BRIDGE` for the tie, `RING_D` and
 `RING_WALL` for the tab.
+
+## The six faces
+
+![the same name in all six](previews/keyring_faces.png)
+
+| Face | Set in | Wants | What it is |
+|---|---|---|---|
+| Sans | Liberation Sans Bold | 10 mm | Plain and heavy.  Fits any name and any length. |
+| Geometric | Poppins Bold | 12 mm | Circular bowls and a single-storey a.  The widest counters here. |
+| Rounded | Chewy | 16 mm | Soft and bouncy, drawn with a fat marker.  Latin-1 only. |
+| Script | Pacifico | 20 mm | A brush script; the letters run into each other on their own. |
+| Slab | Alfa Slab One | 18 mm | Fat slab serifs, heavy enough that the weld is barely needed. |
+| Condensed | Bebas Neue | 16 mm | Tall narrow capitals, lower case included.  For a long name. |
+
+The **wants** column is the thing to take seriously, and it is measured rather
+than opinion.  The weld that makes a word one piece shrinks every counter --
+the hole in an a, e or o -- by about twice its own width, and a hole left
+narrower than a nozzle is filled in, because that is what the slicer would do
+with it anyway.  A face whose counters are slots rather than holes therefore
+has them welded shut at a height where the sans is still perfectly readable:
+Alfa Slab One at 14 mm is a row of blobs, and Pacifico's lower case is small
+for its capitals, so it needs the most height of the six.  Each face carries
+its own floor, its own weld and its own letter spacing in `src/typefaces.py`,
+found by setting eight awkward names in every face at every height from 10 to
+26 mm and counting the counters that closed.
+
+Picking a face moves the letter-height slider to that floor.  You can drag it
+back down -- nothing here refuses -- and the readout will tell you how many
+counters filled in when you do.
+
+The faces ship in `src/fonts` beside the code, so the same six are there on
+your machine and on Vercel, which has no system fonts at all.  Five are under
+the SIL Open Font Licence and Chewy under Apache 2.0; each licence sits next to
+its font.  `--font path/to/Your.ttf` from the command line takes any other TTF,
+with `CAP` and `WELD` as its defaults, since nothing has been measured for it.
 
 ## Printing them
 
@@ -545,10 +589,12 @@ one plate and one print.
 
 Two things the readout will tell you and you should believe:
 
-- **Counters.**  At 14 mm caps the hole in an a is about 1.1 mm across, and the
-  weld has already eaten into it.  Under a millimetre the slicer starts
-  bridging it and the letter fills in, so the answer is a taller letter, not a
-  finer nozzle.
+- **Counters.**  In the sans at 14 mm caps the hole in an a is about 1.1 mm
+  across, and the weld has already eaten into it.  Under a millimetre the
+  slicer starts bridging it and the letter fills in, so the answer is a taller
+  letter, not a finer nozzle.  Counters that have gone altogether are counted
+  separately and named as such: that is the one that makes a name unreadable
+  rather than merely tight.
 - **Bridges.**  A name that needed three of them is a name where the font left
   a lot floating; it will print, but look at the preview before you commit a
   plate of them.
@@ -559,10 +605,12 @@ Two things the readout will tell you and you should believe:
 python3 src/gen_cards.py --kind name --name "Freddie"
 ```
 
-writes `stl/freddie_keyring.3mf` and `.stl`.  `--cap 20` for bigger letters,
-`--ring 0` for no tab, `--flat` for the single-colour version, `--rise` for how
-proud the letters sit, `--colours "#2fbf3f,,#ffffff"` for the two colours, and
-`--batch names.txt` for a plate of them.
+writes `stl/freddie_keyring.3mf` and `.stl`.  `--font script` (or `sans`,
+`geometric`, `rounded`, `slab`, `condensed`, or a path to a TTF of your own)
+for the face, `--cap 20` for bigger letters, `--ring 0` for no tab, `--flat`
+for the single-colour version, `--rise` for how proud the letters sit,
+`--colours "#2fbf3f,,#ffffff"` for the two colours, and `--batch names.txt`
+for a plate of them -- the whole plate in one face.
 
 ---
 

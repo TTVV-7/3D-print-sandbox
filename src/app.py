@@ -30,6 +30,7 @@ import trimesh
 import cards
 import looks
 import nametag
+import typefaces
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "public" / "index.html"
@@ -44,6 +45,20 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "logo", "batch", "design", "look", "layout", "placeholder",
             "cap", "ring_d", "outline")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
+
+
+def face(params):
+    """The face the form asked for, as a key from typefaces.FACES.
+
+    Keys only, never a path: nametag.build() will happily open any TTF it is
+    handed, and a path arriving in a request is a request to read a file off
+    whatever machine is serving this.  The command line is where you point at
+    a font of your own.
+    """
+    want = params.get("font") or typefaces.DEFAULT
+    if want not in typefaces.FACES:
+        raise ValueError(f"no such face: {want}")
+    return want
 
 
 def palette(params):
@@ -108,10 +123,15 @@ def model(params):
         if key not in RECENT:
             kind = params.get("kind", "fob")
             if kind == "name":
-                # A name keyring has no faces, no tag and no layout: the word
-                # is the whole object, so only these few settings reach it.
-                keyring = dict(font=params.get("font") or None,
-                               cap=num("cap", nametag.CAP),
+                # A name keyring has no front and back, no tag and no
+                # layout: the word is the whole object, so only these few
+                # settings reach it -- and one of them is which face to set
+                # it in, which is the only place a font choice matters.
+                keyring = dict(font=face(params),
+                               # no height of its own means the face's own:
+                               # a slab or a script needs a taller letter
+                               # than the sans before its counters survive.
+                               cap=num("cap", 0.0) or None,
                                rise=num("rise", nametag.RISE),
                                ring_d=num("ring_d", nametag.RING_D),
                                ring=num("ring_d", nametag.RING_D) > 0.5,
@@ -152,7 +172,7 @@ def model(params):
                 tag=tag, tap_text=params.get("tap", "TAP HERE"),
                 tag_mode=params.get("tag_mode", "split"),
                 border=bool(params.get("border", False)), rise=num("rise", cards.RISE),
-                font=params.get("font") or None, logo=logo, design=design,
+                font=typefaces.face(face(params))["path"], logo=logo, design=design,
                 qr=bool(params.get("qr")), link=params.get("link", ""),
                 look=look, colours=colours, layout=layout, placeholder=placeholder,
                 role=params.get("role", ""), email=params.get("email", ""))
