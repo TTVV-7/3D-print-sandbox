@@ -6,6 +6,8 @@ the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
 - **[NFC cards and fobs](#nfc-cards-and-fobs)** -- a keyring fob or a
   wallet card, printed as two halves with an NFC tag glued between them, in up
   to four colours, in one of three layouts.  Comes with a browser front end.
+- **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
+  printable piece, with a tab for the ring.  Same app, third shape.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
 
@@ -478,6 +480,89 @@ Things that bite, all of them learned here:
 Personal cards are kept out of git: `stl/*_card*` and `stl/*_fob*` are ignored,
 so `gen_cards.py` can write straight into `stl/` without the repo filling up
 with other people's phone numbers.
+
+---
+
+# Name keyrings
+
+No card, no tag, nothing to hold but the word.  Type a name, get the name: set
+tight, welded into one solid, with a tab at the left for the split ring.
+
+![a name keyring](previews/keyring_front.png)
+
+The whole problem is that **a word is not one thing**.  Set "Freddie" in any
+font and you have seven separate solids, and seven separate solids is seven
+pieces rattling round the print bed.  Three steps make it one:
+
+1. **The letters are set by ink, not by the font.**  A font's side bearings are
+   measured for running text on a page, where "LT" wants air between the L's
+   foot and the T's arm.  Here each letter is walked left until shapely says
+   its ink is a fifth of a millimetre from its neighbour's -- past touching,
+   in fact, so most pairs are already joined before anything else happens.
+2. **Every glyph is grown by `weld` mm and the lot unioned.**  That closes
+   whatever gap is left and fattens the thin strokes while it is there, and it
+   is also the small outline you can see round the letters on every
+   shop-bought one of these.  Growing a letter shuts its counter -- the hole in
+   an a, e or o -- by the same amount, so the counters are cut back in
+   afterwards and only the outside stays fat.
+3. **Whatever is still loose gets a bridge.**  The dot of an i is its own
+   contour floating over the stem; so is the dot of a j, and both halves of a
+   name with a space in it.  Each pass finds the nearest loose piece and runs a
+   1.2 mm bar -- three lines of a 0.4 mm nozzle -- along the shortest line
+   between it and the word.  Bridging one dot beats welding the whole name fat
+   enough to catch it.
+
+![five of them](previews/keyring_names.png)
+
+The letters then sit **1.2 mm proud of their own outline**, which is the two
+colour version: body colour underneath, letter colour on top, one filament
+change at 3 mm.  Turn that off and it is a single flat solid, which is the
+same object in one colour.
+
+| | |
+|---|---|
+| Letters | 14 mm caps by default, 8 to 26 mm |
+| Body | 3 mm, with the letters 1.2 mm proud of it -- 4.2 mm over all |
+| Outline | 0.5 mm round the word |
+| Ring hole | Ø5 mm, which takes a split ring or a lobster clasp; 0 drops the tab |
+| A six-letter name | about 65 x 16 mm and 2.5 cm³ |
+
+Everything about it is one number in `src/nametag.py`: `CAP`, `THICK`, `RISE`,
+`WELD`, `GAP` for how tight the setting is, `BRIDGE` for the tie, `RING_D` and
+`RING_WALL` for the tab.
+
+## Printing them
+
+They print **letters up**, flat on their backs, no supports and no brim worth
+bothering with.  The filament change is at the top of the body, so a
+single-nozzle printer gets the two-colour version for one pause.
+
+![a plate of them](previews/keyring_plate.png)
+
+The batch box takes one name per line and lays the lot out on a plate, which is
+what makes these worth doing at all: a class list or a party's worth of them is
+one plate and one print.
+
+Two things the readout will tell you and you should believe:
+
+- **Counters.**  At 14 mm caps the hole in an a is about 1.1 mm across, and the
+  weld has already eaten into it.  Under a millimetre the slicer starts
+  bridging it and the letter fills in, so the answer is a taller letter, not a
+  finer nozzle.
+- **Bridges.**  A name that needed three of them is a name where the font left
+  a lot floating; it will print, but look at the preview before you commit a
+  plate of them.
+
+## From a terminal
+
+```
+python3 src/gen_cards.py --kind name --name "Freddie"
+```
+
+writes `stl/freddie_keyring.3mf` and `.stl`.  `--cap 20` for bigger letters,
+`--ring 0` for no tab, `--flat` for the single-colour version, `--rise` for how
+proud the letters sit, `--colours "#2fbf3f,,#ffffff"` for the two colours, and
+`--batch names.txt` for a plate of them.
 
 ---
 

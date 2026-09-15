@@ -29,6 +29,7 @@ import trimesh
 
 import cards
 import looks
+import nametag
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "public" / "index.html"
@@ -40,7 +41,8 @@ BUILD = threading.Lock()
 RECENT = {}
 GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "tag_h", "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr",
-            "logo", "batch", "design", "look", "layout", "placeholder")
+            "logo", "batch", "design", "look", "layout", "placeholder",
+            "cap", "ring_d", "outline")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -104,6 +106,34 @@ def model(params):
     key = json.dumps(keyed, sort_keys=True)
     with BUILD:
         if key not in RECENT:
+            kind = params.get("kind", "fob")
+            if kind == "name":
+                # A name keyring has no faces, no tag and no layout: the word
+                # is the whole object, so only these few settings reach it.
+                keyring = dict(font=params.get("font") or None,
+                               cap=num("cap", nametag.CAP),
+                               rise=num("rise", nametag.RISE),
+                               ring_d=num("ring_d", nametag.RING_D),
+                               ring=num("ring_d", nametag.RING_D) > 0.5,
+                               outline=bool(params.get("outline", True)),
+                               colours=colours)
+                if params.get("batch"):
+                    rows = cards.parse_batch(params["batch"])
+                    if not rows:
+                        raise ValueError("the batch box is empty")
+                    parts, infos = nametag.build_batch(rows, **keyring)
+                    info = {**infos[0], "batch": len(rows), "label": "",
+                            "w": max(i["w"] for i in infos),
+                            "h": max(i["h"] for i in infos),
+                            "volume": round(sum(i["volume"] for i in infos), 2),
+                            "watertight": all(i["watertight"] for i in infos)}
+                    RECENT[key] = parts, info
+                else:
+                    RECENT[key] = nametag.build(params.get("name", ""), **keyring)
+                while len(RECENT) > 8:
+                    del RECENT[next(iter(RECENT))]
+                parts, info = RECENT[key]
+                return _finish(params, parts, info, num)
             tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
                        thick=num("tag_thick", cards.TAG["thick"]))
             logo = params.get("logo") or None       # the SVGs' text, from the file pickers
@@ -126,7 +156,6 @@ def model(params):
                 qr=bool(params.get("qr")), link=params.get("link", ""),
                 look=look, colours=colours, layout=layout, placeholder=placeholder,
                 role=params.get("role", ""), email=params.get("email", ""))
-            kind = params.get("kind", "fob")
             if params.get("batch"):
                 rows = cards.parse_batch(params["batch"])
                 if not rows:
@@ -148,8 +177,15 @@ def model(params):
                 del RECENT[next(iter(RECENT))]
         parts, info = RECENT[key]
 
+    return _finish(params, parts, info, num)
+
+
+def _finish(params, parts, info, num):
+    """The same three answers whatever was built: a 3MF, an STL, or the
+    preview the page draws."""
     # A batch, or a split body, is several parts; they go out as one plate --
     # one file to slice and one thing to show in the viewer.
+    colours = palette(params)
     row_w = num("bed", 220.0) if params.get("batch") else None
     if params.get("format") == "3mf":
         return cards.export_3mf(parts, colours, row_w=row_w), info, "model/3mf"

@@ -1232,6 +1232,9 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     info = dict(
         kind=kind, label=label, w=round(w, 2), h=round(h, 2), thick=thick, rise=rise,
         face=FACE, chamfer=round(c_eff, 2), look=look if pattern else None,
+        # The front is laid face down, so the side you read points at the
+        # build plate.  A viewer has to know which way to look.
+        front_up=False,
         layout=None if design else layout,
         slots=used, part_slots={p["name"] or kind: sorted(p["slots"], key=SLOTS.index)
                                 for p in parts},
