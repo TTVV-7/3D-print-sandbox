@@ -100,6 +100,17 @@ the joint and lights the tag sitting in it.  It is the quickest way to answer
 "which bit does this change?", and it needs no explaining: every run of
 triangles the server sends carries the field it came from.
 
+**Every description is folded behind a `?`.**  There is a paragraph of
+reasoning under nearly every control here -- why 0.8 mm, what a bridge is
+holding, which five lines a card should carry -- and all of it at once is a wall
+of grey nobody reads.  Folded, the panel is the list of choices it is: run the
+cursor over a mark and the paragraph under it opens, take it off and it closes,
+click it to pin it open, which is the way in on a touch screen and the way back
+out of a long one.  Tabbing to a mark opens it too, so the reasoning is there
+without a mouse.  The one line that is not a description -- the byte count under
+the link box, which answers rather than explains -- stays where it is; and with
+the script off every paragraph is simply on the page, unfolded.
+
 The viewer has three views of the same part, because a thing that prints in two
 pieces and arrives as one needs both told: **Glued up** is the finished fob,
 **Pulled apart** opens the joint and puts the tag in the gap, and **On the
