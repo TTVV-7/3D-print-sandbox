@@ -282,6 +282,10 @@
         <svg viewBox="0 0 86 34" aria-hidden="true"><circle cx="9" cy="17" r="6"/><path d="M15 17h6"/><path d="M23 27V9c6 0 9 3 9 9s-3 9-9 9zM38 27V13m0 0c5 0 7 2 7 6v8M53 27V13m0 0c5 0 7 2 7 6v8M68 9v18"/></svg>
         <div><b>Name keyring</b><span>the letters are the whole thing</span></div>
       </button>
+      <button type="button" class="tile" data-kind="stencil" aria-pressed="false">
+        <svg viewBox="0 0 86 34" aria-hidden="true"><rect x="1.5" y="1.5" width="83" height="31" rx="4"/><path d="M20 25V9h6a5 5 0 0 1 0 10h-6M38 25V9m0 0h8m-8 8h6m-6 8h8M58 25V9h6a5 5 0 0 1 0 10h-6m0 0 7 6"/></svg>
+        <div><b>Stencil</b><span>a plate with the word cut through it</span></div>
+      </button>
     </div>
     <input type="hidden" id="kind" value="fob">
     <p class="hint" id="shape_note">The fob is the one that lives on a keyring. The card is CR80,
@@ -289,55 +293,84 @@
   </section>
 
   <section>
-    <h2>2 &middot; Who you are</h2>
-    <label class="field" data-light="name"><span>Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
-    <label class="field for-card" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
-    <label class="field for-card" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
-    <label class="field for-card" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
-    <label class="field for-card" data-light="email"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
-    <p class="hint for-card">Name, company, title, phone and email are the five every guide to business
+    <h2 id="who">2 &middot; Who you are</h2>
+    <label class="field" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
+    <label class="field" data-for="card fob" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
+    <label class="field" data-for="card fob" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
+    <label class="field" data-for="card fob" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
+    <label class="field" data-for="card fob" data-light="email"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
+    <p class="hint" data-for="card fob">Name, company, title, phone and email are the five every guide to business
        cards agrees on, and five to seven things is where a card stops being read. Leave any of
        them empty and the line goes away. A long one shrinks to fit; past the point where that
        stops being printable, put a <code>|</code> where it should break instead.</p>
-    <p class="hint for-name">One word is what these are for. It is set tight, welded into a single
+    <p class="hint" data-for="name">One word is what these are for. It is set tight, welded into a single
        piece and given a tab for the ring; anything the weld leaves loose &mdash; the dot of an
        i &mdash; is bridged on.</p>
-    <label class="field for-card" data-light="logo_file"><span>Logo (SVG)</span><input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
-    <p class="hint for-card" id="logo_note">Goes beside the name. Flat fills only &mdash; strokes, gradients
+    <p class="hint" data-for="stencil">The words get cut clean through the plate, as large as the
+       plate will take them. <code>|</code> splits them over two lines. Leave this empty and give it
+       an SVG instead &mdash; the artwork below wins over the words either way.</p>
+    <label class="field" data-for="stencil" data-light="design_file"><span>Artwork instead (SVG)</span><input type="file" id="stencil_svg" accept=".svg,image/svg+xml"></label>
+    <p class="hint" data-for="stencil" id="stencil_svg_note">Flat fills only &mdash; strokes and live text
+       are ignored, so export it as outlines first. Every fill becomes one hole, whatever colour it was.</p>
+    <label class="field" data-for="card fob" data-light="logo_file"><span>Logo (SVG)</span><input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
+    <p class="hint" data-for="card fob" id="logo_note">Goes beside the name. Flat fills only &mdash; strokes, gradients
        and text objects are ignored, so export the logo as outlines first. Each fill colour in the
        file goes to whichever of the four colours it is nearest.</p>
-    <label class="field for-card" data-light="design_file"><span>Full front design (SVG)</span><input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
-    <p class="hint for-card" id="design_note">Replaces the whole front with your own artwork. Draw it on a
+    <label class="field" data-for="card fob" data-light="design_file"><span>Full front design (SVG)</span><input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
+    <p class="hint" data-for="card fob" id="design_note">Replaces the whole front with your own artwork. Draw it on a
        rectangle in the body colour and it comes out at the rectangle's size.</p>
   </section>
 
   <section>
     <h2>3 &middot; How it looks</h2>
-    <label class="field for-name" data-light="font"><span>Face</span>
+    <div class="field" data-for="stencil" data-light="plate"><span>Plate</span>
+      <div class="slider"><input type="range" id="plate_w" min="30" max="250" step="5" value="120"><output id="plate_w_v">120 mm</output></div>
+    </div>
+    <div class="field" data-for="stencil" data-light="plate">
+      <div class="slider"><input type="range" id="plate_h" min="30" max="250" step="5" value="60"><output id="plate_h_v">60 mm</output></div>
+    </div>
+    <div class="field" data-for="stencil" data-light="margin"><span>Margin</span>
+      <div class="slider"><input type="range" id="margin" min="0" max="30" step="0.5" value="8"><output id="margin_v">8 mm</output></div>
+    </div>
+    <p class="hint" data-for="stencil">The plate left round the cut: what you hold, and what stops the
+       overspray. The artwork fills whatever is left.</p>
+    <div class="field" data-for="stencil" data-light="bridge"><span>Bridges</span>
+      <div class="slider"><input type="range" id="bridge" min="0" max="4" step="0.1" value="1.6"><output id="bridge_v">1.6 mm</output></div>
+    </div>
+    <p class="hint" data-for="stencil">Every counter &mdash; the middle of an O, the triangle in an A
+       &mdash; is an island once the cut goes through, and an island with nothing holding it falls out.
+       Each one gets a bar of plate left across it. At 0 they come away as loose pieces.</p>
+    <div class="field" data-for="stencil" data-light="thick"><span>Thickness</span>
+      <div class="slider"><input type="range" id="thick" min="0.4" max="3" step="0.2" value="0.8"><output id="thick_v">0.8 mm</output></div>
+    </div>
+    <p class="hint" data-for="stencil">Thin is the point: every millimetre is a millimetre of wall the
+       paint has to reach round, which is what blurs an edge. 0.8 mm is four layers and still peels off
+       in one piece.</p>
+    <label class="field" data-for="name stencil" data-light="font"><span>Face</span>
       <select id="font"></select>
     </label>
-    <p class="hint for-name" id="font_note"></p>
-    <div class="field for-name" data-light="cap"><span>Letter height</span>
+    <p class="hint" data-for="name stencil" id="font_note"></p>
+    <div class="field" data-for="name" data-light="cap"><span>Letter height</span>
       <div class="slider"><input type="range" id="cap" min="8" max="26" step="0.5" value="14"><output id="cap_v">14 mm</output></div>
     </div>
-    <p class="hint for-name" id="cap_note"></p>
-    <div class="field for-name" data-light="ring_d"><span>Ring hole</span>
+    <p class="hint" data-for="name" id="cap_note"></p>
+    <div class="field" data-for="name" data-light="ring_d"><span>Ring hole</span>
       <div class="slider"><input type="range" id="ring_d" min="0" max="9" step="0.5" value="5"><output id="ring_v">5 mm</output></div>
     </div>
-    <p class="hint for-name">A 5 mm hole takes a split ring or a lobster clasp. Nothing at all
+    <p class="hint" data-for="name">A 5 mm hole takes a split ring or a lobster clasp. Nothing at all
        drops the tab and leaves the bare word.</p>
-    <label class="check for-name" data-light="outline"><input type="checkbox" id="outline" checked><span>Letters raised in a second colour</span></label>
-    <p class="hint for-name">On, the word sits proud of its own outline and the print takes one
+    <label class="check" data-for="name" data-light="outline"><input type="checkbox" id="outline" checked><span>Letters raised in a second colour</span></label>
+    <p class="hint" data-for="name">On, the word sits proud of its own outline and the print takes one
        filament change. Off, it is one flat solid in the body colour.</p>
-    <label class="field for-card" data-light="preset"><span>Preset</span>
+    <label class="field" data-for="card fob" data-light="preset"><span>Preset</span>
       <select id="preset"></select>
     </label>
-    <label class="field for-card" data-light="layout"><span>Layout</span>
+    <label class="field" data-for="card fob" data-light="layout"><span>Layout</span>
       <select id="layout"></select>
     </label>
-    <p class="hint for-card" id="layout_note"></p>
-    <label class="check for-card" data-light="logo_file"><input type="checkbox" id="placeholder"><span>Empty square where a logo would go</span></label>
-    <label class="field for-card" data-light="look"><span>Background pattern</span>
+    <p class="hint" data-for="card fob" id="layout_note"></p>
+    <label class="check" data-for="card fob" data-light="logo_file"><input type="checkbox" id="placeholder"><span>Empty square where a logo would go</span></label>
+    <label class="field" data-for="card fob" data-light="look"><span>Background pattern</span>
       <select id="look"></select>
     </label>
     <div class="field"><span>Colours</span>
@@ -348,22 +381,24 @@
         <label data-light="c3"><input type="color" id="c3" value="#9a9a9a">Secondary</label>
       </div>
     </div>
-    <p class="hint for-card">Every colour is an inlay in one thin face layer &mdash; the first 0.6 mm of each
+    <p class="hint" data-for="card fob">Every colour is an inlay in one thin face layer &mdash; the first 0.6 mm of each
        half as it prints &mdash; so a multi-material printer does all its changes in three layers
        and the rest of the part in the body colour. Primary is the name, phone and logo;
        secondary the quieter lines and the tap wording.</p>
-    <p class="hint for-name">Body is the outline and Primary the letters on top of it. The other
+    <p class="hint" data-for="name">Body is the outline and Primary the letters on top of it. The other
        two are not used by a keyring.</p>
+    <p class="hint" data-for="stencil">Body is the plate. A stencil prints in one colour &mdash; the
+       other three are not used.</p>
     <div class="field" data-light="rise"><span>Relief</span>
       <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
     </div>
-    <p class="hint for-card">How far the lettering stands off the face. Flush is a smooth card with every
+    <p class="hint" data-for="card fob">How far the lettering stands off the face. Flush is a smooth card with every
        colour in the face layer. 1.2 mm you can feel with a thumb, at the cost of a colour change
        on every layer of the relief.</p>
-    <label class="check card-only" data-light="border"><input type="checkbox" id="border"><span>Border line round the card</span></label>
+    <label class="check" data-for="card" data-light="border"><input type="checkbox" id="border"><span>Border line round the card</span></label>
   </section>
 
-  <section class="for-card">
+  <section data-for="card fob">
     <h2>4 &middot; The tap side</h2>
     <label class="field" data-light="tag_mode"><span>Tag fitting</span>
       <select id="tag_mode">
@@ -395,16 +430,16 @@
   </section>
 
   <section>
-    <h2 class="for-card">5 &middot; A batch of them</h2>
-    <h2 class="for-name">4 &middot; A batch of them</h2>
+    <h2 data-for="card fob">5 &middot; A batch of them</h2>
+    <h2 data-for="name stencil">4 &middot; A batch of them</h2>
     <label class="field"><span>One person per line</span>
       <textarea id="batch" rows="4" spellcheck="false"
         placeholder="Jane Doe, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
     </label>
-    <p class="hint for-card">Name, company, phone, link &mdash; commas or tabs, so a spreadsheet
+    <p class="hint" data-for="card fob">Name, company, phone, link &mdash; commas or tabs, so a spreadsheet
        pastes straight in. The title and email above are shared by the whole batch. While there is
        anything here, the preview and the downloads are the whole batch on one plate.</p>
-    <p class="hint for-name">One name per line. While there is anything here, the preview and the
+    <p class="hint" data-for="name">One name per line. While there is anything here, the preview and the
        downloads are every keyring on one plate.</p>
     <label class="field"><span>Plate width</span><input type="text" id="bed" value="220" autocomplete="off" inputmode="decimal"></label>
   </section>
@@ -443,10 +478,11 @@
 const $ = id => document.getElementById(id);
 const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag_w",
                 "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
-                "look", "layout", "cap", "ring_d", "font"];
+                "look", "layout", "cap", "ring_d", "font",
+                "plate_w", "plate_h", "margin", "bridge", "thick"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
-let logoText = "", designText = "";
+let logoText = "", designText = "", stencilSvg = "";
 const specs = $("specs");
 
 /* The looks, as src/looks.py has them -- a layout, a pattern and four colours:
@@ -806,6 +842,10 @@ const LIGHTS = {
   link:        { el: ["qr"], label: "the QR code" },
   qr:          { el: ["qr"], label: "the QR code" },
   font:        { all: true, label: "the whole word" },
+  plate:       { all: true, label: "the plate" },
+  margin:      { all: true, label: "the plate" },
+  bridge:      { all: true, label: "the bridges" },
+  thick:       { all: true, label: "the plate" },
   cap:         { all: true, label: "the whole word" },
   ring_d:      { all: true, label: "the ring tab" },
   outline:     { el: ["name"], label: "the raised letters" },
@@ -969,6 +1009,7 @@ function checkLink() {
 function readout() {
   const line = (k, v) => `<span>${k} <b>${v}</b></span>`;
   if (info.kind === "name") return wordReadout(line);
+  if (info.kind === "stencil") return cutReadout(line);
   const split = info.parts.length > 1;
   const needs = (info.logo || info.qr)
     ? (info.nozzle
@@ -1024,6 +1065,32 @@ function wordReadout(line) {
   ].join("");
 }
 
+/* A stencil has no colours, no cavity and no counters -- what it has is a cut,
+   the plate left round it, and however many bridges it took to keep the middles
+   of the letters in. */
+function cutReadout(line) {
+  const ties = info.bridges;
+  specs.innerHTML = [
+    info.batch ? line("batch", `${info.batch} stencils`) : "",
+    line("plate", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.thick)} mm`),
+    info.svg ? line("artwork", `an SVG, ${mm(info.art[0])} &times; ${mm(info.art[1])} mm`)
+             : line("words", `${info.typeface_name}, ${mm(info.cap)} mm caps`),
+    line("cut away", `${info.open_area}% of the plate`),
+    ties ? line("bridges", `${ties} at ${mm(info.bridge)} mm`)
+         : line("bridges", info.loose ? `none &mdash; ${info.loose} loose` : "none needed"),
+    line("narrowest cut", `${mm(info.cut)} mm`),
+    line("narrowest plate", `${mm(info.web)} mm`),
+    line("uses", `${info.volume.toFixed(2)} cm&sup3;`),
+    info.nozzle ? line("nozzle", `${info.nozzle} mm or finer`) : "",
+    info.loose && ties
+      ? `<span class="warn">${info.loose} island${info.loose === 1 ? "" : "s"} still loose &mdash;
+         ${info.loose === 1 ? "it prints" : "they print"} as a separate piece.</span>` : "",
+    info.thin.length
+      ? `<span class="warn">${list(info.thin)} narrower than 0.8 mm &mdash; a bigger plate, a heavier
+         face, or fewer words.</span>` : "",
+  ].join("");
+}
+
 let pending = null, seq = 0;
 
 const CAN_INFLATE = "DecompressionStream" in window;
@@ -1046,7 +1113,7 @@ function formParams() {
   params.qr = $("qr").checked;
   if (!params.qr) params.link = "";               // the link only shapes the part as a code
   params.logo = logoText;
-  params.design = designText;
+  params.design = $("kind").value === "stencil" ? stencilSvg : designText;
   params.colours = COLOURS.map(id => $(id).value);
   return params;
 }
@@ -1130,19 +1197,39 @@ $("design_file").addEventListener("change", async () => {
     : "Replaces name, company, phone, logo and pattern with your own artwork, filling the face.";
   queue();
 });
+$("stencil_svg").addEventListener("change", async () => {
+  const f = $("stencil_svg").files[0];
+  stencilSvg = f ? await f.text() : "";
+  $("stencil_svg_note").textContent = f
+    ? `${f.name} is the cut now; the words above are not used.`
+    : "Flat fills only \u2014 strokes and live text are ignored, so export it as outlines first.";
+  queue();
+});
+for (const [id, unit] of [["plate_w", "mm"], ["plate_h", "mm"], ["margin", "mm"],
+                          ["thick", "mm"], ["bridge", "mm"]])
+  $(id).addEventListener("input", () => {
+    $(`${id}_v`).textContent = (id === "bridge" && +$(id).value === 0)
+      ? "none" : `${$(id).value} ${unit}`;
+  });
+
 /* The shape is the first choice, and what is offered below follows from it:
    a fob has no room for a border, so that control is not there for one. */
 function shapeChosen() {
   const kind = $("kind").value;
   const word = kind === "name";
-  for (const el of document.querySelectorAll(".for-card")) el.hidden = word;
-  for (const el of document.querySelectorAll(".for-name")) el.hidden = !word;
-  for (const el of document.querySelectorAll(".card-only")) el.hidden = kind !== "card";
+  for (const el of document.querySelectorAll("[data-for]"))
+    el.hidden = !el.dataset.for.split(" ").includes(kind);
   $("shape_note").textContent = {
     card: "CR80, the size of a credit card, so it sits in a wallet slot. A US card is 88.9 \u00d7 50.8 mm and a European one 85 \u00d7 55; this is the one that fits the slot either of them would.",
     fob: "The one that lives on a keyring. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.",
     name: "No card and no tag: the name itself is the object. It comes out as wide as the word is long, so a short one is a keyring and a long one is a luggage tag.",
+    stencil: "A plate with the words \u2014 or an SVG \u2014 cut clean through it, to paint or spray through. Every counter is an island once the cut goes through, so each one gets a bridge holding it to the plate.",
   }[kind];
+  // The one text box is the name on a card, the word on a keyring, and the
+  // words to cut on a stencil.
+  $("name_label").textContent = { stencil: "Words", name: "Name" }[kind] || "Name";
+  $("who").innerHTML = "2 \u00b7 " + ({ stencil: "What it says", name: "The word" }[kind]
+                                      || "Who you are");
   // A keyring wants its letters proud; a card is flush by default.
   const rise = $("rise");
   if (word && +rise.value === 0) { rise.value = 1.2; rise.dispatchEvent(new Event("input")); }
@@ -1238,6 +1325,11 @@ for (const b of $("modes").querySelectorAll("button"))
 
 function stem() {
   if ($("batch").value.trim()) return `batch_${$("kind").value}`;
+  if ($("kind").value === "stencil") {
+    const what = ($("name").value || "stencil").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "stencil";
+    return `${what}_stencil`;
+  }
   if ($("kind").value === "name") {
     const who = ($("name").value || "keyring").toLowerCase()
       .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "keyring";

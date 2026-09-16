@@ -20,6 +20,7 @@ from pathlib import Path
 import cards
 import looks
 import nametag
+import stencil
 import typefaces
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -52,6 +53,31 @@ def report_name(name, info):
         print(f"      note     {', '.join(info['thin'])} tight -- raise the letter height")
     if info["rise"]:
         print(f"      colour   change filament at Z = {info['thick']:.2f} mm")
+
+
+def report_stencil(name, info):
+    print(f"  {name:38s} {info['w']:5.1f} x {info['h']:5.1f} x {info['total_z']:4.1f} mm  "
+          f"{info['volume']:5.2f} cm^3  "
+          f"{'watertight' if info['watertight'] else 'NOT WATERTIGHT'}")
+    if info["svg"]:
+        print(f"      artwork  an SVG, {info['art'][0]:.1f} x {info['art'][1]:.1f} mm")
+    else:
+        print(f"      words    {info['text']!r} in {info['typeface_name']}, "
+              f"{info['cap']:.1f} mm caps, {info['art'][0]:.1f} x {info['art'][1]:.1f} mm")
+    print(f"      plate    {info['thick']:.1f} mm thick, {info['margin']:.1f} mm margin, "
+          f"{info['open_area']:.0f}% of it cut away")
+    print(f"      bridges  {info['bridges']} at {info['bridge']:.1f} mm"
+          if info["bridges"] else "      bridges  none needed")
+    if info["loose"]:
+        print(f"      loose    {info['loose']} island(s) with nothing holding them -- "
+              f"they print as separate pieces")
+    print(f"      cut      {info['cut']:.2f} mm at its narrowest"
+          + (f", takes a {info['nozzle']:.2f} mm nozzle" if info["nozzle"]
+             else ", finer than any nozzle here"))
+    print(f"      plate    {info['web']:.2f} mm at its narrowest between cuts")
+    if info["thin"]:
+        print(f"      note     {' and '.join(info['thin'])} under "
+              f"{stencil.MIN_CUT} mm -- bigger artwork, or a heavier face")
 
 
 def report(name, info):
@@ -110,9 +136,11 @@ def main():
                     help="where the fields go on the front (default: the look's own)")
     ap.add_argument("--logo-box", dest="placeholder", action="store_const", const="box",
                     help="draw an empty square where the logo would go")
-    ap.add_argument("--kind", default="fob", choices=["card", "fob", "both", "name"],
+    ap.add_argument("--kind", default="fob",
+                    choices=["card", "fob", "both", "name", "stencil"],
                     help="fob and card carry an NFC tag; name is the keyring that is "
-                         "just the word, welded into one piece")
+                         "just the word, welded into one piece; stencil is a plate "
+                         "with the word or an SVG cut through it")
     ap.add_argument("--cap", type=float, default=None,
                     help=f"letter height for --kind name, mm (default {nametag.CAP:g}, "
                          f"or the face's own minimum where that is taller)")
@@ -121,6 +149,16 @@ def main():
                          f"(default {nametag.RING_D:g})")
     ap.add_argument("--flat", action="store_true",
                     help="for --kind name: one solid in the body colour, no raised letters")
+    ap.add_argument("--size", default=None, metavar="WxH",
+                    help=f"stencil plate in mm (default "
+                         f"{stencil.W:g}x{stencil.H:g})")
+    ap.add_argument("--margin", type=float, default=stencil.MARGIN,
+                    help=f"plate left round the cut, mm (default {stencil.MARGIN:g})")
+    ap.add_argument("--bridge", type=float, default=stencil.BRIDGE,
+                    help=f"bar left across each island, mm; 0 leaves them loose "
+                         f"(default {stencil.BRIDGE:g})")
+    ap.add_argument("--thick", type=float, default=stencil.THICK,
+                    help=f"stencil plate thickness, mm (default {stencil.THICK:g})")
     ap.add_argument("--tag", default=None, metavar="WxH",
                     help=f"NFC tag size in mm (default "
                          f"{cards.TAG['w']:g}x{cards.TAG['h']:g})")
@@ -175,8 +213,9 @@ def main():
     ap.add_argument("--preview", action="store_true", help="also render PNGs to previews/")
     args = ap.parse_args()
 
-    if not args.batch and not any([args.name, args.company, args.phone, args.role,
-                                   args.email, args.design]):
+    if (args.kind not in ("name", "stencil") and not args.batch
+            and not any([args.name, args.company, args.phone, args.role,
+                         args.email, args.design])):
         ap.error("give at least one of --name / --company / --phone / --role / --email "
                  "/ --design, or --batch")
     if args.qr and not args.link and not args.batch:
@@ -204,6 +243,50 @@ def main():
     # keyring wants its letters standing on the outline.
     rise = args.rise if args.rise is not None else (
         nametag.RISE if args.kind == "name" else cards.RISE)
+
+    if args.kind == "stencil":
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        w, h = stencil.W, stencil.H
+        if args.size:
+            try:
+                w, h = (float(v) for v in args.size.lower().split("x"))
+            except ValueError:
+                ap.error(f"--size wants WxH in mm, e.g. 120x60 -- got {args.size!r}")
+        art = Path(args.design).read_text() if args.design else None
+        common = dict(svg=art, font=args.font, w=w, h=h, thick=args.thick,
+                      margin=args.margin, bridge=args.bridge)
+        if args.batch:
+            rows = cards.parse_batch(Path(args.batch).read_text())
+            print(f"building {len(rows)} stencils:")
+            parts, infos = stencil.build_batch(rows, **common)
+            for info in infos:
+                report_stencil(info["label"], info)
+            written = []
+            if args.format != "stl":
+                (out / "batch_stencils.3mf").write_bytes(
+                    cards.export_3mf(parts, colours, row_w=args.bed))
+                written.append("batch_stencils.3mf")
+            if args.format != "3mf":
+                cards.plate(parts, row_w=args.bed).export(out / "batch_stencils.stl")
+                written.append("batch_stencils.stl")
+            print(f"  -> {', '.join(written)}: {len(parts)} on a "
+                  f"{cards.plate(parts, row_w=args.bed).extents[0]:.0f} mm plate")
+            return
+        if not args.name and not art:
+            ap.error("--kind stencil needs --name, or --design FILE.svg")
+        parts, info = stencil.build(args.name, **common)
+        stem = f"{slug(args.name or Path(args.design).stem)}_stencil"
+        written = []
+        if args.format != "3mf":
+            parts[0]["mesh"].export(out / f"{stem}.stl")
+            written.append(f"{stem}.stl")
+        if args.format != "stl":
+            (out / f"{stem}.3mf").write_bytes(cards.export_3mf(parts, colours))
+            written.insert(0, f"{stem}.3mf")
+        print("building:")
+        report_stencil(", ".join(written), info)
+        return
 
     if args.kind == "name":
         out = Path(args.out)

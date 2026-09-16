@@ -30,6 +30,7 @@ import trimesh
 import cards
 import looks
 import nametag
+import stencil
 import typefaces
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -43,7 +44,8 @@ RECENT = {}
 GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "tag_h", "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr",
             "logo", "batch", "design", "look", "layout", "placeholder",
-            "cap", "ring_d", "outline")
+            "cap", "ring_d", "outline",
+            "plate_w", "plate_h", "margin", "bridge", "thick")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -109,8 +111,15 @@ def preview(parts, info, row_w):
 def model(params):
     """(bytes, info, content type) for one set of form values."""
     def num(key, default):
+        # Missing is missing; 0 is a number.  `margin`, `bridge`, `rise` and
+        # `ring_d` all mean something at zero -- no frame, loose islands, flush
+        # lettering, no ring tab -- and a falsy test would quietly replace
+        # every one of them with the default.
+        value = params.get(key)
+        if value is None or value == "":
+            return default
         try:
-            return float(params.get(key) or default)
+            return float(value)
         except (TypeError, ValueError):
             return default
 
@@ -150,6 +159,39 @@ def model(params):
                     RECENT[key] = parts, info
                 else:
                     RECENT[key] = nametag.build(params.get("name", ""), **keyring)
+                while len(RECENT) > 8:
+                    del RECENT[next(iter(RECENT))]
+                parts, info = RECENT[key]
+                return _finish(params, parts, info, num)
+            if kind == "stencil":
+                # The artwork arrives in the same field a card's full-front
+                # design does, and for the same reason: it is an SVG that is
+                # the whole of the thing.
+                art = params.get("design") or None
+                if art and not art.lstrip().startswith("<"):
+                    raise ValueError("the artwork has to be an SVG file")
+                plate = dict(svg=art, font=face(params),
+                             w=num("plate_w", stencil.W), h=num("plate_h", stencil.H),
+                             thick=num("thick", stencil.THICK),
+                             margin=num("margin", stencil.MARGIN),
+                             bridge=num("bridge", stencil.BRIDGE),
+                             colours=colours)
+                if params.get("batch"):
+                    rows = cards.parse_batch(params["batch"])
+                    if not rows:
+                        raise ValueError("the batch box is empty")
+                    parts, infos = stencil.build_batch(rows, **plate)
+                    info = {**infos[0], "batch": len(rows), "label": "",
+                            "bridges": sum(i["bridges"] for i in infos),
+                            "loose": sum(i["loose"] for i in infos),
+                            "cut": min(i["cut"] for i in infos),
+                            "web": min(i["web"] for i in infos),
+                            "volume": round(sum(i["volume"] for i in infos), 2),
+                            "watertight": all(i["watertight"] for i in infos),
+                            "thin": sorted({t for i in infos for t in i["thin"]})}
+                    RECENT[key] = parts, info
+                else:
+                    RECENT[key] = stencil.build(params.get("name", ""), **plate)
                 while len(RECENT) > 8:
                     del RECENT[next(iter(RECENT))]
                 parts, info = RECENT[key]
