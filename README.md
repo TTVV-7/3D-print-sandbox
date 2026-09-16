@@ -9,6 +9,9 @@ the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
   printable piece, with a tab for the ring, in one of six faces.  Same app,
   third shape.
+- **[Stencils](#stencils)** -- a plate with the word, or an SVG, cut clean
+  through it to paint through, every island bridged so the middles stay in.
+  Same app, fourth shape.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
 
@@ -451,7 +454,10 @@ printability threshold the warnings use.  `src/looks.py` holds the patterns and
 the presets -- a new pattern is a function returning shapely polygons and a line
 in `PATTERNS`.  `src/typefaces.py` holds the keyring faces: a new one is a TTF
 in `src/fonts`, its licence beside it, and a line in `FACES` saying what weld,
-what letter spacing and what smallest letter height it needs.  The layouts are `LAYOUTS` in `src/cards.py`: a new one is a
+what letter spacing and what smallest letter height it needs.  `src/nametag.py`
+and `src/stencil.py` are the two shapes that are not cards, and both return
+what `cards.build()` returns, so the plate layout, the 3MF, the STL and the
+viewer take them unchanged.  The layouts are `LAYOUTS` in `src/cards.py`: a new one is a
 function taking the content box and the fields and returning polygons by colour
 slot, plus a line in that dict and one in `LAYOUT_TITLES`.
 
@@ -615,6 +621,85 @@ for the face, `--cap 20` for bigger letters, `--ring 0` for no tab, `--flat`
 for the single-colour version, `--rise` for how proud the letters sit,
 `--colours "#2fbf3f,,#ffffff"` for the two colours, and `--batch names.txt`
 for a plate of them -- the whole plate in one face.
+
+---
+
+# Stencils
+
+A rectangle you give the size of, with the words -- or an SVG -- cut clean
+through it, to paint or spray through.
+
+![a stencil](previews/stencil_front.png)
+
+The problem is the [name keyring's](#name-keyrings), backwards.  A keyring has
+to make **one solid out of the several a word is**; a stencil has to keep one
+plate in one piece while taking that same word *out* of it.  Cut an O through a
+plate and the middle of the O is a loose disc: it drops out on the print bed,
+or it prints attached to nothing and comes off in the bag.  The counter of an
+A, the eye of an e, the middle of any ring in an SVG -- every one of them is an
+island the moment the cut goes through.
+
+![with and without the bridges](previews/stencil_bridges.png)
+
+So each island is found and tied back with a **bridge**: a bar of plate left
+uncut across the shortest crossing between the island and whatever is already
+anchored.  It is the little interruption in every road-marking and mailbox
+stencil, and it is not a flaw in them -- it is the only reason the letters
+still have middles.  Nesting comes out on its own: the largest loose piece is
+tied first, and once it is anchored it can hold the next one in.  Set the
+bridges to 0 and nothing is tied; the islands come off the plate as loose
+pieces, which is what you want only if you are placing them by hand.
+
+An SVG goes through the same mill, and every fill in it is one hole whatever
+colour it was drawn in -- a stencil has no colours to sort them into.  What it
+does have is the same island problem, and the same answer:
+
+![an SVG cut through a plate](previews/stencil_svg.png)
+
+| | |
+|---|---|
+| Plate | 120 x 60 mm by default, any size you like |
+| Thickness | 0.8 mm -- four layers at 0.2, and still stiff enough to peel off in one piece |
+| Margin | 8 mm of plate round the cut; the artwork fills what is left.  It never goes under 0.2 mm -- artwork laid exactly on the edge meets it at a point, and a boundary that touches itself does not close |
+| Bridges | 1.6 mm, four lines of a 0.4 mm nozzle; 0 leaves the islands loose |
+| Corners | Ø4 mm, because a square corner on a thin plate catches and tears |
+
+Thin is the point.  Every millimetre of thickness is a millimetre of wall the
+paint has to reach round, which is what blurs an edge, so the default is as thin
+as will still peel off a wet wall in one piece.
+
+Two numbers the readout gives you and you should believe:
+
+- **The narrowest cut.**  That is the thinnest part of the letter you are
+  painting, and a cut narrower than a nozzle will not print open however
+  carefully it was drawn.  The answer is a bigger plate or a heavier face, not
+  a finer nozzle.
+- **The narrowest plate.**  The smallest gap between two cuts, or between a cut
+  and the outside edge -- measured as a distance rather than guessed at from a
+  stroke width, because that sliver between the L and the A is what tears
+  first.  Under 0.8 mm it will not survive being washed.
+
+## Printing them
+
+Flat on the plate, no supports, and no brim unless the bed is cold: a stencil
+is one thin layer of outline and infill and it prints in minutes.  The batch
+box takes one word per line and lays the lot out, which is what makes a set of
+them worth doing -- a name per drawer, or a number per bin.
+
+![a plate of them](previews/stencil_plate.png)
+
+## From a terminal
+
+```
+python3 src/gen_cards.py --kind stencil --name "SHOP"
+```
+
+writes `stl/shop_stencil.3mf` and `.stl`.  `--size 160x50` for the plate,
+`--margin` for the frame round the cut, `--bridge 0` to leave the islands
+loose, `--thick` for the plate, `--font condensed` (or any of the
+[six faces](#the-six-faces), or a path to a TTF) for how it is set, and
+`--design arrow.svg` to cut artwork instead of words.  `--batch words.txt`
+puts a set of them on one plate.
 
 ---
 
