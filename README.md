@@ -1,7 +1,8 @@
 # 3D print sandbox
 
-Two parametric things live here so far.  Both are plain Python -- shapely for
-the 2-D work, trimesh and manifold for the solids -- and both re-run in seconds.
+Four parametric things live here so far.  All of them are plain Python --
+shapely for the 2-D work, trimesh and manifold for the solids -- and all of
+them re-run in seconds.
 
 - **[NFC cards and fobs](#nfc-cards-and-fobs)** -- a keyring fob or a
   wallet card, printed as two halves with an NFC tag glued between them, in up
