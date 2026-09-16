@@ -512,12 +512,14 @@ const PATTERNS = {
    the sans does before its a is a hole rather than a dent, so picking one moves
    the slider with it.
 
-   The three at the bottom are drawn as stencils, with the breaks already in the
-   letters: on a plate that is the whole trick, since the middle of an O arrives
-   tied on and needs no bridge, and on a keyring it is the opposite of what is
-   wanted, because the weld leaves those breaks open and the word comes out in
-   fragments.  So the keyring is not offered them, and they have no letter
-   height of their own -- a stencil sets its own, as large as the plate takes. */
+   The ones with a group name after the note are the stencil's alone.  "cut" is
+   drawn as a stencil, with the breaks already in the letters: on a plate that
+   is the whole trick, since the middle of an O arrives tied on and needs no
+   bridge, and on a keyring it is the opposite of what is wanted, because the
+   weld leaves those breaks open and the word comes out in fragments.  "fancy"
+   is ornate, and goes the same way for the same reason -- the weld closes the
+   fine work that is the point of it.  Neither has a letter height of its own,
+   since a stencil sets its own, as large as the plate will take. */
 const FACES = {
   sans:      ["Sans \u2014 Liberation Sans Bold", 10,
               "Plain and heavy. The one that fits any name and any length."],
@@ -547,14 +549,38 @@ const FACES = {
   stencil:   ["Stencil \u2014 Saira Stencil One", 0,
               "A stencil face: the breaks are drawn into the letters, so the middle of an O is " +
               "already tied to the plate and nothing needs bridging. The one to reach for first.",
-              true],
+              "cut"],
   military:  ["Military \u2014 Black Ops One", 0,
               "Stencilled army-crate capitals, breaks and all \u2014 rough-edged where the others " +
-              "are clean. No bridges either.", true],
+              "are clean. No bridges either.", "cut"],
   crate:     ["Crate \u2014 Stardos Stencil", 0,
               "The lightest of the stencil faces, the one stamped on a packing case. Its strokes " +
               "are thin: a short word or a big plate, or the readout will tell you the cut is finer " +
-              "than your nozzle. Latin-1 only, so no Polish or Turkish accents.", true],
+              "than your nozzle. Latin-1 only, so no Polish or Turkish accents.", "cut"],
+  gothic:    ["Gothic \u2014 UnifrakturCook", 0,
+              "Old English blackletter, heavy enough to cut: broken strokes, barbed terminals and " +
+              "a capital S that is mostly flourish. Latin-1 only, so no Polish or Turkish accents.",
+              "fancy"],
+  victorian: ["Victorian \u2014 Rye", 0,
+              "A circus-poster Tuscan with the inline cut into it \u2014 the most elaborate face " +
+              "here, and the one that takes the most bridges, because every inline is an island. " +
+              "A short word and a big plate: the inline is a hairline, and the readout says when " +
+              "it has gone finer than your nozzle. Latin-1 only.", "fancy"],
+  roman:     ["Roman \u2014 Cinzel Decorative", 0,
+              "Inscriptional Roman capitals with the flourishes on \u2014 the chiselled-in-stone " +
+              "one, and the one for a word that wants to look official.", "fancy"],
+  swash:     ["Swash \u2014 Berkshire Swash", 0,
+              "A calligraphic face with the swashes kept: the capitals loop back through " +
+              "themselves, which on a plate reads as one long flourish rather than as separate " +
+              "letters.", "fancy"],
+  western:   ["Western \u2014 Sancreek", 0,
+              "Spurred Tuscan serifs off a saloon sign, and the widest cut of the ornate faces " +
+              "\u2014 the one to pick if the others come out finer than your nozzle.", "fancy"],
+};
+/* The headings the stencil's own faces sit under, in the order they appear. */
+const FACE_GROUPS = {
+  cut:   "Drawn as stencils \u2014 no bridges needed",
+  fancy: "Ornate \u2014 elaborate, and for cutting rather than welding",
 };
 const PRESETS = {
   printlab:  ["Print Lab — black, white lettering, cubes", "cubes", "centred", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
@@ -577,12 +603,14 @@ function fillFaces(kind) {
   const want = FACES[sel.value] ? sel.value : "sans";
   sel.innerHTML = "";
   for (const [k, v] of Object.entries(FACES)) if (!v[3]) sel.add(new Option(v[0], k));
-  if (kind === "stencil") {
-    const group = document.createElement("optgroup");
-    group.label = "Drawn as stencils \u2014 no bridges needed";
-    for (const [k, v] of Object.entries(FACES)) if (v[3]) group.append(new Option(v[0], k));
-    sel.add(group);
-  }
+  if (kind === "stencil")
+    for (const [g, label] of Object.entries(FACE_GROUPS)) {
+      const group = document.createElement("optgroup");
+      group.label = label;
+      for (const [k, v] of Object.entries(FACES))
+        if (v[3] === g) group.append(new Option(v[0], k));
+      sel.add(group);
+    }
   sel.value = (kind === "stencil" || !FACES[want][3]) ? want : "sans";
   sel.dataset.was = sel.value;
   faceChosen();

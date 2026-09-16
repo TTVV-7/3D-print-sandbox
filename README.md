@@ -11,9 +11,9 @@ them re-run in seconds.
   printable piece, with a tab for the ring, in one of eight faces.  Same app,
   third shape.
 - **[Stencils](#stencils)** -- a plate with the word, or an SVG, cut clean
-  through it to paint through, every island bridged so the middles stay in --
-  or set in one of the three faces drawn as stencils, which arrive bridged.
-  Same app, fourth shape.
+  through it to paint through, every island bridged so the middles stay in.
+  Sixteen faces to cut it in, from a plain sans through three drawn as stencils
+  to five ornate ones.  Same app, fourth shape.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
 
@@ -311,7 +311,20 @@ Bold is on the machine, `--font` for any other.  A heavy sans is the right
 answer here, because every stroke has to survive as a 0.6 mm-deep inlay.  The
 [name keyrings](#the-eight-faces), whose letters are ten times the size and are
 the object rather than a label on one, have eight faces to choose from, and
-the [stencils](#the-eleven-faces) those eight and three more.
+the [stencils](#the-sixteen-faces) those eight and eight more.
+
+A glyph arrives as a heap of closed contours with nothing saying which is
+which, and the rule that sorts them is nesting **depth**, not "is it inside
+something".  Depth 0 is ink, depth 1 is a counter cut out of it, depth 2 is an
+island standing in that counter and is ink again: the pip in the bowl of an
+ornamented Victorian P, the inner line of an inline face, the whole
+construction of a shadowed one.  Counting one level deep gets a face like that
+wrong twice over -- the island is dropped, and it is handed to the outermost
+contour as a second hole inside the first, which is a polygon no boolean will
+touch.  A contour that crosses itself is a second thing fonts do and
+rasterisers forgive; those are settled where they are found, into the shape the
+rasteriser would have shown.  Neither case arises in a plain sans, which is why
+neither was here until the ornate faces were.
 
 ## The tag, and the arcs
 
@@ -569,10 +582,10 @@ Everything about it is one number in `src/nametag.py`: `CAP`, `THICK`, `RISE`,
 | Wide | Archivo Black | 12 mm | A wide, flat-sided grotesque: the sans with the air taken out of it. |
 | Heavy | Anton | 21 mm | Heaviest and narrowest, with real lower case.  Its e is a slot, so it wants the tall letter. |
 
-Three more -- Stencil, Military and Crate -- are drawn *as* stencils, with the
-breaks already in the letters, and the keyring is not offered them: see [the
-stencil faces](#the-eleven-faces) for why a face that cuts beautifully welds
-into a heap of fragments.
+Eight more -- three drawn *as* stencils, five ornate -- are the stencil's
+alone, and the keyring is not offered them: see [the stencil
+faces](#the-sixteen-faces) for why a face that cuts beautifully welds into a
+heap of fragments.
 
 The **wants** column is the thing to take seriously, and it is measured rather
 than opinion.  The weld that makes a word one piece shrinks every counter --
@@ -593,8 +606,8 @@ Picking a face moves the letter-height slider to that floor.  You can drag it
 back down -- nothing here refuses -- and the readout will tell you how many
 counters filled in when you do.
 
-The faces ship in `src/fonts` beside the code, so the same eleven are there on
-your machine and on Vercel, which has no system fonts at all.  Ten are under
+The faces ship in `src/fonts` beside the code, so the same sixteen are there on
+your machine and on Vercel, which has no system fonts at all.  Fifteen are under
 the SIL Open Font Licence and Chewy under Apache 2.0; each licence sits next to
 its font.  `--font path/to/Your.ttf` from the command line takes any other TTF,
 with `CAP` and `WELD` as its defaults, since nothing has been measured for it.
@@ -694,15 +707,18 @@ Two numbers the readout gives you and you should believe:
   stroke width, because that sliver between the L and the A is what tears
   first.  Under 0.8 mm it will not survive being washed.
 
-## The eleven faces
+## The sixteen faces
 
-A stencil takes the [eight a keyring takes](#the-eight-faces) and three more,
-and the three more are the interesting ones: they are drawn *as* stencils, with
-the little breaks already in the letters.  That is the whole trick done for
-you.  The middle of an O arrives attached to the rest of the plate, so nothing
-is an island, so nothing needs bridging -- the interruption you can see in the
-letter is the type designer's rather than this program's, and it is in the
-place a person chose.
+A stencil takes the [eight a keyring takes](#the-eight-faces) and eight more of
+its own, on two shelves of the picker.
+
+The first shelf is faces drawn *as* stencils, with the little breaks already in
+the letters, which is this program's whole trick done for you.  The middle of
+an O arrives attached to the rest of the plate, so nothing is an island, so
+nothing needs bridging -- the interruption you can see in the letter is the
+type designer's rather than this program's, and it is in the place a person
+chose.  Set "Paint Shed" in Saira Stencil One with the bridges turned off and
+nothing comes loose at all, where the sans drops four pieces on the bed.
 
 ![the same word cut in seven of them](previews/stencil_faces.png)
 
@@ -715,6 +731,48 @@ place a person chose.
 | **Stencil** | Saira Stencil One | 3.8 mm | Breaks drawn in, no bridges.  The one to reach for first. |
 | **Military** | Black Ops One | 3.6 mm | Breaks drawn in, no bridges.  Stencilled army-crate capitals. |
 | **Crate** | Stardos Stencil | 1.6 mm | Breaks drawn in, no bridges.  The lightest: short words or a big plate. |
+
+## The ornate ones
+
+The second shelf is the elaborate faces: blackletter, an inline Tuscan off a
+circus poster, engraved Roman capitals, a swash script and a spurred Western.
+A stencil is where elaborate belongs.  Paint sprayed through a plate is a flat
+silhouette whatever the face was doing, so the ornament has to survive as
+*shape* -- and a face whose ornament is shape rather than shading is exactly
+what a Victorian signwriter was drawing.
+
+![the same word in the five ornate faces](previews/stencil_fancy.png)
+
+| Face | Set in | Cut | What it is |
+|---|---|---|---|
+| Gothic | UnifrakturCook Bold | 4.3 mm | Old English blackletter: broken strokes, barbed terminals, an S that is mostly flourish. |
+| Victorian | Rye | 2.7 mm | A circus-poster Tuscan with the inline cut into it.  The most elaborate, and nine bridges to SHOP. |
+| Roman | Cinzel Decorative Black | 3.4 mm | Inscriptional capitals with the flourishes on.  For a word that wants to look official. |
+| Swash | Berkshire Swash | 3.7 mm | Calligraphic, swashes kept: the capitals loop back through themselves. |
+| Western | Sancreek | 5.5 mm | Spurred Tuscan serifs off a saloon sign, and the widest cut of the five. |
+
+Two of them are worth a warning the readout will also give you.  **Victorian**
+is inline -- a thin line cut along the inside of every stroke -- so every one
+of those lines is an island needing a bridge, and it is a hairline before it is
+anything else: SHOP takes nine bridges and "Bluewater Realty" takes
+thirty-five, by which point the cut is down to 0.13 mm and the readout says so.
+Short words and a big plate.  **Gothic** and **Victorian** are Latin-1 only, so
+no Polish or Turkish accents.
+
+All five are the stencil's alone, and only one of them has to be.  The
+keyring's own measurement was run on all five, at a 0.4 mm weld: Gothic comes
+out wanting 16 mm caps, Roman and Swash 14, Western 21 -- ordinary numbers, in
+the same range as the slab and the script, so those four would set a perfectly
+good keyring.
+**Victorian** is the one that cannot.  Its inline is a counter as far as the
+weld is concerned, and every one of them closes at every letter height from 10
+to 26 mm and every weld down to 0.35 mm: welded, Rye is a fat plain Tuscan with
+the elaborate filled in, which is the face minus the reason for choosing it.
+
+The other four are on the stencil's shelf because cutting is what they were
+added for and the keyring's list is long enough already.  Moving one across is
+a line in `src/typefaces.py` -- `kinds=BOTH` and the three measured numbers --
+and nothing else.
 
 The cut column is the narrowest part of SHOP on the default 120 x 60 plate, so
 it is a like-for-like measure of how much paint gets through and how forgiving
@@ -766,8 +824,8 @@ python3 src/gen_cards.py --kind stencil --name "SHOP"
 
 writes `stl/shop_stencil.3mf` and `.stl`.  `--size 160x50` for the plate,
 `--margin` for the frame round the cut, `--bridge 0` to leave the islands
-loose, `--thick` for the plate, `--font stencil` (or any of the
-[eleven faces](#the-eleven-faces), or a path to a TTF) for how it is set, and
+loose, `--thick` for the plate, `--font gothic` (or any of the
+[sixteen faces](#the-sixteen-faces), or a path to a TTF) for how it is set, and
 `--design arrow.svg` to cut artwork instead of words.  `--batch words.txt`
 puts a set of them on one plate.
 

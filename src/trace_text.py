@@ -67,17 +67,57 @@ def trace(text, font_path, tracking=0.0):
             rings.append([((px + x) / upem, py / upem) for px, py in c])
         x += glyphset[name].width + tracking * upem
 
-    # A ring contained by another is a counter, not a separate letter.
+    # Nesting, by depth rather than by "is it inside anything".  A ring inside
+    # another is a counter; a ring inside *that* is an island standing in the
+    # counter and is solid again -- the pip in the bowl of an ornamented
+    # Victorian P, the inner line of an inline face, the whole construction of
+    # a shadowed one.  Counting only one level deep gets those wrong twice
+    # over: the island is dropped, and it is also handed to the outermost ring
+    # as a second hole inside the first, which is the "holes are nested"
+    # polygon that no boolean will touch.  So each ring is given the smallest
+    # ring that contains it as its parent; even depth is ink, odd depth is a
+    # hole in the ring above it.
     polys = [Polygon(r).buffer(0) for r in rings]
-    shapes = []
+    parent = []
     for i, p in enumerate(polys):
-        holes = [rings[j] for j, q in enumerate(polys)
-                 if i != j and p.contains(q) and p.area > q.area]
-        if any(polys[j].contains(p) and polys[j].area > p.area
-               for j in range(len(polys)) if j != i):
+        inside = [j for j, q in enumerate(polys)
+                  if i != j and q.area > p.area and q.contains(p)]
+        parent.append(min(inside, key=lambda j: polys[j].area) if inside else None)
+
+    def depth(i):
+        d = 0
+        while parent[i] is not None:
+            i, d = parent[i], d + 1
+        return d
+
+    shapes = []
+    for i, ring in enumerate(rings):
+        if depth(i) % 2:
             continue                       # this ring is somebody's counter
-        shapes.append(Polygon(rings[i], holes))
+        holes = [rings[j] for j, up in enumerate(parent) if up == i]
+        shapes += valid(Polygon(ring, holes))
     return shapes
+
+
+def valid(poly):
+    """`poly` as a list of polygons a boolean will accept.
+
+    Usually that is the one it was given.  Some faces are drawn with a contour
+    that crosses back over itself, which a rasteriser fills without complaint
+    and is therefore a drawing that ships: the rough display faces are full of
+    them, where an outline has been roughened by hand and a barb has been
+    dragged back through the stem.  A boolean is not a rasteriser.  Handed one
+    of those it raises rather than returns, several steps further down where
+    the outline is long since anonymous, so it is settled here instead, into
+    the shape the rasteriser would have shown -- and a glyph that comes apart
+    into two pieces is two pieces.
+    """
+    if poly.is_valid:
+        return [poly]
+    fixed = poly.buffer(0)
+    if fixed.is_empty:
+        return []
+    return [g for g in getattr(fixed, "geoms", [fixed]) if g.geom_type == "Polygon"]
 
 
 def main(text, font_path, out):

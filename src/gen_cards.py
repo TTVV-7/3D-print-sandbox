@@ -207,13 +207,12 @@ def main():
                     help="for --kind name, one of "
                          + ", ".join(f"{k} ({v['font']})"
                                      for k, v in typefaces.offered("name").items())
-                         + "; --kind stencil takes those and "
-                         + ", ".join(f"{k} ({v['font']})"
-                                     for k, v in typefaces.offered("stencil").items()
-                                     if "name" not in v["kinds"])
-                         + ", which are drawn as stencils -- the breaks are already in "
-                           "the letters, so nothing needs bridging, and a keyring would "
-                           "weld them into fragments"
+                         + "".join(
+                             f"; --kind stencil also takes {group}: "
+                             + ", ".join(f"{k} ({v['font']})"
+                                         for k, v in typefaces.FACES.items()
+                                         if v["group"] == g)
+                             for g, group in typefaces.GROUPS.items() if group)
                          + f" (default {typefaces.DEFAULT}); or the path to a TTF of your "
                            "own, which is all a card or a fob will take -- their lettering "
                            "is small and wants a bold sans")
