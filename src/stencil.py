@@ -145,6 +145,35 @@ def pieces(poly):
     return list(poly.geoms) if poly.geom_type == "MultiPolygon" else [poly]
 
 
+def solid(body_2d, plate_2d, cut, thick):
+    """The cut plate, `thick` mm deep, as one closed mesh.
+
+    The direct way is to extrude the cut plate, and on a word set in an
+    ordinary face that is what happens here.  It is not reliable on every
+    plate, though: the triangulator has to cut a face with holes in it down to
+    one ring, and it does that by running a seam out to the outline from each
+    hole, so with enough holes two seams land on the same vertex and the mesh
+    comes back open.  It is a coincidence rather than a limit -- twenty-six
+    holes come out closed and ten do not -- but the odds of it go up with
+    every hole, and a face drawn as a stencil is nothing but holes: SHOP is
+    nine cuts in Saira Stencil One and ten in Stardos Stencil, against four in
+    the sans, and the Stardos one is among the plates that fail.
+
+    So when the extrusion does not close, the same plate is built the other
+    way round: a whole rectangle with the cut punched out of it by the boolean
+    engine, which triangulates none of it and cannot leave that seam.  The
+    punches are deliberately taller than the plate and start below it, because
+    two faces in the same plane are the one thing a boolean is bad at.
+    """
+    try:
+        solids = cards.prisms(pieces(body_2d), 0.0, thick)
+        return solids[0] if len(solids) == 1 else trimesh.util.concatenate(solids)
+    except ValueError:
+        plate = cards.prisms([plate_2d], 0.0, thick)[0]
+        return cards.boolean("difference",
+                             [plate] + cards.prisms(pieces(cut), -thick, 3.0 * thick))
+
+
 def web(holes, plate, most=99.0):
     """The narrowest bar of plate the cut leaves, in mm.
 
@@ -247,10 +276,8 @@ def build(text="", svg=None, font=None, w=W, h=H, thick=THICK, margin=MARGIN,
     # Bridged, the plate is one solid; with the bridges turned off it is the
     # frame and a little pile of loose islands, which is a legitimate thing to
     # ask for and prints as several bodies on one plate.
-    solids = cards.prisms(pieces(body_2d), 0.0, thick)
     groups = [dict(slot="body", element="body", face="front",
-                   mesh=solids[0] if len(solids) == 1
-                   else trimesh.util.concatenate(solids))]
+                   mesh=solid(body_2d, plate_2d, cut, thick))]
     part = dict(name="", label=label or (text or "stencil"), card=0, groups=groups,
                 assembled=np.eye(4))
     part["slots"] = cards.slot_meshes(part)

@@ -205,7 +205,15 @@ def main():
                     help="plate width the batch wraps at, mm (default 220)")
     ap.add_argument("--font", default=None, metavar="FACE",
                     help="for --kind name, one of "
-                         + ", ".join(f"{k} ({v['font']})" for k, v in typefaces.FACES.items())
+                         + ", ".join(f"{k} ({v['font']})"
+                                     for k, v in typefaces.offered("name").items())
+                         + "; --kind stencil takes those and "
+                         + ", ".join(f"{k} ({v['font']})"
+                                     for k, v in typefaces.offered("stencil").items()
+                                     if "name" not in v["kinds"])
+                         + ", which are drawn as stencils -- the breaks are already in "
+                           "the letters, so nothing needs bridging, and a keyring would "
+                           "weld them into fragments"
                          + f" (default {typefaces.DEFAULT}); or the path to a TTF of your "
                            "own, which is all a card or a fob will take -- their lettering "
                            "is small and wants a bold sans")
@@ -220,6 +228,10 @@ def main():
                  "/ --design, or --batch")
     if args.qr and not args.link and not args.batch:
         ap.error("--qr needs --link")
+    try:
+        typefaces.check(args.font, args.kind)
+    except ValueError as e:
+        ap.error(str(e))
 
     tag = dict(thick=args.tag_thick)
     if args.tag:

@@ -339,7 +339,8 @@
     </div>
     <p class="hint" data-for="stencil">Every counter &mdash; the middle of an O, the triangle in an A
        &mdash; is an island once the cut goes through, and an island with nothing holding it falls out.
-       Each one gets a bar of plate left across it. At 0 they come away as loose pieces.</p>
+       Each one gets a bar of plate left across it. At 0 they come away as loose pieces. The three
+       faces drawn as stencils need none of this: the breaks are already in the letters.</p>
     <div class="field" data-for="stencil" data-light="thick"><span>Thickness</span>
       <div class="slider"><input type="range" id="thick" min="0.4" max="3" step="0.2" value="0.8"><output id="thick_v">0.8 mm</output></div>
     </div>
@@ -504,11 +505,19 @@ const PATTERNS = {
   hexband: "Hex band — solid hexagons along the bottom",
   badge: "Badge — the disc and the hex band together",
 };
-/* The faces a name keyring can be set in, as src/typefaces.py has them: what
-   to call it, what it is, and the letter height under which the weld starts
-   shutting that face's counters.  A slab or a script wants a taller letter
-   than the sans does before its a is a hole rather than a dent, so picking one
-   moves the slider with it. */
+/* The faces a name keyring or a stencil can be set in, as src/typefaces.py has
+   them: what to call it, the letter height under which the weld starts shutting
+   that face's counters, what it is, and -- for the last three -- that it is
+   only offered to the stencil.  A slab or a script wants a taller letter than
+   the sans does before its a is a hole rather than a dent, so picking one moves
+   the slider with it.
+
+   The three at the bottom are drawn as stencils, with the breaks already in the
+   letters: on a plate that is the whole trick, since the middle of an O arrives
+   tied on and needs no bridge, and on a keyring it is the opposite of what is
+   wanted, because the weld leaves those breaks open and the word comes out in
+   fragments.  So the keyring is not offered them, and they have no letter
+   height of their own -- a stencil sets its own, as large as the plate takes. */
 const FACES = {
   sans:      ["Sans \u2014 Liberation Sans Bold", 10,
               "Plain and heavy. The one that fits any name and any length."],
@@ -520,13 +529,32 @@ const FACES = {
   script:    ["Script \u2014 Pacifico", 20,
               "A brush script: the letters run into each other before the weld is asked to do " +
               "anything, which is what a name keyring usually wants. Its lower case is small for " +
-              "its capitals, so it needs the most height of the six."],
+              "its capitals, so it needs more height than any of these but the Heavy."],
   slab:      ["Slab \u2014 Alfa Slab One", 18,
               "Fat slab serifs, heavy enough that the weld is barely needed. Its counters are " +
               "slots rather than holes, so it wants a tall letter to keep them open."],
   condensed: ["Condensed \u2014 Bebas Neue", 16,
               "Tall narrow capitals \u2014 lower case comes out as capitals too. The one for a long " +
               "name, at about two thirds the width."],
+  wide:      ["Wide \u2014 Archivo Black", 12,
+              "A wide, flat-sided grotesque with the heaviest strokes of the faces that still hold " +
+              "their counters small. On a stencil it is the broad cut; on a keyring it is the sans " +
+              "with the air taken out of it."],
+  heavy:     ["Heavy \u2014 Anton", 21,
+              "The heaviest here and narrow with it: the widest cut and the most open plate of any " +
+              "of them, at about two thirds the width of the sans, and with real lower case unlike " +
+              "the condensed. Its e is a slot, so a keyring in it wants a tall letter."],
+  stencil:   ["Stencil \u2014 Saira Stencil One", 0,
+              "A stencil face: the breaks are drawn into the letters, so the middle of an O is " +
+              "already tied to the plate and nothing needs bridging. The one to reach for first.",
+              true],
+  military:  ["Military \u2014 Black Ops One", 0,
+              "Stencilled army-crate capitals, breaks and all \u2014 rough-edged where the others " +
+              "are clean. No bridges either.", true],
+  crate:     ["Crate \u2014 Stardos Stencil", 0,
+              "The lightest of the stencil faces, the one stamped on a packing case. Its strokes " +
+              "are thin: a short word or a big plate, or the readout will tell you the cut is finer " +
+              "than your nozzle. Latin-1 only, so no Polish or Turkish accents.", true],
 };
 const PRESETS = {
   printlab:  ["Print Lab — black, white lettering, cubes", "cubes", "centred", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
@@ -540,7 +568,25 @@ const PRESETS = {
   ember:     ["Ember — charcoal, orange, dots", "dots", "centred", ["#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0"]],
   plain:     ["Plain — grey body, gold lettering, no pattern", "plain", "centred", ["#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441"]],
 };
-for (const [k, v] of Object.entries(FACES)) $("font").add(new Option(v[0], k));
+/* Which faces the picker offers follows the shape, because the three drawn as
+   stencils are only any use on one.  A keyring is never shown them, and one
+   left selected when the shape changes under it falls back to the sans rather
+   than sending the server a face it is going to refuse. */
+function fillFaces(kind) {
+  const sel = $("font");
+  const want = FACES[sel.value] ? sel.value : "sans";
+  sel.innerHTML = "";
+  for (const [k, v] of Object.entries(FACES)) if (!v[3]) sel.add(new Option(v[0], k));
+  if (kind === "stencil") {
+    const group = document.createElement("optgroup");
+    group.label = "Drawn as stencils \u2014 no bridges needed";
+    for (const [k, v] of Object.entries(FACES)) if (v[3]) group.append(new Option(v[0], k));
+    sel.add(group);
+  }
+  sel.value = (kind === "stencil" || !FACES[want][3]) ? want : "sans";
+  sel.dataset.was = sel.value;
+  faceChosen();
+}
 for (const [k, v] of Object.entries(LAYOUTS)) $("layout").add(new Option(v, k));
 for (const [k, v] of Object.entries(PATTERNS)) $("look").add(new Option(v, k));
 for (const [k, v] of Object.entries(PRESETS)) $("preset").add(new Option(v[0], k));
@@ -1223,7 +1269,7 @@ function shapeChosen() {
     card: "CR80, the size of a credit card, so it sits in a wallet slot. A US card is 88.9 \u00d7 50.8 mm and a European one 85 \u00d7 55; this is the one that fits the slot either of them would.",
     fob: "The one that lives on a keyring. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.",
     name: "No card and no tag: the name itself is the object. It comes out as wide as the word is long, so a short one is a keyring and a long one is a luggage tag.",
-    stencil: "A plate with the words \u2014 or an SVG \u2014 cut clean through it, to paint or spray through. Every counter is an island once the cut goes through, so each one gets a bridge holding it to the plate.",
+    stencil: "A plate with the words \u2014 or an SVG \u2014 cut clean through it, to paint or spray through. Every counter is an island once the cut goes through, so each one gets a bridge holding it to the plate \u2014 unless the face is one of the three drawn as stencils, which arrive with the breaks in the letters already.",
   }[kind];
   // The one text box is the name on a card, the word on a keyring, and the
   // words to cut on a stencil.
@@ -1234,6 +1280,7 @@ function shapeChosen() {
   const rise = $("rise");
   if (word && +rise.value === 0) { rise.value = 1.2; rise.dispatchEvent(new Event("input")); }
   if (!word && +rise.value === 1.2) { rise.value = 0; rise.dispatchEvent(new Event("input")); }
+  fillFaces(kind);
 }
 for (const tile of document.querySelectorAll(".tile"))
   tile.addEventListener("click", () => {
@@ -1306,7 +1353,6 @@ $("font").addEventListener("change", e => {
   faceChosen(e.target.dataset.was);
   e.target.dataset.was = e.target.value;
 });
-$("font").dataset.was = $("font").value;
 $("cap").addEventListener("input", () => {
   const face = FACES[$("font").value] || FACES.sans;
   $("cap_v").textContent = `${$("cap").value} mm`;
@@ -1316,7 +1362,7 @@ $("cap").addEventListener("input", () => {
     : "How tall the capitals are. Everything else follows from it, including how wide the word " +
       "comes out.";
 });
-faceChosen();
+fillFaces($("kind").value);
 $("ring_d").addEventListener("input", () => {
   $("ring_v").textContent = +$("ring_d").value ? `${$("ring_d").value} mm` : "none";
 });

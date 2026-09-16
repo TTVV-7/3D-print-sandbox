@@ -8,10 +8,11 @@ them re-run in seconds.
   wallet card, printed as two halves with an NFC tag glued between them, in up
   to four colours, in one of three layouts.  Comes with a browser front end.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
-  printable piece, with a tab for the ring, in one of six faces.  Same app,
+  printable piece, with a tab for the ring, in one of eight faces.  Same app,
   third shape.
 - **[Stencils](#stencils)** -- a plate with the word, or an SVG, cut clean
-  through it to paint through, every island bridged so the middles stay in.
+  through it to paint through, every island bridged so the middles stay in --
+  or set in one of the three faces drawn as stencils, which arrive bridged.
   Same app, fourth shape.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
@@ -308,8 +309,9 @@ outlines as curves, flattened, not rasterised and re-traced.  A card is always
 set in the sans: whichever of Liberation Sans Bold, DejaVu Sans Bold or Arial
 Bold is on the machine, `--font` for any other.  A heavy sans is the right
 answer here, because every stroke has to survive as a 0.6 mm-deep inlay.  The
-[name keyrings](#the-six-faces), whose letters are ten times the size and are
-the object rather than a label on one, have six faces to choose from.
+[name keyrings](#the-eight-faces), whose letters are ten times the size and are
+the object rather than a label on one, have eight faces to choose from, and
+the [stencils](#the-eleven-faces) those eight and three more.
 
 ## The tag, and the arcs
 
@@ -453,9 +455,10 @@ of it, `CHAMFER` the edge break, `QR_QUIET` and `QR_MIN_MODULE` the code's
 margins, `NOZZLES` the sizes the readout will name, `MIN_STROKE` the
 printability threshold the warnings use.  `src/looks.py` holds the patterns and
 the presets -- a new pattern is a function returning shapely polygons and a line
-in `PATTERNS`.  `src/typefaces.py` holds the keyring faces: a new one is a TTF
-in `src/fonts`, its licence beside it, and a line in `FACES` saying what weld,
-what letter spacing and what smallest letter height it needs.  `src/nametag.py`
+in `PATTERNS`.  `src/typefaces.py` holds the faces: a new one is a TTF
+in `src/fonts`, its licence beside it, and a line in `FACES` saying what it is
+offered for and -- if a keyring is one of those -- what weld, what letter
+spacing and what smallest letter height it needs.  `src/nametag.py`
 and `src/stencil.py` are the two shapes that are not cards, and both return
 what `cards.build()` returns, so the plate layout, the 3MF, the STL and the
 viewer take them unchanged.  The layouts are `LAYOUTS` in `src/cards.py`: a new one is a
@@ -551,9 +554,9 @@ Everything about it is one number in `src/nametag.py`: `CAP`, `THICK`, `RISE`,
 `WELD`, `GAP` for how tight the setting is, `BRIDGE` for the tie, `RING_D` and
 `RING_WALL` for the tab.
 
-## The six faces
+## The eight faces
 
-![the same name in all six](previews/keyring_faces.png)
+![the same name in all eight](previews/keyring_faces.png)
 
 | Face | Set in | Wants | What it is |
 |---|---|---|---|
@@ -563,6 +566,13 @@ Everything about it is one number in `src/nametag.py`: `CAP`, `THICK`, `RISE`,
 | Script | Pacifico | 20 mm | A brush script; the letters run into each other on their own. |
 | Slab | Alfa Slab One | 18 mm | Fat slab serifs, heavy enough that the weld is barely needed. |
 | Condensed | Bebas Neue | 16 mm | Tall narrow capitals, lower case included.  For a long name. |
+| Wide | Archivo Black | 12 mm | A wide, flat-sided grotesque: the sans with the air taken out of it. |
+| Heavy | Anton | 21 mm | Heaviest and narrowest, with real lower case.  Its e is a slot, so it wants the tall letter. |
+
+Three more -- Stencil, Military and Crate -- are drawn *as* stencils, with the
+breaks already in the letters, and the keyring is not offered them: see [the
+stencil faces](#the-eleven-faces) for why a face that cuts beautifully welds
+into a heap of fragments.
 
 The **wants** column is the thing to take seriously, and it is measured rather
 than opinion.  The weld that makes a word one piece shrinks every counter --
@@ -571,17 +581,20 @@ narrower than a nozzle is filled in, because that is what the slicer would do
 with it anyway.  A face whose counters are slots rather than holes therefore
 has them welded shut at a height where the sans is still perfectly readable:
 Alfa Slab One at 14 mm is a row of blobs, and Pacifico's lower case is small
-for its capitals, so it needs the most height of the six.  Each face carries
-its own floor, its own weld and its own letter spacing in `src/typefaces.py`,
+for its capitals, so it needs more height than any of the others but Anton.
+Each face carries its own floor, its own weld and its own letter spacing in
+`src/typefaces.py`,
 found by setting eight awkward names in every face at every height from 10 to
-26 mm and counting the counters that closed.
+26 mm and counting the counters that closed.  Anton's 21 mm is the highest
+floor here and comes from one letter: its e is a slot rather than a hole, and
+"Abbey" fills in at anything shorter.
 
 Picking a face moves the letter-height slider to that floor.  You can drag it
 back down -- nothing here refuses -- and the readout will tell you how many
 counters filled in when you do.
 
-The faces ship in `src/fonts` beside the code, so the same six are there on
-your machine and on Vercel, which has no system fonts at all.  Five are under
+The faces ship in `src/fonts` beside the code, so the same eleven are there on
+your machine and on Vercel, which has no system fonts at all.  Ten are under
 the SIL Open Font Licence and Chewy under Apache 2.0; each licence sits next to
 its font.  `--font path/to/Your.ttf` from the command line takes any other TTF,
 with `CAP` and `WELD` as its defaults, since nothing has been measured for it.
@@ -617,7 +630,8 @@ python3 src/gen_cards.py --kind name --name "Freddie"
 ```
 
 writes `stl/freddie_keyring.3mf` and `.stl`.  `--font script` (or `sans`,
-`geometric`, `rounded`, `slab`, `condensed`, or a path to a TTF of your own)
+`geometric`, `rounded`, `slab`, `condensed`, `wide`, `heavy`, or a path to a
+TTF of your own)
 for the face, `--cap 20` for bigger letters, `--ring 0` for no tab, `--flat`
 for the single-colour version, `--rise` for how proud the letters sit,
 `--colours "#2fbf3f,,#ffffff"` for the two colours, and `--batch names.txt`
@@ -680,6 +694,61 @@ Two numbers the readout gives you and you should believe:
   stroke width, because that sliver between the L and the A is what tears
   first.  Under 0.8 mm it will not survive being washed.
 
+## The eleven faces
+
+A stencil takes the [eight a keyring takes](#the-eight-faces) and three more,
+and the three more are the interesting ones: they are drawn *as* stencils, with
+the little breaks already in the letters.  That is the whole trick done for
+you.  The middle of an O arrives attached to the rest of the plate, so nothing
+is an island, so nothing needs bridging -- the interruption you can see in the
+letter is the type designer's rather than this program's, and it is in the
+place a person chose.
+
+![the same word cut in seven of them](previews/stencil_faces.png)
+
+| Face | Set in | Cut | What it is |
+|---|---|---|---|
+| Sans | Liberation Sans Bold | 4.3 mm | The default.  Two bridges in SHOP, in the O and the P. |
+| Condensed | Bebas Neue | 6.0 mm | Tall capitals; a long word at two thirds the width. |
+| Wide | Archivo Black | 5.8 mm | Broad and flat-sided, and the frame between cuts stays fat. |
+| Heavy | Anton | 7.6 mm | The widest cut and the most open plate here -- 38% of it gone. |
+| **Stencil** | Saira Stencil One | 3.8 mm | Breaks drawn in, no bridges.  The one to reach for first. |
+| **Military** | Black Ops One | 3.6 mm | Breaks drawn in, no bridges.  Stencilled army-crate capitals. |
+| **Crate** | Stardos Stencil | 1.6 mm | Breaks drawn in, no bridges.  The lightest: short words or a big plate. |
+
+The cut column is the narrowest part of SHOP on the default 120 x 60 plate, so
+it is a like-for-like measure of how much paint gets through and how forgiving
+the face is of a coarse nozzle -- not a property of the font in the abstract.
+The heavier the face, the wider the cut and the fewer the bridges, which is
+why the four at the top of the table are the ones they are.
+
+The trade is worth being clear about.  A bridge is this program's guess at
+where an interruption will be least ugly: shortest crossing, largest island
+first, and it is usually right but it is never *designed*.  A stencil face has
+that decision made for it in the drawing, by someone who was looking at the
+letter.  What you give up is weight -- none of the three is a heavyweight, and
+the lightest of them cuts at a fifth of what Anton does.
+
+Set in one of these, a word is a lot more holes than it looks -- SHOP is nine
+separate cuts in Saira Stencil One and ten in Stardos Stencil, against four in
+the sans -- and holes are what the triangulator that turns the flat plate into
+a solid is bad at.  It cuts a face with holes in it down to one ring by running
+a seam out to the edge from each hole, and with enough of them two seams land
+on the same vertex and the mesh comes back open.  It is a coincidence rather
+than a limit, so there is no hole count to stay under: twenty-six come out
+closed and ten do not.  When it happens, `stencil.solid()` builds the same
+plate the other way round instead -- a whole rectangle with the cut punched out
+of it by the boolean engine, which triangulates nothing -- so the stencil faces
+cost a fraction of a second rather than an error.
+
+They are only offered to the stencil.  On a keyring the same breaks are a
+disaster: the weld that makes a word one piece is 0.35 to 0.5 mm, and a break
+drawn to be seen from across a yard is wider than that closes, so it stays
+open.  "Freddie" at 20 mm caps then arrives as fifteen to seventeen separate
+pieces and leaves as a name held together by five to nine bridges.  The picker
+hides these three for anything but a stencil, and the server refuses them if
+one arrives anyway.
+
 ## Printing them
 
 Flat on the plate, no supports, and no brim unless the bed is cold: a stencil
@@ -697,8 +766,8 @@ python3 src/gen_cards.py --kind stencil --name "SHOP"
 
 writes `stl/shop_stencil.3mf` and `.stl`.  `--size 160x50` for the plate,
 `--margin` for the frame round the cut, `--bridge 0` to leave the islands
-loose, `--thick` for the plate, `--font condensed` (or any of the
-[six faces](#the-six-faces), or a path to a TTF) for how it is set, and
+loose, `--thick` for the plate, `--font stencil` (or any of the
+[eleven faces](#the-eleven-faces), or a path to a TTF) for how it is set, and
 `--design arrow.svg` to cut artwork instead of words.  `--batch words.txt`
 puts a set of them on one plate.
 

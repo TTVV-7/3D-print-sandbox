@@ -49,18 +49,23 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
-def face(params):
+def face(params, kind="fob"):
     """The face the form asked for, as a key from typefaces.FACES.
 
     Keys only, never a path: nametag.build() will happily open any TTF it is
     handed, and a path arriving in a request is a request to read a file off
     whatever machine is serving this.  The command line is where you point at
     a font of your own.
+
+    The face has to suit what is being made, too -- the faces drawn as
+    stencils are only offered to the stencil -- and the page hides the ones it
+    is not offering, so a key that does not belong here has come from
+    somewhere other than the picker.
     """
     want = params.get("font") or typefaces.DEFAULT
     if want not in typefaces.FACES:
         raise ValueError(f"no such face: {want}")
-    return want
+    return typefaces.check(want, kind)
 
 
 def palette(params):
@@ -136,7 +141,7 @@ def model(params):
                 # layout: the word is the whole object, so only these few
                 # settings reach it -- and one of them is which face to set
                 # it in, which is the only place a font choice matters.
-                keyring = dict(font=face(params),
+                keyring = dict(font=face(params, "name"),
                                # no height of its own means the face's own:
                                # a slab or a script needs a taller letter
                                # than the sans before its counters survive.
@@ -170,7 +175,7 @@ def model(params):
                 art = params.get("design") or None
                 if art and not art.lstrip().startswith("<"):
                     raise ValueError("the artwork has to be an SVG file")
-                plate = dict(svg=art, font=face(params),
+                plate = dict(svg=art, font=face(params, "stencil"),
                              w=num("plate_w", stencil.W), h=num("plate_h", stencil.H),
                              thick=num("thick", stencil.THICK),
                              margin=num("margin", stencil.MARGIN),
@@ -214,7 +219,7 @@ def model(params):
                 tag=tag, tap_text=params.get("tap", "TAP HERE"),
                 tag_mode=params.get("tag_mode", "split"),
                 border=bool(params.get("border", False)), rise=num("rise", cards.RISE),
-                font=typefaces.face(face(params))["path"], logo=logo, design=design,
+                font=typefaces.face(face(params, kind))["path"], logo=logo, design=design,
                 qr=bool(params.get("qr")), link=params.get("link", ""),
                 look=look, colours=colours, layout=layout, placeholder=placeholder,
                 role=params.get("role", ""), email=params.get("email", ""))
