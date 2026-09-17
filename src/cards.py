@@ -836,6 +836,31 @@ def boolean(op, meshes):
     return getattr(trimesh.boolean, op)(meshes, engine="manifold")
 
 
+# How far a hole is nudged to unpick a ring that touches itself.  A nanometre:
+# small enough that it is nothing -- on a stencil plate it moves the cut by
+# about a part in ten million of its area -- and large enough that the two
+# sides of the touch stop sharing a vertex.
+UNPINCH = 1e-6
+
+
+def unpinch(poly, eps=UNPINCH):
+    """The same shape with any hole that touches itself at a point unpicked.
+
+    A hole whose ring comes back to the same point -- the waist of a figure-8
+    counter, which the ornate faces are full of -- is a perfectly valid
+    polygon and extrudes to a broken mesh: the wall at the touch is one edge
+    with four faces on it rather than two, so the solid is not manifold and
+    the boolean engine downstream is entitled to refuse it.  Growing every
+    hole by a nanometre and re-cutting them separates the touch into two
+    edges.  Nothing else about the shape moves; the area changes in the
+    seventh significant figure.
+    """
+    if not poly.interiors:
+        return poly
+    holes = unary_union([Polygon(r).buffer(eps, join_style=2) for r in poly.interiors])
+    return Polygon(poly.exterior).difference(holes)
+
+
 def prisms(polys, z0, thickness):
     """One solid per polygon; the caller hands them all to a single boolean."""
     out = []
@@ -843,9 +868,18 @@ def prisms(polys, z0, thickness):
         # A micron of tolerance: enough to drop the doubled vertex a clip can
         # leave behind, which earcut turns into an open mesh; nothing else
         # here is drawn that finely.
-        mesh = trimesh.creation.extrude_polygon(poly.simplify(0.001), thickness)
-        if not mesh.is_watertight:
+        # The repair is only built if the plain extrusion comes out open, which
+        # on everything but the ornate faces it never does.
+        for attempt in (lambda: poly, lambda: unpinch(poly)):
+            shape = attempt()
+            solids = [shape] if shape.geom_type == "Polygon" else list(shape.geoms)
+            meshes = [trimesh.creation.extrude_polygon(g.simplify(0.001), thickness)
+                      for g in solids if g.area > 0]
+            if meshes and all(m.is_watertight for m in meshes):
+                break
+        else:
             raise ValueError(f"shape {i} did not extrude to a closed solid")
+        mesh = meshes[0] if len(meshes) == 1 else trimesh.util.concatenate(meshes)
         mesh.apply_translation((0.0, 0.0, z0))
         out.append(mesh)
     return out

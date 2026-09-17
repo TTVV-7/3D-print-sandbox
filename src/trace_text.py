@@ -13,6 +13,7 @@ import numpy as np
 from fontTools.pens.basePen import BasePen
 from fontTools.ttLib import TTFont
 from shapely.geometry import Polygon
+from shapely.ops import unary_union
 
 FLATTEN = 12  # segments per curve
 
@@ -67,16 +68,63 @@ def trace(text, font_path, tracking=0.0):
             rings.append([((px + x) / upem, py / upem) for px, py in c])
         x += glyphset[name].width + tracking * upem
 
-    # A ring contained by another is a counter, not a separate letter.
+    return assemble(rings)
+
+
+def assemble(rings):
+    """Closed contours turned into filled shapes, by how deeply they nest.
+
+    A ring inside another is a counter -- the hole in an O.  A ring inside
+    *that* is not: it is ink again, the way the inner tube of a neon O is ink
+    inside the hole inside the outer tube.  So the rule is the depth's parity
+    rather than "contained by something": rings at an even depth are filled,
+    rings at an odd depth are the holes cut out of the one they sit in.
+    Monoton draws an O as eight concentric rings and Bungee Shade draws one as
+    six; read as one ring with seven holes, which is what "contained" alone
+    gives you, either comes out as a single self-crossing polygon that will
+    not extrude.
+
+    The cleaning matters as much as the nesting.  A display face is full of
+    contours that touch or cross themselves, and a polygon built straight from
+    one of those is invalid -- shapely will union it happily and then fail
+    somewhere much later, inside a buffer or an extrude, with a message about
+    a side location conflict.  So each ring is squared up with buffer(0)
+    first, and the holes are taken out with a difference rather than handed to
+    the Polygon constructor, which keeps every shape out of here valid.
+    """
     polys = [Polygon(r).buffer(0) for r in rings]
+    live = [i for i, q in enumerate(polys) if not q.is_empty and q.area > 0]
+
+    def inside(i, j):
+        """Is ring i inside ring j?  By how much of i lies in j, not by
+        contains().
+
+        A counter and the letter round it often share an edge, and a strict
+        contains() says no to that, which leaves the hole in a Pacifico e
+        filled.  A single point says yes to too much instead: in a script the
+        letters overlap, and the c after a b has a point inside the b without
+        being its counter.  All but a whisker of i, and the answer is right
+        both times.  The cheap tests come first because this runs on every
+        pair of contours in the string.
+        """
+        a, b = polys[i], polys[j]
+        if b.area <= a.area:
+            return False
+        ax0, ay0, ax1, ay1 = a.bounds
+        bx0, by0, bx1, by1 = b.bounds
+        if ax0 < bx0 or ay0 < by0 or ax1 > bx1 or ay1 > by1:
+            return False
+        return a.intersection(b).area >= 0.99 * a.area
+
+    depth = {i: sum(1 for j in live if j != i and inside(i, j)) for i in live}
+
     shapes = []
-    for i, p in enumerate(polys):
-        holes = [rings[j] for j, q in enumerate(polys)
-                 if i != j and p.contains(q) and p.area > q.area]
-        if any(polys[j].contains(p) and polys[j].area > p.area
-               for j in range(len(polys)) if j != i):
+    for i in live:
+        if depth[i] % 2:
             continue                       # this ring is somebody's counter
-        shapes.append(Polygon(rings[i], holes))
+        kids = [polys[j] for j in live if depth[j] == depth[i] + 1 and inside(j, i)]
+        piece = polys[i].difference(unary_union(kids)) if kids else polys[i]
+        shapes.extend(g for g in getattr(piece, "geoms", [piece]) if g.area > 0)
     return shapes
 
 

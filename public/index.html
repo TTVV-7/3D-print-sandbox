@@ -504,30 +504,115 @@ const PATTERNS = {
   hexband: "Hex band — solid hexagons along the bottom",
   badge: "Badge — the disc and the hex band together",
 };
-/* The faces a name keyring can be set in, as src/typefaces.py has them: what
-   to call it, what it is, and the letter height under which the weld starts
-   shutting that face's counters.  A slab or a script wants a taller letter
-   than the sans does before its a is a hole rather than a dent, so picking one
-   moves the slider with it. */
+/* The faces a keyring or a stencil can be set in, as src/typefaces.py has them:
+   what to call it, the letter height under which the weld starts shutting that
+   face's counters, which group of the picker it belongs to, and what it is.  A
+   slab or a script wants a taller letter than the sans does before its a is a
+   hole rather than a dent, so picking one moves the slider with it -- and a
+   display face drawn as parallel lines wants the tallest letter there is and
+   still loses them, which is what a floor of 26 means. */
 const FACES = {
-  sans:      ["Sans \u2014 Liberation Sans Bold", 10,
-              "Plain and heavy. The one that fits any name and any length."],
-  geometric: ["Geometric \u2014 Poppins Bold", 12,
-              "Circular bowls and a single-storey a \u2014 the widest counters here, and the one " +
-              "that holds up smallest after the sans."],
-  rounded:   ["Rounded \u2014 Chewy", 16,
-              "Soft and bouncy, drawn with a fat marker. Latin-1 only, so no Polish or Turkish accents."],
-  script:    ["Script \u2014 Pacifico", 20,
-              "A brush script: the letters run into each other before the weld is asked to do " +
-              "anything, which is what a name keyring usually wants. Its lower case is small for " +
-              "its capitals, so it needs the most height of the six."],
-  slab:      ["Slab \u2014 Alfa Slab One", 18,
-              "Fat slab serifs, heavy enough that the weld is barely needed. Its counters are " +
-              "slots rather than holes, so it wants a tall letter to keep them open."],
-  condensed: ["Condensed \u2014 Bebas Neue", 16,
-              "Tall narrow capitals \u2014 lower case comes out as capitals too. The one for a long " +
+  sans: ["Sans — Liberation Sans Bold", 10, "Plain",
+         "Plain and heavy. The one that fits any name and any length."],
+  geometric: ["Geometric — Poppins Bold", 12, "Plain",
+              "Circular bowls and a single-storey a — the widest counters here, and the one that " +
+              "holds up smallest after the sans."],
+  rounded: ["Rounded — Chewy", 16, "Plain",
+            "Soft and bouncy, drawn with a fat marker. Latin-1 only, so no Polish or Turkish " +
+            "accents."],
+  script: ["Script — Pacifico", 20, "Plain",
+           "A brush script. The letters run into each other before the weld is asked to do " +
+           "anything, which is what a name keyring usually wants — but its lower case is small " +
+           "for its capitals, so it is the face that needs the most height."],
+  slab: ["Slab — Alfa Slab One", 18, "Plain",
+         "Fat slab serifs, heavy enough that the weld is barely needed. Its counters are " +
+         "slots rather than holes, so it wants a tall letter to keep them open."],
+  condensed: ["Condensed — Bebas Neue", 16, "Plain",
+              "Tall narrow capitals — lower case comes out as capitals too. The one for a long " +
               "name, at about two thirds the width."],
+  fraktur: ["Fraktur — UnifrakturMaguntia", 12, "Blackletter",
+            "Broken-stroke blackletter, the Mainz kind, with a hairline on every curve. Holds " +
+            "up better than it looks. Latin-1 only."],
+  schwabacher: ["Schwabacher — UnifrakturCook Bold", 17, "Blackletter",
+                "Heavier blackletter with a rounder bowl. The extra weight costs height: it wants " +
+                "17 mm before its counters come back. Latin-1 only."],
+  pirate: ["Pirate — Pirata One", 12, "Blackletter",
+           "A single-weight blackletter drawn tighter than the others — the gothic that sets " +
+           "smallest, and the one for a long name."],
+  rocker: ["Rocker — New Rocker", 13, "Blackletter",
+           "Blackletter with the corners knocked off, halfway to a band logo. Softer than the " +
+           "fraktur and about as small."],
+  medieval: ["Medieval — MedievalSharp", 10, "Blackletter",
+             "A sharp-nibbed medieval hand, and the surprise of the set: it measures as well as " +
+             "the plain sans, 10 mm with its counters still holes."],
+  quill: ["Quill — Eagle Lake", 12, "Ornate",
+          "Pointed-pen calligraphy with a swelling stroke and a long tail on half the " +
+          "letters."],
+  uncial: ["Uncial — Uncial Antiqua", 15, "Ornate",
+           "Round uncial capitals, the shape of an illuminated manuscript. Wide, so a long " +
+           "name runs on."],
+  almendra: ["Almendra — Almendra Display", 10, "Ornate",
+             "An ornate old-style with fine serifs and a swash on the capitals. Sets at 10 mm " +
+             "despite the detail. Latin-1 only."],
+  filigree: ["Filigree — Astloch", 11, "Ornate",
+             "Thin gothic filigree, hairlines throughout. Its counters hold open from 11 mm, but " +
+             "the strokes are so fine that the weld is most of what you actually print, and the " +
+             "letters run together long before they close up — one for a short name. Latin-1 " +
+             "only."],
+  tattoo: ["Tattoo — Miltonian Tattoo", 26, "Ornate",
+           "Fine ornamental tattoo lettering. It never comes back quite clean — a couple of " +
+           "counters close at every height the slider reaches, which is why it starts at the " +
+           "top — but a couple is all it loses. Latin-1 only."],
+  emblem: ["Emblem — Emblema One", 10, "Ornate",
+           "Heavy inline capitals. Fat enough that the weld is barely needed, and it still " +
+           "sets at 10 mm — the best of the complicated ones on a small keyring."],
+  nouveau: ["Nouveau — Federant", 10, "Ornate",
+            "Art-nouveau capitals with a flick on every terminal. Latin-1 only."],
+  western: ["Western — Rye", 26, "Western",
+            "Wood-type western: heavy slabs with an inline down each stroke. The inline is a " +
+            "counter, and the weld shuts it at every height here — by far the most of anything " +
+            "in the set — so what prints is the solid letter inside the outline rather than the " +
+            "inlined one. Latin-1 only."],
+  saloon: ["Saloon — Sancreek", 22, "Western",
+           "Spurred western display, all barbs and brackets. Wants 22 mm before it reads as " +
+           "letters rather than as fencing."],
+  caesar: ["Caesar — Caesar Dressing", 14, "Western",
+           "Roughly chiselled Roman capitals, as though cut with a blunt tool. 14 mm, the same " +
+           "as the sans's own default. Latin-1 only."],
+  stone: ["Stone — Piedra", 20, "Western",
+          "Letters drawn as cut stone with a crack through each one. The cracks are counters, " +
+          "so it wants 20 mm to keep them. Latin-1 only."],
+  drip: ["Drip — Nosifer", 12, "Horror",
+         "Heavy capitals with the paint running off the bottom. The drips are separate " +
+         "pieces and the weld catches them, which is exactly what the weld is for."],
+  bones: ["Bones — Butcherman", 26, "Horror",
+          "Scratched horror capitals drawn as loose strokes, so its counters are gaps rather " +
+          "than holes. It loses a dozen of them even at the top of the slider, and more than " +
+          "twice that at 10 mm."],
+  creep: ["Creep — Creepster", 22, "Horror",
+          "Lumpy horror lettering with a dripping crossbar. 22 mm and the bowls come back. " +
+          "Latin-1 only."],
+  metal: ["Metal — Metal Mania", 26, "Horror",
+          "Spiky metal-band lettering drawn as a great many small pieces, and the slowest of " +
+          "the set to build. Four counters shut whatever the height, which is what keeps its " +
+          "floor at the top. Latin-1 only."],
+  neon: ["Neon — Monoton", 26, "Dimensional",
+         "Four parallel lines to a stroke, like a neon tube. The tubes do survive at the top " +
+         "of the slider — wind the weld back to 0.35 and nothing closes at all — but under " +
+         "26 mm the weld fills between them and the letter goes solid."],
+  shadow: ["Shadow — Vast Shadow", 10, "Dimensional",
+           "A fat slab with a cast shadow behind it. The shadow is a second piece per letter, " +
+           "so the word comes out in more pieces than it has letters and the bridges do more " +
+           "work than usual — but the counters themselves are fine, and it sets at 10 mm. " +
+           "Latin-1 only."],
+  bevel: ["Bevel — Bungee Shade", 26, "Dimensional",
+          "Three-dimensional block capitals with an extruded side. The extrusion reads at the " +
+          "top of the slider, at the cost of about eight counters; below that it fills in and " +
+          "what is left is the plain block."],
 };
+/* Twenty-nine of them, so the picker is grouped the way FACES groups them:
+   the six plain faces first, then the display ones by what they are. */
+const FACE_GROUPS = ["Plain", "Blackletter", "Ornate", "Western", "Horror", "Dimensional"];
 const PRESETS = {
   printlab:  ["Print Lab — black, white lettering, cubes", "cubes", "centred", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
   student:   ["Student — dark card, name top left, address bottom right", "plain", "student", ["#1b2430", "#2a3644", "#f4f6f8", "#9fb0c0"]],
@@ -540,7 +625,12 @@ const PRESETS = {
   ember:     ["Ember — charcoal, orange, dots", "dots", "centred", ["#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0"]],
   plain:     ["Plain — grey body, gold lettering, no pattern", "plain", "centred", ["#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441"]],
 };
-for (const [k, v] of Object.entries(FACES)) $("font").add(new Option(v[0], k));
+for (const g of FACE_GROUPS) {
+  const grp = document.createElement("optgroup");
+  grp.label = g;
+  for (const [k, v] of Object.entries(FACES)) if (v[2] === g) grp.append(new Option(v[0], k));
+  $("font").append(grp);
+}
 for (const [k, v] of Object.entries(LAYOUTS)) $("layout").add(new Option(v, k));
 for (const [k, v] of Object.entries(PATTERNS)) $("look").add(new Option(v, k));
 for (const [k, v] of Object.entries(PRESETS)) $("preset").add(new Option(v[0], k));
@@ -1297,7 +1387,7 @@ $("rise").addEventListener("input", () => {
 function faceChosen(previous) {
   const face = FACES[$("font").value] || FACES.sans;
   const cap = $("cap"), floor = face[1], was = FACES[previous];
-  $("font_note").textContent = face[2];
+  $("font_note").textContent = face[3];
   if ((was && +cap.value === Math.max(14, was[1])) || +cap.value < floor)
     cap.value = Math.max(14, floor);
   cap.dispatchEvent(new Event("input"));

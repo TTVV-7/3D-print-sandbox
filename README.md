@@ -8,8 +8,8 @@ them re-run in seconds.
   wallet card, printed as two halves with an NFC tag glued between them, in up
   to four colours, in one of three layouts.  Comes with a browser front end.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
-  printable piece, with a tab for the ring, in one of six faces.  Same app,
-  third shape.
+  printable piece, with a tab for the ring, in one of twenty-nine faces.  Same
+  app, third shape.
 - **[Stencils](#stencils)** -- a plate with the word, or an SVG, cut clean
   through it to paint through, every island bridged so the middles stay in.
   Same app, fourth shape.
@@ -308,8 +308,9 @@ outlines as curves, flattened, not rasterised and re-traced.  A card is always
 set in the sans: whichever of Liberation Sans Bold, DejaVu Sans Bold or Arial
 Bold is on the machine, `--font` for any other.  A heavy sans is the right
 answer here, because every stroke has to survive as a 0.6 mm-deep inlay.  The
-[name keyrings](#the-six-faces), whose letters are ten times the size and are
-the object rather than a label on one, have six faces to choose from.
+[name keyrings](#the-twenty-nine-faces), whose letters are ten times the size
+and are the object rather than a label on one, have twenty-nine to choose
+from -- six plain and twenty-three display faces.
 
 ## The tag, and the arcs
 
@@ -453,9 +454,11 @@ of it, `CHAMFER` the edge break, `QR_QUIET` and `QR_MIN_MODULE` the code's
 margins, `NOZZLES` the sizes the readout will name, `MIN_STROKE` the
 printability threshold the warnings use.  `src/looks.py` holds the patterns and
 the presets -- a new pattern is a function returning shapely polygons and a line
-in `PATTERNS`.  `src/typefaces.py` holds the keyring faces: a new one is a TTF
-in `src/fonts`, its licence beside it, and a line in `FACES` saying what weld,
-what letter spacing and what smallest letter height it needs.  `src/nametag.py`
+in `PATTERNS`.  `src/typefaces.py` holds the faces: a new one is a TTF
+in `src/fonts`, its licence beside it, and a line in `FACES` saying which group
+it belongs to, what weld and letter spacing it wants, and what smallest letter
+height it needs -- `python3 src/measure_faces.py fonts/Yours.ttf` works that
+last one out for you.  `src/nametag.py`
 and `src/stencil.py` are the two shapes that are not cards, and both return
 what `cards.build()` returns, so the plate layout, the 3MF, the STL and the
 viewer take them unchanged.  The layouts are `LAYOUTS` in `src/cards.py`: a new one is a
@@ -551,18 +554,71 @@ Everything about it is one number in `src/nametag.py`: `CAP`, `THICK`, `RISE`,
 `WELD`, `GAP` for how tight the setting is, `BRIDGE` for the tie, `RING_D` and
 `RING_WALL` for the tab.
 
-## The six faces
+## The twenty-nine faces
 
-![the same name in all six](previews/keyring_faces.png)
+![the same name in all of them](previews/keyring_faces.png)
+
+Six plain faces to set a name in, and twenty-three display faces for when the
+name wants to be a thing rather than a label.
+
+### Plain
 
 | Face | Set in | Wants | What it is |
 |---|---|---|---|
-| Sans | Liberation Sans Bold | 10 mm | Plain and heavy.  Fits any name and any length. |
-| Geometric | Poppins Bold | 12 mm | Circular bowls and a single-storey a.  The widest counters here. |
-| Rounded | Chewy | 16 mm | Soft and bouncy, drawn with a fat marker.  Latin-1 only. |
-| Script | Pacifico | 20 mm | A brush script; the letters run into each other on their own. |
-| Slab | Alfa Slab One | 18 mm | Fat slab serifs, heavy enough that the weld is barely needed. |
-| Condensed | Bebas Neue | 16 mm | Tall narrow capitals, lower case included.  For a long name. |
+| Sans | Liberation Sans Bold | 10 mm | Plain and heavy. The one that fits any name and any length. |
+| Geometric | Poppins Bold | 12 mm | Circular bowls and a single-storey a — the widest counters here, and the one that holds up smallest after the sans. |
+| Rounded | Chewy | 16 mm | Soft and bouncy, drawn with a fat marker. Latin-1 only, so no Polish or Turkish accents. |
+| Script | Pacifico | 20 mm | A brush script. The letters run into each other before the weld is asked to do anything, which is what a name keyring usually wants — but its lower case is small for its capitals, so it is the face that needs the most height. |
+| Slab | Alfa Slab One | 18 mm | Fat slab serifs, heavy enough that the weld is barely needed. Its counters are slots rather than holes, so it wants a tall letter to keep them open. |
+| Condensed | Bebas Neue | 16 mm | Tall narrow capitals — lower case comes out as capitals too. The one for a long name, at about two thirds the width. |
+
+### Blackletter
+
+| Face | Set in | Wants | What it is |
+|---|---|---|---|
+| Fraktur | UnifrakturMaguntia | 12 mm | Broken-stroke blackletter, the Mainz kind, with a hairline on every curve. Holds up better than it looks. Latin-1 only. |
+| Schwabacher | UnifrakturCook Bold | 17 mm | Heavier blackletter with a rounder bowl. The extra weight costs height: it wants 17 mm before its counters come back. Latin-1 only. |
+| Pirate | Pirata One | 12 mm | A single-weight blackletter drawn tighter than the others — the gothic that sets smallest, and the one for a long name. |
+| Rocker | New Rocker | 13 mm | Blackletter with the corners knocked off, halfway to a band logo. Softer than the fraktur and about as small. |
+| Medieval | MedievalSharp | 10 mm | A sharp-nibbed medieval hand, and the surprise of the set: it measures as well as the plain sans, 10 mm with its counters still holes. |
+
+### Ornate
+
+| Face | Set in | Wants | What it is |
+|---|---|---|---|
+| Quill | Eagle Lake | 12 mm | Pointed-pen calligraphy with a swelling stroke and a long tail on half the letters. |
+| Uncial | Uncial Antiqua | 15 mm | Round uncial capitals, the shape of an illuminated manuscript. Wide, so a long name runs on. |
+| Almendra | Almendra Display | 10 mm | An ornate old-style with fine serifs and a swash on the capitals. Sets at 10 mm despite the detail. Latin-1 only. |
+| Filigree | Astloch | 11 mm | Thin gothic filigree, hairlines throughout. Its counters hold open from 11 mm, but the strokes are so fine that the weld is most of what you actually print, and the letters run together long before they close up — one for a short name. Latin-1 only. |
+| Tattoo | Miltonian Tattoo | 26 mm | Fine ornamental tattoo lettering. It never comes back quite clean — a couple of counters close at every height the slider reaches, which is why it starts at the top — but a couple is all it loses. Latin-1 only. |
+| Emblem | Emblema One | 10 mm | Heavy inline capitals. Fat enough that the weld is barely needed, and it still sets at 10 mm — the best of the complicated ones on a small keyring. |
+| Nouveau | Federant | 10 mm | Art-nouveau capitals with a flick on every terminal. Latin-1 only. |
+
+### Western
+
+| Face | Set in | Wants | What it is |
+|---|---|---|---|
+| Western | Rye | 26 mm | Wood-type western: heavy slabs with an inline down each stroke. The inline is a counter, and the weld shuts it at every height here — by far the most of anything in the set — so what prints is the solid letter inside the outline rather than the inlined one. Latin-1 only. |
+| Saloon | Sancreek | 22 mm | Spurred western display, all barbs and brackets. Wants 22 mm before it reads as letters rather than as fencing. |
+| Caesar | Caesar Dressing | 14 mm | Roughly chiselled Roman capitals, as though cut with a blunt tool. 14 mm, the same as the sans's own default. Latin-1 only. |
+| Stone | Piedra | 20 mm | Letters drawn as cut stone with a crack through each one. The cracks are counters, so it wants 20 mm to keep them. Latin-1 only. |
+
+### Horror
+
+| Face | Set in | Wants | What it is |
+|---|---|---|---|
+| Drip | Nosifer | 12 mm | Heavy capitals with the paint running off the bottom. The drips are separate pieces and the weld catches them, which is exactly what the weld is for. |
+| Bones | Butcherman | 26 mm | Scratched horror capitals drawn as loose strokes, so its counters are gaps rather than holes. It loses a dozen of them even at the top of the slider, and more than twice that at 10 mm. |
+| Creep | Creepster | 22 mm | Lumpy horror lettering with a dripping crossbar. 22 mm and the bowls come back. Latin-1 only. |
+| Metal | Metal Mania | 26 mm | Spiky metal-band lettering drawn as a great many small pieces, and the slowest of the set to build. Four counters shut whatever the height, which is what keeps its floor at the top. Latin-1 only. |
+
+### Dimensional
+
+| Face | Set in | Wants | What it is |
+|---|---|---|---|
+| Neon | Monoton | 26 mm | Four parallel lines to a stroke, like a neon tube. The tubes do survive at the top of the slider — wind the weld back to 0.35 and nothing closes at all — but under 26 mm the weld fills between them and the letter goes solid. |
+| Shadow | Vast Shadow | 10 mm | A fat slab with a cast shadow behind it. The shadow is a second piece per letter, so the word comes out in more pieces than it has letters and the bridges do more work than usual — but the counters themselves are fine, and it sets at 10 mm. Latin-1 only. |
+| Bevel | Bungee Shade | 26 mm | Three-dimensional block capitals with an extruded side. The extrusion reads at the top of the slider, at the cost of about eight counters; below that it fills in and what is left is the plain block. |
 
 The **wants** column is the thing to take seriously, and it is measured rather
 than opinion.  The weld that makes a word one piece shrinks every counter --
@@ -571,20 +627,53 @@ narrower than a nozzle is filled in, because that is what the slicer would do
 with it anyway.  A face whose counters are slots rather than holes therefore
 has them welded shut at a height where the sans is still perfectly readable:
 Alfa Slab One at 14 mm is a row of blobs, and Pacifico's lower case is small
-for its capitals, so it needs the most height of the six.  Each face carries
-its own floor, its own weld and its own letter spacing in `src/typefaces.py`,
-found by setting eight awkward names in every face at every height from 10 to
-26 mm and counting the counters that closed.
+for its capitals, so it needs the most height of the plain six.
+
+`src/measure_faces.py` is where that number comes from.  It sets eight awkward
+names -- Mia, Abbey, Freddie, Oscar, Noah, Sophie, Gigi, Benjamin -- in a face
+at every height from 10 to 26 mm and every weld from 0.5 down to 0.35, and
+counts the counters that closed; the floor is the shortest height where none
+of them did.  Run it over the six plain faces and it gives back the floors
+they were given by eye, which is the only reason to believe it about a face
+nobody has looked at:
+
+```
+python3 src/measure_faces.py                  # every bundled face
+python3 src/measure_faces.py -v slab          # with the whole grid
+python3 src/measure_faces.py src/fonts/Your.ttf   # one not in FACES yet
+```
+
+The other two numbers a face carries, its weld and its letter spacing, are not
+measured, and the code says so.  Both were put through the same sweep and
+neither moves anything countable -- across the six plain faces, taking the gap
+from -0.15 to +0.4 mm changes the counters that close not at all and the
+bridges by at most one.  What they change is how the word reads, which is a
+judgment.  They are banded from how heavy a face's stem is and how narrow its
+letters are, and then left to the eye.
+
+Six of the display faces -- Tattoo, Western, Bones, Metal, Neon and Bevel --
+have a floor of 26 mm, the top of the slider.  That is the sweep saying there
+is no letter height at which *every* counter stays open, and it is a true
+thing about a face drawn as four parallel lines or as a letter plus its own
+cast shadow.  How much it costs varies a lot and the table says which: Rye
+loses its inline on every letter, Miltonian Tattoo loses two counters in the
+whole sweep.  They are kept because the readout tells you what closed, and
+because the stencil cuts them straight through a plate where none of this
+applies -- a face too fine to weld into a solid word is often the best thing
+to cut.
 
 Picking a face moves the letter-height slider to that floor.  You can drag it
 back down -- nothing here refuses -- and the readout will tell you how many
 counters filled in when you do.
 
-The faces ship in `src/fonts` beside the code, so the same six are there on
-your machine and on Vercel, which has no system fonts at all.  Five are under
-the SIL Open Font Licence and Chewy under Apache 2.0; each licence sits next to
-its font.  `--font path/to/Your.ttf` from the command line takes any other TTF,
-with `CAP` and `WELD` as its defaults, since nothing has been measured for it.
+The faces ship in `src/fonts` beside the code, so the same twenty-nine are
+there on your machine and on Vercel, which has no system fonts at all.  Chewy
+is under the Apache Licence 2.0 and everything else under the SIL Open Font
+Licence: the five original ones each have their own licence file, and the
+twenty-three display faces share `LICENSE-Complicated.txt`, which carries the
+licence text once and all twenty-three copyright lines.  `--font
+path/to/Your.ttf` from the command line takes any other TTF, with `CAP` and
+`WELD` as its defaults, since nothing has been measured for it.
 
 ## Printing them
 
@@ -616,8 +705,8 @@ Two things the readout will tell you and you should believe:
 python3 src/gen_cards.py --kind name --name "Freddie"
 ```
 
-writes `stl/freddie_keyring.3mf` and `.stl`.  `--font script` (or `sans`,
-`geometric`, `rounded`, `slab`, `condensed`, or a path to a TTF of your own)
+writes `stl/freddie_keyring.3mf` and `.stl`.  `--font script` (or any of the
+[twenty-nine faces](#the-twenty-nine-faces), or a path to a TTF of your own)
 for the face, `--cap 20` for bigger letters, `--ring 0` for no tab, `--flat`
 for the single-colour version, `--rise` for how proud the letters sit,
 `--colours "#2fbf3f,,#ffffff"` for the two colours, and `--batch names.txt`
@@ -698,7 +787,7 @@ python3 src/gen_cards.py --kind stencil --name "SHOP"
 writes `stl/shop_stencil.3mf` and `.stl`.  `--size 160x50` for the plate,
 `--margin` for the frame round the cut, `--bridge 0` to leave the islands
 loose, `--thick` for the plate, `--font condensed` (or any of the
-[six faces](#the-six-faces), or a path to a TTF) for how it is set, and
+[twenty-nine faces](#the-twenty-nine-faces), or a path to a TTF) for how it is set, and
 `--design arrow.svg` to cut artwork instead of words.  `--batch words.txt`
 puts a set of them on one plate.
 

@@ -2,7 +2,7 @@
 
 A keyring is not a page.  The letters are the object, so a face has to hold up
 as plastic and not only as a shape, and the three things that decide whether
-it does are measured here rather than left to the caller:
+it does are settled here rather than left to the caller:
 
   **weld** -- how far each glyph grows before the union (nametag.weld_together).
   A fat face is most of the way to one piece already and wants little of it; a
@@ -23,20 +23,40 @@ it does are measured here rather than left to the caller:
   this height comes out as a row of blobs, which is why it is the height the
   keyring starts at rather than a note in the margin.
 
-None of the three is a guess.  They come from setting "Mia", "Abbey", "Freddie",
-"Oscar", "Noah", "Sophie", "Gigi" and "Benjamin" in each face at every weld
-from 0.5 down to 0.3 mm and every height from 10 to 26 mm, and counting the
-counters that closed: `min_cap` is the shortest letter at which none of them
-did, at a weld of 0.35 mm or more -- below that the outline the weld leaves
-round the letters is thinner than one extrusion line and stops printing as an
-outline at all.  A name is welcome to go under it; the readout says what it
-cost.
+`min_cap` is not a guess.  It comes from setting "Mia", "Abbey", "Freddie",
+"Oscar", "Noah", "Sophie", "Gigi" and "Benjamin" in each face at every height
+from 10 to 26 mm and every weld from 0.5 down to 0.35 mm, and counting the
+counters that closed: it is the shortest letter at which none of them did, at
+any of those welds -- under 0.35 mm the outline the weld leaves round the
+letters is thinner than one extrusion line and stops printing as an outline at
+all.  src/measure_faces.py is that sweep, and running it over the six plain
+faces returns the floors they were given by eye.  A name is welcome to go
+under the floor; the readout says what it cost.
+
+`weld` and `gap` are a different kind of number, and the honest thing is to
+say so.  Both were put through the same sweep and neither moves anything you
+can count: across all six plain faces, taking the gap from -0.15 to +0.4 mm
+changes the counters that close not at all and the bridges by at most one, and
+the weld behaves the same way.  What they change is how the word reads.  So
+they are banded from two things about a face that can be measured -- how heavy
+its stem is and how narrow its letters are -- and then left to the eye.
+
+There are twenty-nine faces: the six plain ones the keyring started with, and
+twenty-three display faces for when a name wants to be a thing rather than a
+label.  Six of the twenty-three have a `min_cap` of 26 mm, the top of the
+sweep, which is the sweep's way of saying that no letter height on the slider
+keeps that face's counters open -- a face drawn as four parallel lines has
+nothing the weld will leave alone.  They are kept anyway, because the stencil
+cuts them straight through a plate where the bridges do the holding, and
+because the readout tells the truth about what closed.
 
 Everything here ships in src/fonts next to the code, for the same reason the
 sans always did: a hosted function is guaranteed to carry its source and not
-necessarily anything else, and Vercel has no system fonts at all.  Each face's
-licence sits beside it -- five of the six are under the SIL Open Font Licence,
-Chewy is Apache 2.0.
+necessarily anything else, and Vercel has no system fonts at all.  Licences sit
+beside the fonts: Chewy is Apache 2.0, everything else is under the SIL Open
+Font Licence -- the five original ones each with their own file, the
+twenty-three display faces together in LICENSE-Complicated.txt, which carries
+the licence text once and every one of their copyright lines.
 """
 from pathlib import Path
 
@@ -58,6 +78,7 @@ SEARCH = [
 # key -> what the page shows, what it sets in, and what the keyring needs of it.
 FACES = {
     "sans": dict(
+        group="Plain",
         label="Sans",
         font="Liberation Sans Bold",
         note="Plain and heavy.  The one that fits any name and any length.",
@@ -65,6 +86,7 @@ FACES = {
         weld=0.5, gap=-0.15, min_cap=10.0,
         licence="SIL Open Font Licence 1.1, Steve Matteson / Ascender Corp."),
     "geometric": dict(
+        group="Plain",
         label="Geometric",
         font="Poppins Bold",
         note="Circular bowls and a single-storey a -- the widest counters "
@@ -74,6 +96,7 @@ FACES = {
         licence="SIL Open Font Licence 1.1, Indian Type Foundry, "
                 "Jonny Pinhorn, Ninad Kale"),
     "rounded": dict(
+        group="Plain",
         label="Rounded",
         font="Chewy",
         note="Soft and bouncy, drawn with a fat marker.  Latin-1 only, so no "
@@ -82,6 +105,7 @@ FACES = {
         weld=0.4, gap=-0.15, min_cap=16.0,
         licence="Apache Licence 2.0, Sideshow (Font Diner)"),
     "script": dict(
+        group="Plain",
         label="Script",
         font="Pacifico",
         note="A brush script.  The letters run into each other before the "
@@ -93,6 +117,7 @@ FACES = {
         licence="SIL Open Font Licence 1.1, Vernon Adams, Jacques Le Bailly, "
                 "Botjo Nikoltchev, Ani Petrova"),
     "slab": dict(
+        group="Plain",
         label="Slab",
         font="Alfa Slab One",
         note="Fat slab serifs, heavy enough that the weld is barely needed.  "
@@ -104,6 +129,7 @@ FACES = {
         weld=0.35, gap=0.25, min_cap=18.0,
         licence="SIL Open Font Licence 1.1, JM Sole"),
     "condensed": dict(
+        group="Plain",
         label="Condensed",
         font="Bebas Neue",
         note="Tall narrow capitals -- lower case comes out as capitals too.  "
@@ -112,6 +138,245 @@ FACES = {
         # all stems: without a gap the I in FREDDIE welds into the E beside it
         weld=0.4, gap=0.3, min_cap=16.0,
         licence="SIL Open Font Licence 1.1, Ryoichi Tsunekawa"),
+    # --------------------------------------------------- the complicated ones
+    # Twenty-three display faces, all SIL Open Font Licence, all measured the
+    # same way as the six above by src/measure_faces.py.  They are here for the
+    # stencil as much as for the keyring: a face too fine to weld into a solid
+    # word still cuts through a plate, where the bridges do the holding.
+    #
+    # Seven of them come back pinned at 26 mm -- the top of the sweep -- which
+    # means no letter height the slider offers keeps every counter open.  That
+    # is a true thing about a face drawn as four parallel lines or as a letter
+    # plus its own cast shadow, not a reason to leave it out: the readout says
+    # how many closed, and the stencil does not care at all.
+    "fraktur": dict(
+        group="Blackletter",
+        label="Fraktur",
+        font="UnifrakturMaguntia",
+        note="Broken-stroke blackletter, the Mainz kind, with a hairline on "
+             "every curve.  Holds up better than it looks.  Latin-1 only.",
+        file="UnifrakturMaguntia-Book.ttf",
+        weld=0.5, gap=-0.15, min_cap=12.0,
+        licence="SIL Open Font Licence 1.1, j. 'mach' wust"),
+    "schwabacher": dict(
+        group="Blackletter",
+        label="Schwabacher",
+        font="UnifrakturCook Bold",
+        note="Heavier blackletter with a rounder bowl.  The extra weight costs "
+             "height: it wants 17 mm before its counters come back.  Latin-1 only.",
+        file="UnifrakturCook-Bold.ttf",
+        weld=0.5, gap=-0.15, min_cap=17.0,
+        licence="SIL Open Font Licence 1.1, j. 'mach' wust"),
+    "pirate": dict(
+        group="Blackletter",
+        label="Pirate",
+        font="Pirata One",
+        note="A single-weight blackletter drawn tighter than the others -- the "
+             "gothic that sets smallest, and the one for a long name.",
+        file="PirataOne-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=12.0,
+        licence="SIL Open Font Licence 1.1, Rodrigo Fuenzalida, Nicolas Massi"),
+    "rocker": dict(
+        group="Blackletter",
+        label="Rocker",
+        font="New Rocker",
+        note="Blackletter with the corners knocked off, halfway to a band "
+             "logo.  Softer than the fraktur and about as small.",
+        file="NewRocker-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=13.0,
+        licence="SIL Open Font Licence 1.1, Pablo Impallari"),
+    "medieval": dict(
+        group="Blackletter",
+        label="Medieval",
+        font="MedievalSharp",
+        note="A sharp-nibbed medieval hand, and the surprise of the set: it "
+             "measures as well as the plain sans, 10 mm with its counters "
+             "still holes.",
+        file="MedievalSharp.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, wmk69"),
+    "quill": dict(
+        group="Ornate",
+        label="Quill",
+        font="Eagle Lake",
+        note="Pointed-pen calligraphy with a swelling stroke and a long tail "
+             "on half the letters.",
+        file="EagleLake-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=12.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "uncial": dict(
+        group="Ornate",
+        label="Uncial",
+        font="Uncial Antiqua",
+        note="Round uncial capitals, the shape of an illuminated manuscript.  "
+             "Wide, so a long name runs on.",
+        file="UncialAntiqua-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=15.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "almendra": dict(
+        group="Ornate",
+        label="Almendra",
+        font="Almendra Display",
+        note="An ornate old-style with fine serifs and a swash on the "
+             "capitals.  Sets at 10 mm despite the detail.  Latin-1 only.",
+        file="AlmendraDisplay-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Ana Sanfelippo"),
+    "filigree": dict(
+        group="Ornate",
+        label="Filigree",
+        font="Astloch",
+        note="Thin gothic filigree, hairlines throughout.  Its counters hold "
+             "open from 11 mm, but the strokes are so fine that the weld is "
+             "most of what you actually print, and the letters run together "
+             "long before they close up -- one for a short name.  "
+             "Latin-1 only.",
+        file="Astloch-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=11.0,
+        licence="SIL Open Font Licence 1.1, Daniel Rhatigan"),
+    "tattoo": dict(
+        group="Ornate",
+        label="Tattoo",
+        font="Miltonian Tattoo",
+        note="Fine ornamental tattoo lettering.  It never comes back quite "
+             "clean -- a couple of counters close at every height the slider "
+             "reaches, which is why it starts at the top -- but a couple is "
+             "all it loses.  Latin-1 only.",
+        file="MiltonianTattoo-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, Pablo Impallari, Igino Marini"),
+    "emblem": dict(
+        group="Ornate",
+        label="Emblem",
+        font="Emblema One",
+        note="Heavy inline capitals.  Fat enough that the weld is barely "
+             "needed, and it still sets at 10 mm -- the best of the "
+             "complicated ones on a small keyring.",
+        file="EmblemaOne-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Sorkin Type Co"),
+    "nouveau": dict(
+        group="Ornate",
+        label="Nouveau",
+        font="Federant",
+        note="Art-nouveau capitals with a flick on every terminal.  Latin-1 only.",
+        file="Federant-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Cyreal"),
+    "western": dict(
+        group="Western",
+        label="Western",
+        font="Rye",
+        note="Wood-type western: heavy slabs with an inline down each stroke.  "
+             "The inline is a counter, and the weld shuts it at every height "
+             "here -- by far the most of anything in the set -- so what prints "
+             "is the solid letter inside the outline rather than the inlined "
+             "one.  Latin-1 only.",
+        file="Rye-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, Sorkin Type Co"),
+    "saloon": dict(
+        group="Western",
+        label="Saloon",
+        font="Sancreek",
+        note="Spurred western display, all barbs and brackets.  Wants 22 mm "
+             "before it reads as letters rather than as fencing.",
+        file="Sancreek-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=22.0,
+        licence="SIL Open Font Licence 1.1, The Sancreek Project Authors"),
+    "caesar": dict(
+        group="Western",
+        label="Caesar",
+        font="Caesar Dressing",
+        note="Roughly chiselled Roman capitals, as though cut with a blunt "
+             "tool.  14 mm, the same as the sans's own default.  Latin-1 only.",
+        file="CaesarDressing-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=14.0,
+        licence="SIL Open Font Licence 1.1, Open Window"),
+    "stone": dict(
+        group="Western",
+        label="Stone",
+        font="Piedra",
+        note="Letters drawn as cut stone with a crack through each one.  The "
+             "cracks are counters, so it wants 20 mm to keep them.  Latin-1 only.",
+        file="Piedra-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=20.0,
+        licence="SIL Open Font Licence 1.1, Angel Koziupa (Sudtipos)"),
+    "drip": dict(
+        group="Horror",
+        label="Drip",
+        font="Nosifer",
+        note="Heavy capitals with the paint running off the bottom.  The drips "
+             "are separate pieces and the weld catches them, which is exactly "
+             "what the weld is for.",
+        file="Nosifer-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=12.0,
+        licence="SIL Open Font Licence 1.1, Typomondo"),
+    "bones": dict(
+        group="Horror",
+        label="Bones",
+        font="Butcherman",
+        note="Scratched horror capitals drawn as loose strokes, so its "
+             "counters are gaps rather than holes.  It loses a dozen of them "
+             "even at the top of the slider, and more than twice that at "
+             "10 mm.",
+        file="Butcherman-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, Typomondo"),
+    "creep": dict(
+        group="Horror",
+        label="Creep",
+        font="Creepster",
+        note="Lumpy horror lettering with a dripping crossbar.  22 mm and the "
+             "bowls come back.  Latin-1 only.",
+        file="Creepster-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=22.0,
+        licence="SIL Open Font Licence 1.1, Font Diner, Inc"),
+    "metal": dict(
+        group="Horror",
+        label="Metal",
+        font="Metal Mania",
+        note="Spiky metal-band lettering drawn as a great many small pieces, "
+             "and the slowest of the set to build.  Four counters shut "
+             "whatever the height, which is what keeps its floor at the top.  "
+             "Latin-1 only.",
+        file="MetalMania-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, Open Window"),
+    "neon": dict(
+        group="Dimensional",
+        label="Neon",
+        font="Monoton",
+        note="Four parallel lines to a stroke, like a neon tube.  The tubes do "
+             "survive at the top of the slider -- wind the weld back to 0.35 "
+             "and nothing closes at all -- but under 26 mm the weld fills "
+             "between them and the letter goes solid.",
+        file="Monoton-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, Vernon Adams"),
+    "shadow": dict(
+        group="Dimensional",
+        label="Shadow",
+        font="Vast Shadow",
+        note="A fat slab with a cast shadow behind it.  The shadow is a second "
+             "piece per letter, so the word comes out in more pieces than it "
+             "has letters and the bridges do more work than usual -- but the "
+             "counters themselves are fine, and it sets at 10 mm.  "
+             "Latin-1 only.",
+        file="VastShadow-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Sorkin Type Co"),
+    "bevel": dict(
+        group="Dimensional",
+        label="Bevel",
+        font="Bungee Shade",
+        note="Three-dimensional block capitals with an extruded side.  The "
+             "extrusion reads at the top of the slider, at the cost of about "
+             "eight counters; below that it fills in and what is left is the "
+             "plain block.",
+        file="BungeeShade-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Bungee Project Authors"),
 }
 
 DEFAULT = "sans"
