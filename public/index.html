@@ -68,6 +68,30 @@
   .hint.ok { color: var(--positive); }
   .hint.bad { color: var(--danger); }
 
+  /* Every description is folded behind its own ?.  There is a paragraph of
+     reasoning under nearly every control on this panel, and all of it at once
+     is a wall of grey: folded, the panel reads as the list of choices it is,
+     and the reasoning is one hover away.  The mark is from Uiverse.io by
+     mirza_3039 -- cyan on grey there, the page's own ink and rules here. */
+  .disclosure { display: flex; flex-direction: column; align-items: flex-start; }
+  .qmark {
+    display: grid; place-items: center; width: 24px; height: 24px; padding: 0; cursor: help;
+    border: 1px solid var(--border-default); border-radius: var(--radius-full);
+    background: var(--bg-secondary); color: var(--text-secondary);
+  }
+  .qmark svg { width: 7px; height: 11px; fill: currentColor; }
+  .qmark:hover, .disclosure[data-open] > .qmark {
+    background: var(--bg-tertiary); border-color: var(--border-secondary); color: var(--text-default);
+  }
+  .qmark:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  /* 0fr to 1fr, so the paragraph opens to its own height without anyone
+     measuring it or writing one down. */
+  .disclosure > div { display: grid; grid-template-rows: 0fr; width: 100%;
+                      transition: grid-template-rows .22s ease; }
+  .disclosure > div > .hint { overflow: hidden; opacity: 0; transition: opacity .18s ease; }
+  .disclosure[data-open] > div { grid-template-rows: 1fr; }
+  .disclosure[data-open] > div > .hint { opacity: 1; padding-top: var(--space-200); }
+
   /* file picker: styled as a neutral button */
   input[type=file] { font: inherit; font-size: 14px; color: var(--text-secondary); width: 100%; }
   input[type=file]::file-selector-button {
@@ -237,6 +261,7 @@
   @media (prefers-reduced-motion: reduce) {
     .loader, .loader > span > span, .longfazers span { animation: none; }
     .longfazers { display: none; }
+    .disclosure > div, .disclosure > div > .hint { transition: none; }
   }
   #buttons { position: absolute; right: var(--space-600); bottom: var(--space-600); display: flex; gap: var(--space-300);
              flex-wrap: wrap; justify-content: flex-end; }
@@ -1364,6 +1389,52 @@ for (const [id, unit] of [["plate_w", "mm"], ["plate_h", "mm"], ["margin", "mm"]
     $(`${id}_v`).textContent = (id === "bridge" && +$(id).value === 0)
       ? "none" : `${$(id).value} ${unit}`;
   });
+
+/* ------------------------------------------------------------ the marks --
+   Fold every description away behind a ?.  Run the cursor over the mark and
+   the paragraph opens; take it off and it closes again; click it to pin it
+   open, which is the only way in on a touch screen and the way back out of a
+   long one.  Done from here rather than written into the markup so that a new
+   <p class="hint"> needs nothing but itself, and so the prose is all still on
+   the page with the script off.  The mark takes the hint's data-for with it:
+   a description belonging to a shape we are not making has to go, and so does
+   the ? that opens it. */
+const QMARK = `<svg viewBox="0 0 320 512" aria-hidden="true"><path d="M80 160c0-35.3 28.7-64
+  64-64h32c35.3 0 64 28.7 64 64v3.6c0 21.8-11.1 42.1-29.4 53.8l-42.2 27.1c-25.2 16.2-40.4
+  44.1-40.4 74V320c0 17.7 14.3 32 32 32s32-14.3 32-32v-1.4c0-8.2 4.2-15.8 11-20.2l42.2-27.1c36.6-23.6
+  58.8-64.1 58.8-107.7V160c0-70.7-57.3-128-128-128H144C73.3 32 16 89.3 16 160c0 17.7 14.3 32
+  32 32s32-14.3 32-32zm80 320a40 40 0 1 0 0-80 40 40 0 1 0 0 80z"/></svg>`;
+document.querySelectorAll("p.hint").forEach((hint, i) => {
+  if (hint.id === "linkfit") return;   // a live byte count, not a description
+  hint.id = hint.id || `hint_${i}`;
+  const box = document.createElement("div"), fold = document.createElement("div"),
+        mark = document.createElement("button");
+  box.className = "disclosure";
+  mark.type = "button";
+  mark.className = "qmark";
+  mark.innerHTML = QMARK;
+  mark.setAttribute("aria-label", "What this does");
+  mark.setAttribute("aria-controls", hint.id);
+  mark.setAttribute("aria-expanded", "false");
+  if (hint.dataset.for) { box.dataset.for = hint.dataset.for; delete hint.dataset.for; }
+  hint.replaceWith(box);
+  box.append(mark, fold);
+  fold.append(hint);
+
+  const show = on => {
+    box.toggleAttribute("data-open", on);
+    mark.setAttribute("aria-expanded", String(on));
+  };
+  const pinned = () => box.hasAttribute("data-pinned");
+  mark.addEventListener("pointerenter", () => show(true));
+  mark.addEventListener("focus", () => show(true));
+  box.addEventListener("pointerleave", () => { if (!pinned()) show(false); });
+  box.addEventListener("focusout", () => { if (!pinned()) show(false); });
+  mark.addEventListener("click", () => {
+    box.toggleAttribute("data-pinned", !pinned());
+    show(pinned());
+  });
+});
 
 /* The shape is the first choice, and what is offered below follows from it:
    a fob has no room for a border, so that control is not there for one. */
