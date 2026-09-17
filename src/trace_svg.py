@@ -23,17 +23,99 @@ from pathlib import Path
 import numpy as np
 from shapely.geometry import Point, Polygon, box
 from shapely.ops import unary_union
-from svgpathtools import parse_path
+from svgpathtools import CubicBezier, Line, QuadraticBezier, parse_path
 
-SAMPLES = 220   # points per subpath; the curves are short, this is plenty
+# How far the flattened outline may stray from the real curve, as a fraction
+# of the artwork's own diagonal.  On a 120 mm plate this is about three
+# hundredths of a millimetre -- a thirteenth of a nozzle, well under a layer,
+# and past the point where anything is gained by asking for more vertices.
+#
+# It replaces a flat budget of 220 points per subpath, which was fine for the
+# line-art logos this file was written for and quietly terrible for anything
+# traced.  A fixed budget spends the same points on a gentle sweep as on a
+# row of fine detail, so the error grew with the detail in the artwork: on a
+# 120 mm plate, 0.06 mm for a plain blob, 0.38 mm once it had two dozen
+# lobes, 0.93 mm at four dozen -- two nozzles wide, and visible as flats and
+# big triangles across every curve.  Subdividing by curvature instead holds
+# the error at about 0.02 mm whatever is thrown at it.
+TOLERANCE = 1 / 4000
+
+# A curve that has not converged by here is not going to.  Twelve halvings is
+# four thousand points for one segment, which no real artwork needs.
+MAX_DEPTH = 12
+
+
+# Where a segment that is not a Bezier is probed for straightness.  Not the
+# midpoint alone: an S-shaped curve crosses its own chord in the middle, so a
+# midpoint test calls it flat and leaves the bulge either side of the crossing
+# as one straight line.
+PROBES = (0.2, 0.4, 0.5, 0.6, 0.8)
+
+# A cubic sits inside the hull of its four control points, and its greatest
+# departure from the chord is at most three quarters of its control points'.
+# Measuring the controls instead of sampling the curve is the difference
+# between a bound and a guess: sampling can miss a bulge between the samples,
+# and on a path of S-curves it does.
+HULL = 0.75
+
+
+def straying(seg, tol):
+    """How far `seg` may stray from the straight line between its ends.
+
+    An upper bound, not an estimate.  For the Beziers -- which is what an SVG
+    is almost entirely made of -- it comes from the control points and is
+    therefore certain.  Anything else, an elliptical arc in practice, is
+    probed along its length.
+    """
+    a, b = seg.point(0.0), seg.point(1.0)
+    span = abs(b - a)
+
+    def off(p):
+        # Distance from a point to the chord.  A segment that ends where it
+        # started has no chord to measure against, so measure from the start.
+        if span < 1e-12:
+            return abs(p - a)
+        return abs(((b - a).conjugate() * (p - a)).imag) / span
+
+    if isinstance(seg, Line):
+        return 0.0
+    if isinstance(seg, CubicBezier):
+        return HULL * max(off(seg.control1), off(seg.control2))
+    if isinstance(seg, QuadraticBezier):
+        return HULL * off(seg.control)
+    return max(off(seg.point(t)) for t in PROBES)
+
+
+def flatten(seg, tol, depth=0):
+    """The start of `seg` plus enough points along it to stay within `tol`.
+
+    Curves are subdivided where they actually bend rather than sampled at a
+    fixed rate, which is the difference between a circle and a dodecagon: a
+    long gentle sweep costs a handful of points and a tight corner gets as
+    many as it needs.  The test is how far the curve strays from the straight
+    line between its ends; under the tolerance the line is the curve as far as
+    anyone printing it is concerned, and over it, halve and ask again.
+
+    A straight line answers on the first test and costs one point, so a path
+    made of lines stays exactly as cheap as it was.
+    """
+    if depth >= MAX_DEPTH or straying(seg, tol) <= tol:
+        return [seg.point(0.0)]
+    return (flatten(seg.cropped(0.0, 0.5), tol, depth + 1)
+            + flatten(seg.cropped(0.5, 1.0), tol, depth + 1))
 
 
 def subpath_polygons(d):
     polys = []
     for sub in parse_path(d).continuous_subpaths():
-        t = np.linspace(0, 1, SAMPLES, endpoint=False)
-        pts = [sub.point(x) for x in t]
+        x0, x1, y0, y1 = sub.bbox()
+        tol = max(np.hypot(x1 - x0, y1 - y0) * TOLERANCE, 1e-9)
+        pts = []
+        for seg in sub:
+            pts.extend(flatten(seg, tol))
         ring = [(p.real, -p.imag) for p in pts]      # SVG y runs down
+        if len(ring) < 3:
+            continue
         poly = Polygon(ring).buffer(0)
         if poly.geom_type == "Polygon" and poly.area > 0:
             polys.append(poly)

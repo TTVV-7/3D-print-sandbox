@@ -999,7 +999,15 @@ Two tracers feed these:
   rule — which is just an XOR of them, so arbitrarily nested rings come out
   right (Ford's oval is four deep: rim, white ring, navy field, lettering). It
   emits a solid `pad` and the `cuts` knocked out of it, which is exactly what
-  `PADS` wants.
+  `PADS` wants. Curves are flattened by **subdividing where they bend** rather
+  than sampling at a fixed rate: each one is halved until the straight line
+  across it is within `TOLERANCE` — a four-thousandth of the artwork's own
+  diagonal, about 0.03 mm on a 120 mm plate — of the real curve, judged by the
+  Bézier's control points, which bound it rather than guessing at it. A path of
+  straight lines costs a point per corner and nothing more. This matters most
+  on imported artwork: a flat budget of points spends the same on a gentle
+  sweep as on a row of fine detail, and the error grows with the detail until
+  every curve prints as flats and triangles.
 - `src/trace_text.py` takes a string and a TTF and pulls glyph outlines straight
   out of the font with fontTools, flattening the curves rather than rasterising
   and re-tracing. `src/ford_wordmark.json` is "FORD" in Outfit Bold (SIL OFL),
