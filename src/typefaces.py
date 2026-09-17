@@ -41,22 +41,25 @@ the weld behaves the same way.  What they change is how the word reads.  So
 they are banded from two things about a face that can be measured -- how heavy
 its stem is and how narrow its letters are -- and then left to the eye.
 
-There are twenty-nine faces: the six plain ones the keyring started with, and
-twenty-three display faces for when a name wants to be a thing rather than a
-label.  Six of the twenty-three have a `min_cap` of 26 mm, the top of the
-sweep, which is the sweep's way of saying that no letter height on the slider
-keeps that face's counters open -- a face drawn as four parallel lines has
-nothing the weld will leave alone.  They are kept anyway, because the stencil
+There are forty-one faces: the six plain ones the keyring started with,
+twenty-three ornate ones, and twelve that are famous in their own right rather
+than imitations of famous ones.  Eight of the thirty-five have a `min_cap` of
+26 mm, the top of the sweep, which is the sweep's way of saying that no letter
+height on the slider keeps that face's counters open -- a face drawn as four
+parallel lines has nothing the weld will leave alone.  They are kept anyway, because the stencil
 cuts them straight through a plate where the bridges do the holding, and
 because the readout tells the truth about what closed.
 
 Everything here ships in src/fonts next to the code, for the same reason the
 sans always did: a hosted function is guaranteed to carry its source and not
 necessarily anything else, and Vercel has no system fonts at all.  Licences sit
-beside the fonts: Chewy is Apache 2.0, everything else is under the SIL Open
-Font Licence -- the five original ones each with their own file, the
-twenty-three display faces together in LICENSE-Complicated.txt, which carries
-the licence text once and every one of their copyright lines.
+beside the fonts: Chewy and Special Elite are Apache 2.0, everything else is
+under the SIL Open Font Licence -- the five original ones each with their own
+file, the twenty-three ornate ones together in LICENSE-Complicated.txt and the
+twelve famous ones in LICENSE-Famous.txt, each carrying the licence text once
+and every one of their copyright lines.  Orbitron, the one variable font here,
+ships exactly as published and is set to its heaviest weight in memory rather
+than on disk, so the Reserved Font Name on it stays honest.
 """
 from pathlib import Path
 
@@ -377,6 +380,135 @@ FACES = {
         file="BungeeShade-Regular.ttf",
         weld=0.5, gap=-0.15, min_cap=26.0,
         licence="SIL Open Font Licence 1.1, The Bungee Project Authors"),
+    # -------------------------------------------------------- the famous ones
+    # Twelve faces that are famous themselves rather than imitations of famous
+    # ones: the Roman capitals off every film poster, the Didone off every
+    # fashion masthead, the arcade cabinet, the terminal, the typewriter.  All
+    # free -- eleven under the SIL Open Font Licence and Special Elite under
+    # Apache 2.0 -- and none of them a lookalike of anybody's logo, which is
+    # the difference that matters when the thing being made is sold.
+    "inscribed": dict(
+        group="Ornate",
+        label="Inscribed",
+        font="Cinzel Decorative Black",
+        note="Roman inscriptional capitals, the ones cut into monuments and "
+             "printed on every other film poster.  Heavy enough at 15 mm.",
+        file="CinzelDecorative-Black.ttf",
+        weld=0.4, gap=-0.15, min_cap=15.0,
+        licence="SIL Open Font Licence 1.1, Natanael Gama"),
+    "copperplate": dict(
+        group="Ornate",
+        label="Copperplate",
+        font="Great Vibes",
+        note="A formal Spencerian script -- the hand every soft-drink logo is "
+             "descended from.  The hairlines between the thick strokes are "
+             "what the weld eats, so it never comes back entirely clean and "
+             "starts at the top of the slider.",
+        file="GreatVibes-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Great Vibes Project Authors"),
+    "heavy": dict(
+        group="Poster",
+        label="Heavy",
+        font="Anton",
+        note="The heaviest condensed grotesque here, and the one every poster "
+             "and headline is set in.  So heavy that its counters are slits: "
+             "it wants 23 mm, more than the slab does.",
+        file="Anton-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=23.0,
+        licence="SIL Open Font Licence 1.1, The Anton Project Authors"),
+    "didone": dict(
+        group="Poster",
+        label="Didone",
+        font="Abril Fatface",
+        note="Fat Didone with hairline serifs, the fashion-masthead letter.  "
+             "The hairlines thicken under the weld, which on a keyring is an "
+             "improvement.",
+        file="AbrilFatface-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=15.0,
+        licence="SIL Open Font Licence 1.1, TypeTogether"),
+    "bistro": dict(
+        group="Poster",
+        label="Bistro",
+        font="Lobster",
+        note="A bold condensed script off a thousand chalkboards and food "
+             "trucks.  Its letters already run into each other, so the weld "
+             "has little left to do.",
+        file="Lobster-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=18.0,
+        licence="SIL Open Font Licence 1.1, The Lobster Project Authors"),
+    "comic": dict(
+        group="Poster",
+        label="Comic",
+        font="Bangers",
+        note="Comic-book lettering, all caps and shouting.  The tight "
+             "counters want 21 mm before they read as holes.",
+        file="Bangers-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=21.0,
+        licence="SIL Open Font Licence 1.1, The Bangers Project Authors"),
+    "deco": dict(
+        group="Poster",
+        label="Deco",
+        font="Righteous",
+        note="Art-deco capitals with the geometry of a 1930s cinema front.  "
+             "Sets at 13 mm, which for a decorative face is small.",
+        file="Righteous-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=13.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "arcade": dict(
+        group="Machine",
+        label="Arcade",
+        font="Press Start 2P",
+        note="The eight-bit letter off an arcade cabinet, drawn as square "
+             "pixels.  Every corner is a right angle and every counter is a "
+             "square, which is why it holds up at 11 mm -- the best of the "
+             "display faces after Emblem.",
+        file="PressStart2P-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=11.0,
+        licence="SIL Open Font Licence 1.1, The Press Start 2P Project Authors"),
+    "scifi": dict(
+        group="Machine",
+        label="Sci-fi",
+        font="Orbitron Black",
+        note="Square geometric capitals, the lettering of every spaceship and "
+             "title sequence.  It ships as one variable file from Regular to "
+             "Black and is set at Black here, which is the weight that prints; "
+             "Latin-1 bar the slashed O.",
+        file="Orbitron-Variable.ttf",
+        weld=0.4, gap=-0.15, min_cap=12.0,
+        licence="SIL Open Font Licence 1.1, The Orbitron Project Authors"),
+    "terminal": dict(
+        group="Machine",
+        label="Terminal",
+        font="VT323",
+        note="The glowing letter off a DEC VT320 terminal, strokes and all.  "
+             "Thin for a keyring: it wants 24 mm, and the weld is most of "
+             "what you print at any height.",
+        file="VT323-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=24.0,
+        licence="SIL Open Font Licence 1.1, The VT323 Project Authors"),
+    "typewriter": dict(
+        group="Machine",
+        label="Typewriter",
+        font="Special Elite",
+        note="A typewriter face with the ink knocked about, the letter of "
+             "every case file and ransom note.  The battering is made of "
+             "notches finer than a nozzle, so some of them close at any "
+             "height -- what survives still reads as a typewriter.",
+        file="SpecialElite-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="Apache Licence 2.0, Astigmatic (AOETI)"),
+    "military": dict(
+        group="Machine",
+        label="Military",
+        font="Black Ops One",
+        note="Stencilled military capitals with the breaks already drawn in.  "
+             "That is this program's trick done in the letterform, and it is "
+             "why it sets at 10 mm and why it cuts as a stencil with barely a "
+             "bridge.",
+        file="BlackOpsOne-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, The Black Ops Project Authors"),
 }
 
 DEFAULT = "sans"

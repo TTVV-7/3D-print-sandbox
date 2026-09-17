@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 from fontTools.pens.basePen import BasePen
 from fontTools.ttLib import TTFont
+from fontTools.varLib import instancer
 from shapely.geometry import Polygon
 from shapely.ops import unary_union
 
@@ -45,6 +46,38 @@ class Flattener(BasePen):
         self._cur = []
 
 
+_HEAVY = {}
+
+
+def heaviest(font_path):
+    """The font at `font_path`, at its heaviest weight if it has a choice.
+
+    A variable font arrives set to its default instance, which is usually
+    Regular, and Regular is never what this program wants: every stroke here
+    is extruded plastic that has to survive a weld, a nozzle and a keyring, so
+    the heaviest weight the family offers is the right one every time.
+    Orbitron ships as a single file from 400 to 900 and defaults to 400.
+
+    The instancing happens here, in memory, and not on disk on purpose.  The
+    file in src/fonts stays the upstream one, byte for byte: several of these
+    faces carry a Reserved Font Name, and the licence lets a modified version
+    be passed on only under a different name.  Nothing is modified, so nothing
+    has to be renamed.
+
+    Cached, because a variable font would otherwise be instanced once per
+    character per height, and the sweep asks for a lot of both.
+    """
+    if font_path not in _HEAVY:
+        font = TTFont(font_path, recalcTimestamp=False)
+        if "fvar" in font:
+            heavy = {a.axisTag: a.maxValue for a in font["fvar"].axes
+                     if a.axisTag == "wght"}
+            if heavy:
+                font = instancer.instantiateVariableFont(font, heavy)
+        _HEAVY[font_path] = font
+    return _HEAVY[font_path]
+
+
 def trace(text, font_path, tracking=0.0):
     """Outlines for `text`, in em units, baseline on y=0 and starting at x=0.
 
@@ -52,7 +85,7 @@ def trace(text, font_path, tracking=0.0):
     lettering with it, which both reads better and widens the gaps between
     strokes, so more of them survive the nozzle.
     """
-    font = TTFont(font_path)
+    font = heaviest(font_path)
     glyphset = font.getGlyphSet()
     cmap = font.getBestCmap()
     upem = font["head"].unitsPerEm
@@ -69,6 +102,31 @@ def trace(text, font_path, tracking=0.0):
         x += glyphset[name].width + tracking * upem
 
     return assemble(rings)
+
+
+# Two points this close together in em units are one point: an em is a
+# thousand-odd units, so this is a millionth of a font unit apart.
+DOUBLED = 1e-9
+
+
+def undouble(ring, eps=DOUBLED):
+    """The ring with consecutive points that are really one point dropped.
+
+    A doubled vertex is valid right up until something moves it.  Orbitron
+    draws its A with two points a ten-thousandth of a millionth of an em
+    apart; the polygon is valid, and stays valid when it is scaled, and then
+    the translate that sets the letter on the baseline rounds the pair the
+    other way round and the ring crosses itself.  What comes out of that is a
+    shape that fails much later and somewhere else -- inside a buffer, in the
+    middle of a weld -- with a message about assigning a free hole to a shell.
+    Dropping the doubles here is the whole fix, and on a font that does not
+    have any it changes nothing.
+    """
+    out = [ring[0]]
+    for x, y in ring[1:]:
+        if abs(x - out[-1][0]) > eps or abs(y - out[-1][1]) > eps:
+            out.append((x, y))
+    return out
 
 
 def assemble(rings):
@@ -92,6 +150,8 @@ def assemble(rings):
     first, and the holes are taken out with a difference rather than handed to
     the Polygon constructor, which keeps every shape out of here valid.
     """
+    rings = [undouble(r) for r in rings]
+    rings = [r for r in rings if len(r) > 2]
     polys = [Polygon(r).buffer(0) for r in rings]
     live = [i for i, q in enumerate(polys) if not q.is_empty and q.area > 0]
 
