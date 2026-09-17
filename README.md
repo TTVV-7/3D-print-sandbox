@@ -457,8 +457,11 @@ the presets -- a new pattern is a function returning shapely polygons and a line
 in `PATTERNS`.  `src/typefaces.py` holds the faces: a new one is a TTF
 in `src/fonts`, its licence beside it, and a line in `FACES` saying which group
 it belongs to, what weld and letter spacing it wants, and what smallest letter
-height it needs -- `python3 src/measure_faces.py fonts/Yours.ttf` works that
-last one out for you.  `src/nametag.py`
+height it needs -- `python3 src/measure_faces.py src/fonts/Yours.ttf` works
+that last one out for you, and `python3 src/gen_specimens.py` re-cuts the
+picker's specimens so the new face's name is set in itself (that one wants
+`brotli` installed for the woff2 encoder -- a build-time dependency, kept out
+of requirements.txt because the hosted function never runs it).  `src/nametag.py`
 and `src/stencil.py` are the two shapes that are not cards, and both return
 what `cards.build()` returns, so the plate layout, the 3MF, the STL and the
 viewer take them unchanged.  The layouts are `LAYOUTS` in `src/cards.py`: a new one is a
@@ -661,6 +664,41 @@ whole sweep.  They are kept because the readout tells you what closed, and
 because the stencil cuts them straight through a plate where none of this
 applies -- a face too fine to weld into a solid word is often the best thing
 to cut.
+
+### The picker is the specimen sheet
+
+Every face's name in the picker is set in that face, so the list shows you what
+it is choosing between rather than describing it.  Twenty-nine typefaces all
+written in one typeface is a list of words; written in themselves it is a
+specimen sheet, and you pick Fraktur because the word is sitting there in
+blackletter.
+
+A face only ever has to spell its own name there, and that is all of it that
+ships: `src/gen_specimens.py` subsets each TTF to the couple of dozen
+characters in its own label, encodes it as woff2 and writes it into
+`public/index.html` as a data URI.  Twenty-nine faces come to about 85 KB that
+way against 3.4 MB for the files themselves, which is what makes this possible
+at all -- and because it is inline, the page is still one static file with
+nothing new to serve.  It does cost: the page goes from 25 KB gzipped to about
+120 KB, nearly all of it font data that is already compressed.
+
+```
+python3 src/gen_specimens.py          # rewrite the block after adding a face
+python3 src/gen_specimens.py --check  # fails if it is out of date
+```
+
+Two things keep the list a list.  `size-adjust` scales each face so its
+capitals match the interface font's, because Bebas Neue and Alfa Slab One at
+the same pixel size are nothing like the same size to look at; and the ascent
+and descent are overridden to the same values for all of them, so a face with
+tall accents cannot shove its neighbours down the page.  What it cannot fix is
+weight: Astloch and Almendra Display are hairlines, and they look like
+hairlines at 16 px.
+
+The open list is drawn by the platform on Safari and on both phones, and those
+ignore a `font-family` on an `<option>`.  So the shut control is set in the
+face it is showing as well -- that rule is honoured everywhere, and it is the
+half of the effect nobody misses out on.
 
 Picking a face moves the letter-height slider to that floor.  You can drag it
 back down -- nothing here refuses -- and the readout will tell you how many
