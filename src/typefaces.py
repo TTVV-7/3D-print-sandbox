@@ -363,11 +363,11 @@ FACES = {
         font="Vast Shadow",
         note="A fat slab with a cast shadow behind it.  The shadow is a second "
              "piece per letter, so the word comes out in more pieces than it "
-             "has letters and the bridges do more work than usual -- but the "
-             "counters themselves are fine, and it sets at 10 mm.  "
-             "Latin-1 only.",
+             "has letters and the bridges do more work than usual; the gap "
+             "between a letter and its own shadow is a counter like any other, "
+             "and it wants 15 mm to keep it.  Latin-1 only.",
         file="VastShadow-Regular.ttf",
-        weld=0.5, gap=-0.15, min_cap=10.0,
+        weld=0.5, gap=-0.15, min_cap=15.0,
         licence="SIL Open Font Licence 1.1, Sorkin Type Co"),
     "bevel": dict(
         group="Dimensional",

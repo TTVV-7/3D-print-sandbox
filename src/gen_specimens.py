@@ -111,6 +111,11 @@ def block():
         rules.append(f'  #font option[value="{key}"], #font[data-face="{key}"]'
                      f' {{ font-family: "sp-{key}", {UI_STACK}; }}')
     lines += rules
+    # The shelf headings are not faces and should not be set in one.  They sit
+    # inside the select, so without this they inherit whatever the shut control
+    # is showing and PLAIN comes out in blackletter.  One type selector less
+    # specific than the option rule above, so the options keep their own faces.
+    lines.append(f"  #font optgroup {{ font-family: {UI_STACK}; }}")
     lines.append(f"  /* {len(typefaces.FACES)} faces, {total // 1024} KB of woff2 */")
     lines.append(CLOSE)
     return "\n".join(lines)

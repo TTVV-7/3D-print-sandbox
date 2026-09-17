@@ -194,6 +194,15 @@ def weld_together(shapes, weld=WELD, bridge=BRIDGE):
     wanted, on the outside.
     """
     holes = unary_union([cards.Polygon(r) for s in shapes for r in s.interiors])
+    # A counter is only a counter where there is no ink in it.  Most faces draw
+    # a letter as one shape whose holes are empty, and for those this changes
+    # nothing -- but Monoton draws an O as four concentric tubes, and the
+    # outer tube's interior ring is not a counter at all: it is where the other
+    # three tubes live.  Cutting every interior ring back whole deletes them,
+    # and the O comes out as one fat ring with a hole in it.  Taking the ink
+    # out of the holes first leaves exactly the gaps between the tubes, which
+    # is what was wanted from the start.
+    holes = holes.difference(unary_union(shapes))
     merged = unary_union([s.buffer(weld, quad_segs=8, join_style=1) for s in shapes])
     if not holes.is_empty:
         # keep a little of the weld inside the counter, so the ring round it

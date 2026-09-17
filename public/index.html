@@ -368,6 +368,7 @@
   #font option[value="terminal"], #font[data-face="terminal"] { font-family: "sp-terminal", Inter, "Inter Variable", system-ui, sans-serif; }
   #font option[value="typewriter"], #font[data-face="typewriter"] { font-family: "sp-typewriter", Inter, "Inter Variable", system-ui, sans-serif; }
   #font option[value="military"], #font[data-face="military"] { font-family: "sp-military", Inter, "Inter Variable", system-ui, sans-serif; }
+  #font optgroup { font-family: Inter, "Inter Variable", system-ui, sans-serif; }
   /* 41 faces, 133 KB of woff2 */
   /* ---- end face specimens ---- */
 </style>
@@ -712,11 +713,11 @@ const FACES = {
          "Four parallel lines to a stroke, like a neon tube. The tubes do survive at the top " +
          "of the slider — wind the weld back to 0.35 and nothing closes at all — but under " +
          "26 mm the weld fills between them and the letter goes solid."],
-  shadow: ["Shadow — Vast Shadow", 10, "Dimensional",
+  shadow: ["Shadow — Vast Shadow", 15, "Dimensional",
            "A fat slab with a cast shadow behind it. The shadow is a second piece per letter, " +
            "so the word comes out in more pieces than it has letters and the bridges do more " +
-           "work than usual — but the counters themselves are fine, and it sets at 10 mm. " +
-           "Latin-1 only."],
+           "work than usual; the gap between a letter and its own shadow is a counter like any " +
+           "other, and it wants 15 mm to keep it. Latin-1 only."],
   bevel: ["Bevel — Bungee Shade", 26, "Dimensional",
           "Three-dimensional block capitals with an extruded side. The extrusion reads at the " +
           "top of the slider, at the cost of about eight counters; below that it fills in and " +
