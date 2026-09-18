@@ -4,3 +4,6 @@ __pycache__/
 # generated cards -- somebody's real name and phone number
 stl/*_card*
 stl/*_fob*
+
+# a virtualenv for running the generators locally
+.venv/

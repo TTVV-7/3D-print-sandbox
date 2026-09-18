@@ -1,9 +1,15 @@
-"""Realtor NFC business cards and keyring fobs, built from three fields.
+"""Realtor NFC keyring fobs, built from three fields.
 
 Two bodies, both flat and prismatic:
 
-  card - CR80 credit-card size, 85.6 x 54 mm, the one that lives in a wallet.
-  fob  - a smaller keyring tag with a split-ring hole, the open-house handout.
+  fob  - a keyring tag with a split-ring hole, the open-house handout, and the
+         one the app builds.
+  card - CR80 credit-card size, 85.6 x 54 mm, the one that lived in a wallet.
+         **Archived**: src/app.py refuses it and nothing in the browser offers
+         it, because the sign enclosure (src/signbox.py) took its place there.
+         Nothing is deleted -- `gen_cards.py --kind card` still writes one --
+         but the CR80 body and the border line are unmaintained, while
+         everything the two share is maintained as the fob's.
 
 The front carries the name, company and phone, the back a pocket for an NFC
 tag and the four-arc contactless mark telling whoever is holding it where to
@@ -92,6 +98,8 @@ NOZZLES = (0.6, 0.5, 0.4, 0.3, 0.25, 0.2)
 # sticker; measure yours, the sizes vary a lot between sellers.
 TAG = dict(w=35.0, h=22.0, thick=0.5, clearance=0.4, corner=1.5)
 
+# Archived -- see the module docstring.  Still built by
+# `gen_cards.py --kind card`, no longer offered by the app.
 CARD = dict(
     label="card",
     w=85.6, h=54.0, corner=3.18,    # CR80: the outline of a credit card
