@@ -49,7 +49,8 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "logo", "batch", "design", "look", "layout", "placeholder",
             "cap", "ring_d", "outline",
             "plate_w", "plate_h", "margin", "bridge", "thick",
-            "depth", "wall", "diffuse", "lid", "cable")
+            "depth", "wall", "diffuse", "lid", "cable",
+            "sign_shape", "sign_cap", "border")
 
 # The shapes the page can ask for.  The business card is not among them any
 # more: it is archived -- the code is still in src/cards.py and
@@ -219,6 +220,13 @@ def model(params):
                 if art and not art.lstrip().startswith("<"):
                     raise ValueError("the artwork has to be an SVG file")
                 box = dict(svg=art, font=face(params),
+                           # letters mode is the word's own outline and needs a
+                           # letter height; box mode is a rectangle and needs
+                           # its size.  Both sets are sent every time and the
+                           # builder uses the ones its outline calls for.
+                           shape=params.get("sign_shape") or signbox.SHAPE,
+                           cap=num("sign_cap", signbox.CAP),
+                           border=num("border", signbox.BORDER),
                            w=num("plate_w", signbox.W), h=num("plate_h", signbox.H),
                            depth=num("depth", signbox.DEPTH),
                            wall=num("wall", signbox.WALL),
@@ -236,7 +244,8 @@ def model(params):
                             "w": max(i["w"] for i in infos),
                             "h": max(i["h"] for i in infos),
                             "stroke": min(i["stroke"] for i in infos),
-                            "letters": sum(i["letters"] for i in infos),
+                            "shapes": sum(i["shapes"] for i in infos),
+                            "bridges": sum(i["bridges"] for i in infos),
                             "nozzle": (None if any(i["nozzle"] is None for i in infos)
                                        else min(i["nozzle"] for i in infos)),
                             "volume": round(sum(i["volume"] for i in infos), 2),

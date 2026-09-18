@@ -92,9 +92,17 @@ def report_sign(name, info):
     else:
         print(f"      words    {info['text']!r} in {info['typeface_name']}, "
               f"{info['cap']:.1f} mm caps, {info['art'][0]:.1f} x {info['art'][1]:.1f} mm")
+    if info["shape"] == "letters":
+        print(f"      outline  the word itself, {info['border']:.1f} mm round it -- a "
+              f"{info['band']:.1f} mm band of light"
+              + (f", {info['bridges']} bridge(s) to hold it together"
+                 if info["bridges"] else ""))
+    else:
+        print(f"      outline  a {info['w']:.0f} x {info['h']:.0f} mm rectangle, "
+              f"{info['margin']:.1f} mm margin")
     print(f"      face     {info['opaque']:.1f} mm opaque over {info['diffuse']:.1f} mm of "
-          f"diffuser, {info['margin']:.1f} mm margin")
-    print(f"      lit      {info['lit_area']:.0f}% of the face, narrowest stroke "
+          f"diffuser")
+    print(f"      lit      {info['lit_area']:.0f}% of the face, narrowest "
           f"{info['stroke']:.2f} mm"
           + (f", takes a {info['nozzle']:.2f} mm nozzle" if info["nozzle"]
              else " -- finer than any nozzle here"))
@@ -106,7 +114,10 @@ def report_sign(name, info):
     else:
         print("      lid      none, the back is open")
     if info["cable"]:
-        print(f"      cable    a {info['cable']:.1f} mm notch in the bottom wall")
+        print(f"      cable    a {info['cable']:.1f} mm hole through the lid, out of the back")
+    if info["pockets"] > 1:
+        print(f"      note     the inside is {info['pockets']} pockets with no light between "
+              f"them -- a wider border joins them up, or run strip into each")
     if info["dim"]:
         print(f"      note     under {signbox.MIN_CLEAR:.0f} mm of clear air -- the LEDs will "
               f"read as separate points through the letters")
@@ -182,8 +193,10 @@ def main():
                          "through its face.  card is the archived business card -- still "
                          "built here, not offered by the app")
     ap.add_argument("--cap", type=float, default=None,
-                    help=f"letter height for --kind name, mm (default {nametag.CAP:g}, "
-                         f"or the face's own minimum where that is taller)")
+                    help=f"letter height in mm: for --kind name (default {nametag.CAP:g}, "
+                         f"or the face's own minimum where that is taller), and for a "
+                         f"letters-outline sign, which is sized by its lettering "
+                         f"(default {signbox.CAP:g})")
     ap.add_argument("--ring", type=float, default=nametag.RING_D,
                     help=f"ring hole for --kind name, mm; 0 drops the tab "
                          f"(default {nametag.RING_D:g})")
@@ -195,6 +208,15 @@ def main():
     ap.add_argument("--margin", type=float, default=None,
                     help=f"plate left round the cut or the lettering, mm (default "
                          f"{stencil.MARGIN:g} on a stencil, {signbox.MARGIN:g} on a sign)")
+    ap.add_argument("--shape", default=signbox.SHAPE, choices=list(signbox.SHAPES),
+                    help="a sign's outline: letters, where the case is the word grown "
+                         "outward by --border and the glow runs round the lettering, or "
+                         f"box, a plain rectangle with the letters lit through it "
+                         f"(default {signbox.SHAPE})")
+    ap.add_argument("--border", type=float, default=signbox.BORDER,
+                    help=f"how far a letters-outline sign stands off its lettering, mm; "
+                         f"less the wall, that is the band of light (default "
+                         f"{signbox.BORDER:g})")
     ap.add_argument("--depth", type=float, default=signbox.DEPTH,
                     help=f"how deep a sign box is, front face to back, mm "
                          f"(default {signbox.DEPTH:g})")
@@ -205,8 +227,9 @@ def main():
                          f"(default {signbox.DIFFUSE:g}); it is what spreads the light "
                          f"and what holds the middle of an O on")
     ap.add_argument("--cable", type=float, default=signbox.CABLE,
-                    help=f"notch in the bottom wall of a sign for the lead, mm; 0 closes "
-                         f"the wall (default {signbox.CABLE:g})")
+                    help=f"hole through a sign's lid for the lead, mm across; it goes as "
+                         f"low on the back as it fits, and 0 closes the lid (default "
+                         f"{signbox.CABLE:g})")
     ap.add_argument("--no-lid", dest="lid", action="store_false",
                     help="leave a sign's back open instead of fitting a lid")
     ap.add_argument("--clearance", type=float, default=signbox.CLEARANCE,
@@ -244,7 +267,10 @@ def main():
                     help="hex colours written into the 3MF; fewer than four and the "
                          "rest come from the look")
     ap.add_argument("--format", default="both", choices=["3mf", "stl", "both"])
-    ap.add_argument("--border", action="store_true", help="a border line round a card")
+    ap.add_argument("--card-border", dest="card_border", action="store_true",
+                    help="a border line round the archived card.  It was --border until "
+                         "the sign enclosure, which is not archived, wanted that name for "
+                         "the glow round its lettering")
     ap.add_argument("--chamfer", type=float, default=cards.CHAMFER,
                     help=f"45-degree break on the outer edges, mm (default {cards.CHAMFER:g})")
     ap.add_argument("--logo", default=None, metavar="FILE.svg",
@@ -313,9 +339,11 @@ def main():
             except ValueError:
                 ap.error(f"--size wants WxH in mm, e.g. 140x60 -- got {args.size!r}")
         art = Path(args.design).read_text() if args.design else None
-        common = dict(svg=art, font=args.font, w=w, h=h, depth=args.depth,
-                      wall=args.wall, diffuse=args.diffuse, cable=args.cable,
-                      lid=args.lid, clearance=args.clearance, colours=colours,
+        common = dict(svg=art, font=args.font, shape=args.shape,
+                      cap=args.cap or signbox.CAP, border=args.border,
+                      w=w, h=h, depth=args.depth, wall=args.wall,
+                      diffuse=args.diffuse, cable=args.cable, lid=args.lid,
+                      clearance=args.clearance, colours=colours,
                       margin=signbox.MARGIN if args.margin is None else args.margin)
         if args.batch:
             rows = cards.parse_batch(Path(args.batch).read_text())
@@ -360,7 +388,7 @@ def main():
             built = [m for _, m in cards.assembly(parts)]
             # the lit face, which is the one that is laid face down to print
             mesh, cols = render.coloured(parts, colours, [flip @ m for m in built])
-            render.render(mesh, shots / f"{stem}_front.png", elev=22, azim=-90, zoom=1.06,
+            render.render(mesh, shots / f"{stem}_front.png", elev=58, azim=-90, zoom=1.06,
                           bg=bg, colours=cols)
             if len(parts) > 1:      # the lid off, and both parts as they print
                 lift = trimesh.transformations.translation_matrix((0, 0, info["depth"] * 1.7))
@@ -463,7 +491,7 @@ def main():
     out.mkdir(parents=True, exist_ok=True)
     kinds = ["card", "fob"] if args.kind == "both" else [args.kind]
     common = dict(font=args.font, tag=tag, tap_text=args.tap, tag_mode=args.tag_mode,
-                  border=args.border, rise=rise, chamfer=args.chamfer,
+                  border=args.card_border, rise=rise, chamfer=args.chamfer,
                   logo=args.logo, logo_h=args.logo_height, qr=args.qr,
                   design=args.design, look=look, colours=colours, layout=layout,
                   placeholder=args.placeholder)
