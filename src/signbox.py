@@ -31,6 +31,7 @@ the STL and the app's viewer all take them unchanged.
 import numpy as np
 import trimesh
 from shapely import affinity
+from shapely.geometry import Point
 from shapely.geometry import box as box_2d
 from shapely.ops import unary_union
 
@@ -91,6 +92,45 @@ CABLE = 6.0
 # this and you can count the LEDs through the letters.
 MIN_CLEAR = 12.0
 
+# Wall mounts.  The back of this box is a lid that drops into a rebate and is
+# held there by friction, so a screw or a strip of tape on the lid is holding
+# the lid and not the sign: the case pulls off it and leaves the back on the
+# wall.  Every mount here is therefore part of the *case*.  A post rises from
+# the inside of the front face, passes through a hole in the lid and finishes
+# flush with the back, so the load goes into the case and the lid still lifts
+# off to get at the strip.
+#
+# The posts live in the dead ring between the wall and the margin the artwork
+# is fitted inside, which is `margin - wall` wide -- 8 mm of it by default.
+# Nothing is lost to them: the front face is opaque everywhere except where
+# the letters are cut out, so a post behind it cannot be seen at all, and one
+# that stays out of the artwork's rectangle casts no shadow on a letter
+# either.  A margin too tight to hold the post is refused rather than squeezed.
+MOUNTS = ("none", "tape", "screw")
+
+# Slot cut round each post in the lid.  The same clearance the lid itself gets,
+# for the same reason: a printed hole comes out tight.
+MOUNT_CLEAR = 0.3
+
+# Tape pads.  Two of them, along the top and the bottom, which is the way a
+# strip of tape wants to run on a sign wider than it is tall.  The inset is
+# plastic left between the pad and the wall so the pad is not the wall.
+TAPE_INSET = 1.0
+TAPE_LONG = 0.6                 # of the width, per pad
+
+# Screw posts.  A tube through the box with a counterbore opening on the front
+# face, so the screw goes in from the front, its head finishes below the
+# surface and its shank leaves through the back into the wall.  That puts two
+# screw heads on the face -- at the very ends, in the plain border, well
+# outside the lettering -- and it is the price of a mount that holds the case
+# rather than the lid.  What it buys is a sign that goes up and comes down
+# with the lid on and the strip undisturbed.  Sized for an M3 woodscrew, which
+# is more than a box this light needs.
+SCREW_HOLE = 3.4                # clearance for the shank
+SCREW_HEAD = 6.6                # the counterbore
+SCREW_SEAT = 3.0                # how far down it goes
+SCREW_BOSS = 7.0                # outside of the tube
+
 # A letter narrower than this comes out as a smear of translucent filament
 # rather than a lit stroke, which is the same number a card's lettering wants
 # and for a related reason.
@@ -119,10 +159,55 @@ def shell(w, h, radius, outer, inner, depth, front, chamfer):
                          [body, *cards.prisms([inner], front, depth - front + 1.0)])
 
 
+def mount_posts(kind, w, h, wall, margin, radius, inner, room):
+    """Where the mounts go, as (case footprints, lid footprints, description).
+
+    The footprints are 2D: the caller extrudes them.  Both mounts are the same
+    idea -- a post of the case standing in the dead ring, through the lid --
+    and differ only in what the back end of it is for.
+
+    Each one is run a little way *into* the wall rather than left standing a
+    hair off it.  A post half a millimetre clear of the wall leaves a slot too
+    narrow to print, which comes out as a smeared-together join anyway; run
+    through, it merges into the wall on purpose and the wall carries the load
+    with it.
+    """
+    if kind == "none":
+        return [], [], None
+    ring = margin - wall                       # the dead ring the post lives in
+    x0, y0, x1, y1 = inner.bounds
+    rx0, ry0, rx1, ry1 = room.bounds
+    BITE = 0.5                                 # how far the post runs into the wall
+
+    if kind == "tape":
+        deep = ring - TAPE_INSET
+        if deep < 3.0:
+            raise ValueError(
+                f"a {margin:g} mm margin leaves {ring:g} mm between the wall and the "
+                f"artwork, and a tape pad needs {3.0 + TAPE_INSET:g} -- widen the "
+                f"margin, or mount it with screws")
+        long = TAPE_LONG * w
+        pads = [box_2d(-long / 2.0, y1 - deep, long / 2.0, y1 + BITE),
+                box_2d(-long / 2.0, y0 - BITE, long / 2.0, y0 + deep)]
+        what = f"two {long:g} x {deep:g} mm pads, top and bottom"
+        return pads, pads, what
+
+    # screw: a tube at each end, on the centre line, tucked into the wall
+    if ring < SCREW_BOSS:
+        raise ValueError(
+            f"a {margin:g} mm margin leaves {ring:g} mm between the wall and the "
+            f"artwork, and a screw post needs {SCREW_BOSS:g} -- widen the margin, "
+            f"or mount it with tape")
+    cx = x1 + BITE - SCREW_BOSS / 2.0
+    posts = [Point(x, 0.0).buffer(SCREW_BOSS / 2.0, 64) for x in (cx, -cx)]
+    what = f"two M3 posts {2 * cx:g} mm apart"
+    return posts, posts, what
+
+
 def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
           diffuse=DIFFUSE, opaque=OPAQUE, margin=MARGIN, radius=RADIUS,
           chamfer=CHAMFER, lid=True, lid_thick=LID, clearance=CLEARANCE,
-          cable=CABLE, colours=cards.COLOURS, label=""):
+          cable=CABLE, mount="none", colours=cards.COLOURS, label=""):
     """One sign enclosure, as printable parts plus the numbers worth knowing.
 
     Returns ([case, lid], info) in cards.build()'s shape -- or ([case], info)
@@ -145,6 +230,10 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
     radius = max(0.0, min(float(radius), w / 2.0, h / 2.0))
     margin = max(float(margin), wall + EDGE)
     cable = max(0.0, float(cable))
+    mount = (mount or "none").strip().lower()
+    if mount not in MOUNTS:
+        raise ValueError(f"no such mount: {mount!r} -- it is one of "
+                         + ", ".join(MOUNTS))
     colours = tuple(colours or cards.COLOURS)
 
     if depth <= front + lid_thick + 2.0:
@@ -161,6 +250,9 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
         raise ValueError(f"a {wall:g} mm wall leaves nothing inside a "
                          f"{w:g} x {h:g} mm box")
     room = outer.buffer(-margin)
+
+    post_case, post_lid, mount_what = mount_posts(
+        mount, w, h, wall, margin, radius, inner, room)
 
     face = typefaces.face(font)
     if svg:
@@ -186,7 +278,15 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
     rebate = inner.buffer(wall / 2.0)
     cuts = []
     if lid:
-        cuts += cards.prisms([rebate], depth - lid_thick, lid_thick + 1.0)
+        # The rebate is taken out of the whole cavity, which would take the
+        # back off every post with it and leave a tape pad 2 mm shy of the
+        # surface it is supposed to be stuck to.  The posts stand through it.
+        step = rebate
+        if post_case:
+            step = rebate.difference(unary_union(post_case))
+        cuts += cards.prisms(
+            list(step.geoms) if step.geom_type == "MultiPolygon" else [step],
+            depth - lid_thick, lid_thick + 1.0)
     if cable > 0:
         if cable > inner.bounds[2] - inner.bounds[0]:
             raise ValueError(f"a {cable:g} mm cable notch is wider than the wall it "
@@ -201,12 +301,35 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
     # below, each overlapping the body by a hundredth of a millimetre so the
     # welded STL has something to bite on.
     cuts += cards.prisms(letters, -1.0, 1.0 + front)
-    cuts += cards.prisms([inner], front - diffuse, diffuse)
-    case = cards.boolean("difference",
-                         [shell(w, h, radius, outer, inner, depth, front, chamfer), *cuts])
+    # The diffuser covers the whole cavity except where a post comes through
+    # it: a post standing on the sheet would be holding the sign up by 0.8 mm
+    # of translucent filament, so the sheet gives way and the post grows out of
+    # the opaque layer instead.
+    lit_poly = inner
+    if post_case:
+        lit_poly = inner.difference(unary_union(post_case).buffer(MOUNT_CLEAR))
+    cuts += cards.prisms([lit_poly], front - diffuse, diffuse)
+
+    body = shell(w, h, radius, outer, inner, depth, front, chamfer)
+    if post_case:
+        # Unioned before the cuts, so the cable notch goes through a pad in its
+        # way rather than the cable having to.
+        body = cards.boolean("union", [body, *cards.prisms(
+            post_case, front - diffuse, depth - front + diffuse)])
+        if mount == "screw":
+            bores = [p.centroid.buffer(SCREW_HOLE / 2.0, 64) for p in post_case]
+            seats = [p.centroid.buffer(SCREW_HEAD / 2.0, 64) for p in post_case]
+            # The counterbore has to break the face, not stop above it: a
+            # seat that starts behind the opaque layer is a pocket with no way
+            # in, and the head fits through neither end of it.  Opened on the
+            # face, the screw goes in from the front with the lid on, and the
+            # head finishes below the surface.
+            cuts += cards.prisms(bores, -1.0, depth + 2.0)
+            cuts += cards.prisms(seats, -0.01, SCREW_SEAT + 0.01)
+    case = cards.boolean("difference", [body, *cuts])
 
     lit = trimesh.util.concatenate(cards.prisms(letters, 0.0, front))
-    sheet = cards.prisms([inner], front - diffuse - 0.01, diffuse + 0.01)[0]
+    sheet = cards.prisms([lit_poly], front - diffuse - 0.01, diffuse + 0.01)[0]
     parts = [dict(name="case", groups=[
         dict(slot="body", element="body", face="body", mesh=case),
         dict(slot="primary", element="name", face="front", mesh=lit),
@@ -217,7 +340,11 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
         # Not notched for the cable: the notch is cut a cable's width deeper
         # than the lid, so the cable passes under a lid that stays whole --
         # which is what holds the cable in and keeps the light off the wall.
-        plate = cards.prisms([rebate.buffer(-clearance)], 0.0, lid_thick)[0]
+        face_poly = rebate.buffer(-clearance)
+        if post_lid:
+            face_poly = face_poly.difference(
+                unary_union(post_lid).buffer(MOUNT_CLEAR))
+        plate = cards.prisms([face_poly], 0.0, lid_thick)[0]
         # Printed inside face down, which is the side the strip is stuck to:
         # the plate side of a print is the flat one, and a strip's adhesive
         # wants a flat one.  No turn, so the move back into the box is a lift.
@@ -247,6 +374,7 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
         lid=bool(lid), lid_thick=round(lid_thick, 2) if lid else None,
         clearance=round(clearance, 2) if lid else None,
         cable=round(cable, 2) if cable else None,
+        mount=mount, mount_what=mount_what, mounts=len(post_case),
         margin=round(margin, 2), radius=round(radius, 2),
         face=cards.FACE, chamfer=round(chamfer, 2),
         cap=round(cap, 2), art=[round(float(x1 - x0), 2), round(float(y1 - y0), 2)],

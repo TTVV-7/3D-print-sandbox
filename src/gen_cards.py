@@ -107,6 +107,9 @@ def report_sign(name, info):
         print("      lid      none, the back is open")
     if info["cable"]:
         print(f"      cable    a {info['cable']:.1f} mm notch in the bottom wall")
+    if info.get("mount_what"):
+        print(f"      mount    {info['mount_what']}, part of the case rather than "
+              f"the lid")
     if info["dim"]:
         print(f"      note     under {signbox.MIN_CLEAR:.0f} mm of clear air -- the LEDs will "
               f"read as separate points through the letters")
@@ -209,6 +212,10 @@ def main():
                          f"the wall (default {signbox.CABLE:g})")
     ap.add_argument("--no-lid", dest="lid", action="store_false",
                     help="leave a sign's back open instead of fitting a lid")
+    ap.add_argument("--mount", default="none", choices=signbox.MOUNTS,
+                    help="wall mount for a sign: tape pads or screw posts, both "
+                         "part of the case rather than of the friction-fit lid "
+                         "(default none)")
     ap.add_argument("--clearance", type=float, default=signbox.CLEARANCE,
                     help=f"gap all round a sign's lid in its rebate, mm -- it is a "
                          f"friction fit, so this is how tight (default "
@@ -315,6 +322,7 @@ def main():
         art = Path(args.design).read_text() if args.design else None
         common = dict(svg=art, font=args.font, w=w, h=h, depth=args.depth,
                       wall=args.wall, diffuse=args.diffuse, cable=args.cable,
+                      mount=args.mount,
                       lid=args.lid, clearance=args.clearance, colours=colours,
                       margin=signbox.MARGIN if args.margin is None else args.margin)
         if args.batch:

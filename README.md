@@ -893,6 +893,7 @@ whose counters fall out on the bed.
 | Lid | a 2 mm plate that drops into a rebate in the back and stops flush on the ledge it leaves, 0.2 mm clearance all round |
 | Cable notch | 6 mm square in the back edge of the bottom wall |
 | Corners | Ø5 mm, with a 0.8 mm chamfer on the front outer edge -- the edge you see |
+| Wall mount | none by default; two tape pads or two screw posts, both part of the case |
 
 The lid is a **friction fit**, not a snap: a printed snap at this size is a
 thing that breaks off in your hand the second time you open it, and a lid you
@@ -915,6 +916,48 @@ Two numbers the readout gives you and you should believe:
 
 An SVG goes in instead of the words and is lit exactly the way they are -- a
 logo, a house number, an arrow.  Flat fills only, as everywhere else here.
+
+## Getting it on the wall
+
+![the two mounts](previews/sign_mounts.png)
+
+The back of this box is a lid held in by friction, which makes the obvious
+place to put a mount the wrong one.  Stick foam tape to the lid and the tape is
+holding the *lid*: the case pulls off it and leaves the back stuck to the wall
+with the strip still on it.  A screw through the lid is the same story with
+more steps.
+
+So neither mount here touches the lid.  Both are a post that rises off the
+inside of the front face, comes up through a hole in the lid, and finishes
+flush with the back -- the load goes into the case, and the lid still lifts off
+to get at the strip.  The post runs a half millimetre *into* the wall on
+purpose rather than standing a hair clear of it: a gap that narrow is too fine
+to print and comes out as a smeared join anyway, so it is merged and the wall
+carries the load with it.
+
+Nothing is lost to them.  The front face is opaque everywhere except where the
+letters are cut out, so a post behind it cannot be seen; and both mounts live
+in the dead ring between the wall and the margin the artwork is fitted inside,
+so neither casts a shadow on a letter.  Where the post comes through, the
+diffuser gives way to it -- a post standing on the sheet would be holding the
+sign up by 0.8 mm of translucent filament.
+
+**Tape pads** are two strips, top and bottom, 60% of the width and as deep as
+the margin leaves.  Foam tape goes on the pads; they are the case, so the sign
+is.
+
+**Screw posts** are a tube through each end on the centre line, the hole
+countersunk into the face so the screw goes in from the front and its head
+finishes below the surface.  That puts two screw heads on the face, out in the
+plain border and well clear of the lettering, and it is the price of a mount
+that holds the case rather than the lid.  What it buys is a sign that goes up
+and comes down with the lid on and the strip undisturbed.  Sized for an M3
+woodscrew, which is more than a box this light needs.
+
+Both want room between the wall and the lettering, and both say so rather than
+squeezing: at the default 10 mm margin there are 8 mm to play with, a tape pad
+takes 7 of them and a screw post 7, and a margin too tight for the one suggests
+the other.
 
 ## Printing them
 

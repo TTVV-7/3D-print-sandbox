@@ -506,6 +506,22 @@
        ledge it leaves &mdash; a friction fit, so you can get it off again to change the strip. Stick the
        LEDs to the inside of it; it prints that face down, which is the flat one. Off leaves the back
        open.</p>
+    <label class="field" data-for="sign" data-light="mount"><span>Wall mount</span>
+      <select id="mount">
+        <option value="none">None</option>
+        <option value="tape">Tape pads</option>
+        <option value="screw">Screw posts</option>
+      </select>
+    </label>
+    <p class="hint" data-for="sign">The back of this box is a lid held in by friction, so tape or a screw
+       on the lid holds the <em>lid</em> &mdash; the case pulls off it and leaves the back on the wall.
+       Both mounts here are part of the case instead: a post that rises off the inside of the face,
+       comes up through a hole in the lid and finishes flush with the back, so the load goes into the
+       sign and the lid still lifts off to get at the strip. <strong>Tape pads</strong> are two strips
+       to stick foam tape to, top and bottom. <strong>Screw posts</strong> put a tube through each end
+       with the hole countersunk into the face, so it goes up and comes down with the lid on &mdash;
+       at the cost of two screw heads showing, out in the plain border. Both need room between the
+       wall and the lettering, and say so if the margin is too tight.</p>
     <label class="field" data-for="name stencil sign" data-light="font"><span>Face</span>
       <select id="font"></select>
     </label>
@@ -645,7 +661,7 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
                 "look", "layout", "cap", "ring_d", "font",
                 "plate_w", "plate_h", "margin", "bridge", "thick",
-                "depth", "wall", "diffuse", "cable"];
+                "depth", "wall", "diffuse", "cable", "mount"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "", stencilSvg = "";
@@ -1174,6 +1190,7 @@ const LIGHTS = {
   diffuse:     { el: ["diffuser"], label: "the diffuser" },
   cable:       { el: ["body"], label: "the case the notch is in" },
   lid:         { el: ["lid"], label: "the back lid" },
+  mount:       { el: ["body"], label: "the case the mounts are part of" },
   tag_mode:    { el: ["tag"], mode: "apart", label: "the tag in the joint" },
   tag_w:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
   tag_h:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },

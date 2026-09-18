@@ -49,7 +49,7 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "logo", "batch", "design", "look", "layout", "placeholder",
             "cap", "ring_d", "outline",
             "plate_w", "plate_h", "margin", "bridge", "thick",
-            "depth", "wall", "diffuse", "lid", "cable")
+            "depth", "wall", "diffuse", "lid", "cable", "mount")
 
 # The shapes the page can ask for.  The business card is not among them any
 # more: it is archived -- the code is still in src/cards.py and
@@ -225,6 +225,7 @@ def model(params):
                            diffuse=num("diffuse", signbox.DIFFUSE),
                            margin=num("margin", signbox.MARGIN),
                            cable=num("cable", signbox.CABLE),
+                           mount=params.get("mount") or "none",
                            lid=bool(params.get("lid", True)),
                            colours=colours)
                 if params.get("batch"):
