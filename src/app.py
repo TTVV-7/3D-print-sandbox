@@ -1,9 +1,11 @@
-"""Browser front end for the card generator.
+"""Browser front end for the generators.
 
     python3 src/app.py            # then open http://127.0.0.1:8765
 
-Fill in name, company and phone, watch the part turn in the viewer, download
-it.  The 3MF carries each colour as a separate part, so the slicer opens it
+Four shapes: an NFC keyring fob (src/cards.py), a name keyring
+(src/nametag.py), a sign enclosure (src/signbox.py) and a stencil
+(src/stencil.py).  Fill in the boxes, watch the part turn in the viewer,
+download it.  The 3MF carries each colour as a separate part, so the slicer opens it
 set up for four filaments; the STL is one welded solid.  The preview is the
 same solids, sent one after another with a colour and a place for each, so
 the page can show the two halves of a split body glued up, pulled apart, or
@@ -30,6 +32,7 @@ import trimesh
 import cards
 import looks
 import nametag
+import signbox
 import stencil
 import typefaces
 
@@ -45,7 +48,14 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "tag_h", "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr",
             "logo", "batch", "design", "look", "layout", "placeholder",
             "cap", "ring_d", "outline",
-            "plate_w", "plate_h", "margin", "bridge", "thick")
+            "plate_w", "plate_h", "margin", "bridge", "thick",
+            "depth", "wall", "diffuse", "lid", "cable")
+
+# The shapes the page can ask for.  The business card is not among them any
+# more: it is archived -- the code is still in src/cards.py and
+# `src/gen_cards.py --kind card` still writes one, but the app offers the fob,
+# the name keyring, the stencil and the sign enclosure.
+KINDS = ("fob", "name", "stencil", "sign")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -131,6 +141,12 @@ def model(params):
     with BUILD:
         if key not in RECENT:
             kind = params.get("kind", "fob")
+            if kind == "card":
+                raise ValueError("the business card is archived -- the fob is the one "
+                                 "the app builds now, and src/gen_cards.py --kind card "
+                                 "still writes a card")
+            if kind not in KINDS:
+                raise ValueError(f"no such shape: {kind}")
             if kind == "name":
                 # A name keyring has no front and back, no tag and no
                 # layout: the word is the whole object, so only these few
@@ -192,6 +208,44 @@ def model(params):
                     RECENT[key] = parts, info
                 else:
                     RECENT[key] = stencil.build(params.get("name", ""), **plate)
+                while len(RECENT) > 8:
+                    del RECENT[next(iter(RECENT))]
+                parts, info = RECENT[key]
+                return _finish(params, parts, info, num)
+            if kind == "sign":
+                # The artwork arrives in the same field the stencil's does, and
+                # is lit the way the lettering is rather than cut away.
+                art = params.get("design") or None
+                if art and not art.lstrip().startswith("<"):
+                    raise ValueError("the artwork has to be an SVG file")
+                box = dict(svg=art, font=face(params),
+                           w=num("plate_w", signbox.W), h=num("plate_h", signbox.H),
+                           depth=num("depth", signbox.DEPTH),
+                           wall=num("wall", signbox.WALL),
+                           diffuse=num("diffuse", signbox.DIFFUSE),
+                           margin=num("margin", signbox.MARGIN),
+                           cable=num("cable", signbox.CABLE),
+                           lid=bool(params.get("lid", True)),
+                           colours=colours)
+                if params.get("batch"):
+                    rows = cards.parse_batch(params["batch"])
+                    if not rows:
+                        raise ValueError("the batch box is empty")
+                    parts, infos = signbox.build_batch(rows, **box)
+                    info = {**infos[0], "batch": len(rows), "label": "",
+                            "w": max(i["w"] for i in infos),
+                            "h": max(i["h"] for i in infos),
+                            "stroke": min(i["stroke"] for i in infos),
+                            "letters": sum(i["letters"] for i in infos),
+                            "nozzle": (None if any(i["nozzle"] is None for i in infos)
+                                       else min(i["nozzle"] for i in infos)),
+                            "volume": round(sum(i["volume"] for i in infos), 2),
+                            "watertight": all(i["watertight"] for i in infos),
+                            "dim": any(i["dim"] for i in infos),
+                            "thin": sorted({t for i in infos for t in i["thin"]})}
+                    RECENT[key] = parts, info
+                else:
+                    RECENT[key] = signbox.build(params.get("name", ""), **box)
                 while len(RECENT) > 8:
                     del RECENT[next(iter(RECENT))]
                 parts, info = RECENT[key]

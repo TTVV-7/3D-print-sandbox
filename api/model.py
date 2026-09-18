@@ -1,4 +1,4 @@
-"""The card generator as a Vercel function, at /api/model.
+"""The generators as a Vercel function, at /api/model.
 
 Vercel's api/ directory is file-based: this file answers /api/model, which is
 the path the page calls whether it is talking to Vercel or to src/app.py.  It

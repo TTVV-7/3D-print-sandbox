@@ -1,4 +1,5 @@
-"""Write a realtor NFC card or keyring fob as a printable STL.
+"""Write an NFC keyring fob, a name keyring, a stencil or a sign enclosure
+as a printable STL.
 
     python3 src/gen_cards.py --name "Jane Doe" \
                              --company "Bluewater Realty" \
@@ -8,7 +9,8 @@ writes stl/jane_doe_fob.3mf and .stl -- two halves to glue with the tag between
 them, by default.  The 3MF has every colour as a separate part, so the slicer
 opens it already set up for four filaments; the STL is one welded solid.
 --preview also renders them.  src/app.py is the same thing with a browser
-front end.
+front end -- the same four shapes, less the business card, which is archived:
+`--kind card` still builds one here, and nothing else offers it any more.
 
 Measure your NFC tags and pass --tag WxH: the pocket is cut to fit, and the
 fob grows if it has to.  Everything else worth changing lives in src/cards.py.
@@ -20,6 +22,7 @@ from pathlib import Path
 import cards
 import looks
 import nametag
+import signbox
 import stencil
 import typefaces
 
@@ -80,6 +83,41 @@ def report_stencil(name, info):
               f"{stencil.MIN_CUT} mm -- bigger artwork, or a heavier face")
 
 
+def report_sign(name, info):
+    print(f"  {name:38s} {info['w']:5.1f} x {info['h']:5.1f} x {info['depth']:4.1f} mm  "
+          f"{info['volume']:5.2f} cm^3  "
+          f"{'watertight' if info['watertight'] else 'NOT WATERTIGHT'}")
+    if info["svg"]:
+        print(f"      artwork  an SVG, {info['art'][0]:.1f} x {info['art'][1]:.1f} mm")
+    else:
+        print(f"      words    {info['text']!r} in {info['typeface_name']}, "
+              f"{info['cap']:.1f} mm caps, {info['art'][0]:.1f} x {info['art'][1]:.1f} mm")
+    print(f"      face     {info['opaque']:.1f} mm opaque over {info['diffuse']:.1f} mm of "
+          f"diffuser, {info['margin']:.1f} mm margin")
+    print(f"      lit      {info['lit_area']:.0f}% of the face, narrowest stroke "
+          f"{info['stroke']:.2f} mm"
+          + (f", takes a {info['nozzle']:.2f} mm nozzle" if info["nozzle"]
+             else " -- finer than any nozzle here"))
+    print(f"      inside   {info['clear']:.1f} mm of clear air for the strip, "
+          f"{info['wall']:.1f} mm walls")
+    if info["lid"]:
+        print(f"      lid      {info['lid_thick']:.1f} mm, {info['clearance']:.2f} mm "
+              f"clearance in the rebate -- a friction fit")
+    else:
+        print("      lid      none, the back is open")
+    if info["cable"]:
+        print(f"      cable    a {info['cable']:.1f} mm notch in the bottom wall")
+    if info["dim"]:
+        print(f"      note     under {signbox.MIN_CLEAR:.0f} mm of clear air -- the LEDs will "
+              f"read as separate points through the letters")
+    if info["thin"]:
+        print(f"      note     {', '.join(info['thin'])} under {signbox.MIN_STROKE} mm -- "
+              f"a bigger face, a heavier face, or fewer words")
+    bands = " and ".join(f"Z = {a:.2f}-{b:.2f} mm" for a, b in info["colour_bands"])
+    print(f"      colours  {len(info['slots'])} ({', '.join(info['slots'])}), all within "
+          f"{bands}; the body colour alone elsewhere")
+
+
 def report(name, info):
     print(f"  {name:38s} {info['w']:5.1f} x {info['h']:5.1f} x {info['total_z']:4.1f} mm  "
           f"{info['volume']:5.2f} cm^3  "
@@ -137,10 +175,12 @@ def main():
     ap.add_argument("--logo-box", dest="placeholder", action="store_const", const="box",
                     help="draw an empty square where the logo would go")
     ap.add_argument("--kind", default="fob",
-                    choices=["card", "fob", "both", "name", "stencil"],
-                    help="fob and card carry an NFC tag; name is the keyring that is "
-                         "just the word, welded into one piece; stencil is a plate "
-                         "with the word or an SVG cut through it")
+                    choices=["card", "fob", "both", "name", "stencil", "sign"],
+                    help="fob carries an NFC tag; name is the keyring that is just the "
+                         "word, welded into one piece; stencil is a plate with the word "
+                         "or an SVG cut through it; sign is a light box with the word lit "
+                         "through its face.  card is the archived business card -- still "
+                         "built here, not offered by the app")
     ap.add_argument("--cap", type=float, default=None,
                     help=f"letter height for --kind name, mm (default {nametag.CAP:g}, "
                          f"or the face's own minimum where that is taller)")
@@ -150,10 +190,29 @@ def main():
     ap.add_argument("--flat", action="store_true",
                     help="for --kind name: one solid in the body colour, no raised letters")
     ap.add_argument("--size", default=None, metavar="WxH",
-                    help=f"stencil plate in mm (default "
+                    help=f"stencil plate, or the face of a sign, in mm (default "
                          f"{stencil.W:g}x{stencil.H:g})")
-    ap.add_argument("--margin", type=float, default=stencil.MARGIN,
-                    help=f"plate left round the cut, mm (default {stencil.MARGIN:g})")
+    ap.add_argument("--margin", type=float, default=None,
+                    help=f"plate left round the cut or the lettering, mm (default "
+                         f"{stencil.MARGIN:g} on a stencil, {signbox.MARGIN:g} on a sign)")
+    ap.add_argument("--depth", type=float, default=signbox.DEPTH,
+                    help=f"how deep a sign box is, front face to back, mm "
+                         f"(default {signbox.DEPTH:g})")
+    ap.add_argument("--wall", type=float, default=signbox.WALL,
+                    help=f"sign wall thickness, mm (default {signbox.WALL:g})")
+    ap.add_argument("--diffuse", type=float, default=signbox.DIFFUSE,
+                    help=f"the translucent sheet behind a sign's whole face, mm "
+                         f"(default {signbox.DIFFUSE:g}); it is what spreads the light "
+                         f"and what holds the middle of an O on")
+    ap.add_argument("--cable", type=float, default=signbox.CABLE,
+                    help=f"notch in the bottom wall of a sign for the lead, mm; 0 closes "
+                         f"the wall (default {signbox.CABLE:g})")
+    ap.add_argument("--no-lid", dest="lid", action="store_false",
+                    help="leave a sign's back open instead of fitting a lid")
+    ap.add_argument("--clearance", type=float, default=signbox.CLEARANCE,
+                    help=f"gap all round a sign's lid in its rebate, mm -- it is a "
+                         f"friction fit, so this is how tight (default "
+                         f"{signbox.CLEARANCE:g})")
     ap.add_argument("--bridge", type=float, default=stencil.BRIDGE,
                     help=f"bar left across each island, mm; 0 leaves them loose "
                          f"(default {stencil.BRIDGE:g})")
@@ -213,7 +272,7 @@ def main():
     ap.add_argument("--preview", action="store_true", help="also render PNGs to previews/")
     args = ap.parse_args()
 
-    if (args.kind not in ("name", "stencil") and not args.batch
+    if (args.kind not in ("name", "stencil", "sign") and not args.batch
             and not any([args.name, args.company, args.phone, args.role,
                          args.email, args.design])):
         ap.error("give at least one of --name / --company / --phone / --role / --email "
@@ -244,6 +303,79 @@ def main():
     rise = args.rise if args.rise is not None else (
         nametag.RISE if args.kind == "name" else cards.RISE)
 
+    if args.kind == "sign":
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        w, h = signbox.W, signbox.H
+        if args.size:
+            try:
+                w, h = (float(v) for v in args.size.lower().split("x"))
+            except ValueError:
+                ap.error(f"--size wants WxH in mm, e.g. 140x60 -- got {args.size!r}")
+        art = Path(args.design).read_text() if args.design else None
+        common = dict(svg=art, font=args.font, w=w, h=h, depth=args.depth,
+                      wall=args.wall, diffuse=args.diffuse, cable=args.cable,
+                      lid=args.lid, clearance=args.clearance, colours=colours,
+                      margin=signbox.MARGIN if args.margin is None else args.margin)
+        if args.batch:
+            rows = cards.parse_batch(Path(args.batch).read_text())
+            print(f"building {len(rows)} signs:")
+            parts, infos = signbox.build_batch(rows, **common)
+            for info in infos:
+                report_sign(info["label"], info)
+            written = []
+            if args.format != "stl":
+                (out / "batch_signs.3mf").write_bytes(
+                    cards.export_3mf(parts, colours, row_w=args.bed))
+                written.append("batch_signs.3mf")
+            if args.format != "3mf":
+                cards.plate(parts, row_w=args.bed).export(out / "batch_signs.stl")
+                written.append("batch_signs.stl")
+            print(f"  -> {', '.join(written)}: {len(parts)} parts on a "
+                  f"{cards.plate(parts, row_w=args.bed).extents[0]:.0f} mm plate")
+            return
+        if not args.name and not art:
+            ap.error("--kind sign needs --name, or --design FILE.svg")
+        parts, info = signbox.build(args.name, **common)
+        stem = f"{slug(args.name or Path(args.design).stem)}_sign"
+        written = []
+        for part in parts:
+            if args.format != "3mf":
+                name = f"{stem}_{part['name']}"
+                part["mesh"].export(out / f"{name}.stl")
+                written.append(f"{name}.stl")
+        if args.format != "stl":
+            (out / f"{stem}.3mf").write_bytes(cards.export_3mf(parts, colours))
+            written.insert(0, f"{stem}.3mf")
+        print("building:")
+        report_sign(", ".join(written), info)
+        if args.preview:
+            import numpy as np
+            import trimesh
+            import render
+            shots = ROOT / "previews"
+            shots.mkdir(exist_ok=True)
+            bg = (30, 32, 36)
+            flip = trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0])
+            built = [m for _, m in cards.assembly(parts)]
+            # the lit face, which is the one that is laid face down to print
+            mesh, cols = render.coloured(parts, colours, [flip @ m for m in built])
+            render.render(mesh, shots / f"{stem}_front.png", elev=22, azim=-90, zoom=1.06,
+                          bg=bg, colours=cols)
+            if len(parts) > 1:      # the lid off, and both parts as they print
+                lift = trimesh.transformations.translation_matrix((0, 0, info["depth"] * 1.7))
+                off = [lift @ m if p["name"] == "lid" else m
+                       for p, m in zip(parts, built)]
+                mesh, cols = render.coloured(parts, colours, off)
+                render.render(mesh, shots / f"{stem}_apart.png", elev=46, azim=-74,
+                              zoom=0.92, bg=bg, colours=cols)
+            plated = [trimesh.transformations.translation_matrix(sh)
+                      for _, sh in cards.layout(parts)]
+            mesh, cols = render.coloured(parts, colours, plated)
+            render.render(mesh, shots / f"{stem}_plate.png", elev=52, azim=-90, zoom=1.0,
+                          bg=bg, colours=cols)
+        return
+
     if args.kind == "stencil":
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)
@@ -255,7 +387,8 @@ def main():
                 ap.error(f"--size wants WxH in mm, e.g. 120x60 -- got {args.size!r}")
         art = Path(args.design).read_text() if args.design else None
         common = dict(svg=art, font=args.font, w=w, h=h, thick=args.thick,
-                      margin=args.margin, bridge=args.bridge)
+                      margin=stencil.MARGIN if args.margin is None else args.margin,
+                      bridge=args.bridge)
         if args.batch:
             rows = cards.parse_batch(Path(args.batch).read_text())
             print(f"building {len(rows)} stencils:")

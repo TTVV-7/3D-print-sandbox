@@ -1,15 +1,21 @@
 # 3D print sandbox
 
-Four parametric things live here so far.  All of them are plain Python --
+Five parametric things live here so far.  All of them are plain Python --
 shapely for the 2-D work, trimesh and manifold for the solids -- and all of
 them re-run in seconds.
 
-- **[NFC cards and fobs](#nfc-cards-and-fobs)** -- a keyring fob or a
-  wallet card, printed as two halves with an NFC tag glued between them, in up
-  to four colours, in one of three layouts.  Comes with a browser front end.
+- **[NFC fobs](#nfc-fobs)** -- a keyring fob printed as two halves with an NFC
+  tag glued between them, in up to four colours, in one of three layouts.
+  Comes with a browser front end.  The wallet-sized business card it was
+  written for is [archived](#the-archived-business-card): the builder is still
+  here and the command line still writes one, but the app does not offer it.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
   printable piece, with a tab for the ring, in one of forty-eight faces.  Same
-  app, third shape.
+  app, second shape.
+- **[Sign enclosures](#sign-enclosures)** -- a shallow light box with the word
+  lit through its own face: an opaque layer with the letters taken out, the
+  letters filled back in in something translucent, and a diffuser behind the
+  lot.  Same app, third shape.
 - **[Stencils](#stencils)** -- a plate with the word, or an SVG, cut clean
   through it to paint through, every island bridged so the middles stay in.
   Same app, fourth shape.
@@ -18,11 +24,10 @@ them re-run in seconds.
 
 ---
 
-# NFC cards and fobs
+# NFC fobs
 
-Five fields in, a keyring fob or a business card out: your details on the
-front, laid out by one of three layouts; a pocket for an NFC tag and the
-contactless arcs on the back.
+Five fields in, a keyring fob out: your details on the front, laid out by one
+of three layouts; a pocket for an NFC tag and the contactless arcs on the back.
 Tapping a phone to it opens whatever you wrote on the tag -- a listing, a
 booking page, a vCard -- and pointing a camera at the QR code does the same for
 phones that do not tap.
@@ -86,10 +91,11 @@ opens `http://127.0.0.1:8765`.  Type in the boxes and the part rebuilds as you
 go, about half a second a time.
 
 The panel goes in the order the decisions do.  **Shape** comes first, because a
-fob and a card are different objects and everything below reads differently for
-each -- a fob has no border to draw, and five lines of type on one come out
-small enough that you want to leave the title or the email off it.  Then who
-you are, then how it looks, then the tap side, then a batch of them.
+fob, a name keyring, a sign and a stencil are different objects and everything
+below reads differently for each -- a stencil has no colours to sort, a sign has
+no tag to fit, and five lines of type on a fob come out small enough that you
+want to leave the title or the email off it.  Then who you are, then how it
+looks, then the tap side, then a batch of them.
 
 **Every control lights up what it makes.**  Put the cursor in the Email box, or
 just run it over the label, and the email on the part turns cyan while
@@ -115,7 +121,9 @@ The viewer has three views of the same part, because a thing that prints in two
 pieces and arrives as one needs both told: **Glued up** is the finished fob,
 **Pulled apart** opens the joint and puts the tag in the gap, and **On the
 plate** is the two halves lying face down the way they print.  The buttons are
-top right; they only appear when there are two halves to show.
+top right; they only appear when there are two pieces to show -- on a sign they
+read *Put together*, *Lid off* and *On the plate*, which is the same three
+things about a box.
 
 **Download 3MF** saves the part with each colour as a separate component in one
 object, so Bambu Studio, PrusaSlicer or Orca open it already knowing which
@@ -286,7 +294,7 @@ Shapes with no fill at all go to primary.
 
 ## The two bodies
 
-| | Fob (default) | Card |
+| | Fob (default) | Card (archived) |
 |---|---|---|
 | Outline | 62 x 34 mm, r4, with a Ø4.6 mm split-ring hole | 85.6 x 54 mm, r3.18 -- CR80, the size of a credit card |
 | Thickness | 1.6 mm a half, 3.2 mm glued up | 1.3 mm a half, 2.6 mm glued up |
@@ -296,10 +304,28 @@ Shapes with no fill at all go to primary.
 | Edge | 0.6 mm chamfer, both outer faces | same |
 | Uses | ~6 cm³ | ~11 cm³ |
 
-The fob is the default because it is the one people keep: it goes on a keyring,
-it is cheaper in filament and time, and it grows if the tag or the QR code needs
-more room than 62 x 34 mm leaves them.  The card does not grow, and says so
-instead.
+The fob is the one that is left, and it was always the one people keep: it goes
+on a keyring, it is cheaper in filament and time, and it grows if the tag or the
+QR code needs more room than 62 x 34 mm leaves them.  The card does not grow,
+and says so instead.
+
+### The archived business card
+
+The wallet-sized card is **archived**: the app does not offer it any more and a
+request for one comes back with an error saying so.  Nothing about it has been
+deleted -- `CARD` and every layout that serves it are still in `src/cards.py`,
+and the command line still builds one:
+
+```
+python3 src/gen_cards.py --kind card --name "Jane Doe" --company "Bluewater Realty"
+```
+
+It went because the thing people actually wanted a flat parametric body for
+turned out to be the [sign enclosure](#sign-enclosures), which now has the
+card's place in the app.  Everything the card shares with the fob -- the face
+layer, the four colours, the three layouts, the logo and QR paths, the split
+body -- is the fob's too and is maintained as the fob's; what is unmaintained is
+the CR80 body itself and the `--border` line that only a card had.
 
 A line that is too long shrinks to fit rather than running off the edge, so a
 long brokerage name comes out smaller, not broken.  Past a point that stops
@@ -355,7 +381,11 @@ both the strongest arrangement and the only one where no part of the tag shows.
 
 | | |
 |---|---|
-| ![the card, apart](previews/nfc_card_apart.png) | ![the card on the plate](previews/nfc_card_plate.png) |
+| ![the two halves, apart](previews/nfc_card_apart.png) | ![both halves on the plate](previews/nfc_card_plate.png) |
+
+These two are the [archived card](#the-archived-business-card) rather than the
+fob, because a big flat body shows the joint better than a small one; the
+mechanism is the fob's and is unchanged.
 
 - The body is **0.4 mm thicker** than a one-piece version to pay for the cavity.
 - **Three register pins, not four.**  Ø2.4 x 0.6 mm studs on the front half,
@@ -813,6 +843,112 @@ for the face, `--cap 20` for bigger letters, `--ring 0` for no tab, `--flat`
 for the single-colour version, `--rise` for how proud the letters sit,
 `--colours "#2fbf3f,,#ffffff"` for the two colours, and `--batch names.txt`
 for a plate of them -- the whole plate in one face.
+
+---
+
+# Sign enclosures
+
+A shallow box with the word lit through its own face: a name over a door, a
+room number, an OPEN sign for a counter.  An LED strip goes inside, the lead
+comes out of a notch in the bottom wall, and the letters are the only thing the
+light gets out through.
+
+![a sign](previews/sign_front.png)
+
+## The face is three things, and all of them print first
+
+Laid face down on the plate, the first two millimetres of the print are the
+whole of the idea:
+
+1. an **opaque layer**, 0.8 mm of it, with the letters taken clean out;
+2. the **letters**, filled back in flush in a translucent filament -- the same
+   inlay a fob's lettering is, and the same three layers;
+3. a **diffuser**, a translucent sheet across the entire inside of the face,
+   which is what turns a row of LEDs into an evenly lit word rather than a row
+   of bright spots with the word round them.
+
+Everything above that is one filament and four walls.  So the colour changes
+all happen in the first eight layers, and the rest of the box prints as a box.
+
+The diffuser earns its place twice.  Cut an O out of an opaque face and the
+middle of the O is an island -- [the stencil's problem](#stencils), which that
+one solves with bridges.  Here the sheet behind the face is printed straight
+over every island and welds it on, so the counters stay where the type designer
+put them and **there is nothing to bridge**: the middle of the O is held by the
+diffuser, and it is lit through it too.  That is also why the diffuser cannot be
+set to 0; ask for it and the generator says no rather than handing you a face
+whose counters fall out on the bed.
+
+![the lid off](previews/sign_apart.png)
+
+## The box
+
+| | |
+|---|---|
+| Face | 120 x 60 mm by default, any size you like |
+| Depth | 24 mm, of which 20.4 mm is clear air for the strip |
+| Face sandwich | 0.8 mm opaque over 0.8 mm of diffuser |
+| Walls | 2 mm -- five lines of a 0.4 mm nozzle, stiff enough to hold the lid and opaque enough to keep the light in |
+| Margin | 10 mm round the lettering, and never less than the wall plus 1 mm: a letter out there would be cut into the wall, where nothing lights it and nothing holds it |
+| Lid | a 2 mm plate that drops into a rebate in the back and stops flush on the ledge it leaves, 0.2 mm clearance all round |
+| Cable notch | 6 mm square in the back edge of the bottom wall |
+| Corners | Ø5 mm, with a 0.8 mm chamfer on the front outer edge -- the edge you see |
+
+The lid is a **friction fit**, not a snap: a printed snap at this size is a
+thing that breaks off in your hand the second time you open it, and a lid you
+can get off again is what lets you replace the strip.  Tight to get on is what
+`--clearance` is for.  It prints inside face down, because the plate side of a
+print is the flat one and a strip's adhesive wants a flat one.
+
+The notch for the lead is cut a lid deeper than it looks, so the cable passes
+*under* a lid that stays whole -- which holds the cable in and keeps the light
+off the wall behind.  `--cable 0` closes the wall for a battery inside.
+
+Two numbers the readout gives you and you should believe:
+
+- **The clear air inside.**  Depth less the face and the lid: how far the light
+  has to spread before it reaches the diffuser.  Under about 12 mm a single row
+  of LEDs reads as a row of LEDs through the letters, and the readout says so.
+- **The narrowest stroke.**  What is lit is the stroke, so a hairline face gives
+  you a hairline of light.  Under 0.8 mm it stops being a stroke and starts
+  being a smear of translucent filament.
+
+An SVG goes in instead of the words and is lit exactly the way they are -- a
+logo, a house number, an arrow.  Flat fills only, as everywhere else here.
+
+## Printing them
+
+Face down, no supports, and two filaments: something opaque for the case and
+the lid, something translucent or white for the letters and the diffuser, which
+are one piece and are the only thing that has to pass light.  The 3MF comes out
+with the two as separate components, so the slicer opens it knowing which is
+which.
+
+The face wants a multi-material printer -- an AMS, an MMU, two tools, whatever
+you have -- because the opaque layer and the letters share the same eight
+layers, which is not something a filament change partway up can do.  With one
+extruder the honest options are to print the whole thing in the translucent
+filament and let the face glow all over, or to print it opaque and accept that
+the letters are the same colour as everything else.
+
+The lid and the case go on one plate, both flat, and neither needs a brim.  The
+batch box takes one sign per line -- a room name each, all the same size.
+
+![both parts on the plate](previews/sign_plate.png)
+
+## From a terminal
+
+```
+python3 src/gen_cards.py --kind sign --name "OPEN"
+```
+
+writes `stl/open_sign.3mf` and an STL for each part.  `--size 160x70` for the
+face, `--depth` for how deep the box is, `--wall`, `--diffuse` for the sheet
+behind the face, `--margin` for the border round the lettering, `--cable 0` to
+close the bottom wall, `--no-lid` to leave the back open, `--font condensed`
+(or any of the [twenty-nine faces](#the-twenty-nine-faces), or a path to a TTF),
+and `--design logo.svg` to light artwork instead of words.  `--batch rooms.txt`
+puts a set of them on one plate, and `--preview` renders the PNGs above.
 
 ---
 
