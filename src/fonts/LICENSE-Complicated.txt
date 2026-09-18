@@ -1,94 +1,163 @@
-The twenty-three display faces in this directory are all under the SIL Open
+The forty display faces in this directory are all under the SIL Open
 Font Licence, version 1.1.  The licence text is identical for each, so it is
-given once at the bottom rather than twenty-three times; the copyright and
+given once at the bottom rather than forty times; the copyright and
 Reserved Font Name notices, which are not identical, are all listed here.
 
 Each font was taken unmodified from the Google Fonts repository
 (https://github.com/google/fonts), where each one's own OFL.txt is the
 authoritative copy of this same licence.
 
-  Almendra Display      AlmendraDisplay-Regular.ttf
+  Almendra Display    AlmendraDisplay-Regular.ttf
     Copyright (c) 2011-2012, Ana Sanfelippo (anasanfe@gmail.com),
     with Reserved Font Name 'Almendra'
 
-  Astloch               Astloch-Regular.ttf
+  Astloch             Astloch-Regular.ttf
     Copyright (c) 2010, 2011 Daniel Rhatigan (sparky@ultrasparky.org),
     with Reserved Font Name Astloch
 
-  Bungee Shade          BungeeShade-Regular.ttf
+  Audiowide           Audiowide-Regular.ttf
+    Copyright (c) 2012, Brian J. Bonislawsky DBA Astigmatic (AOETI)
+    (astigma@astigmatic.com), with Reserved Font Names "Audiowide"
+
+  Bangers             Bangers-Regular.ttf
+    Copyright 2010 The Bangers Project Authors
+    (https://github.com/googlefonts/bangers)
+
+  Black Ops One       BlackOpsOne-Regular.ttf
+    Copyright 2022 The Black-Ops Project Authors
+    (https://github.com/googlefonts/googlefonts-project-template)
+
+  Bowlby One          BowlbyOne-Regular.ttf
+    Copyright (c) 2011 by vernon adams (vern@newtypography.co.uk),
+    with Reserved Font Names "Bowlby" "Bowlby One" and "Bowlby One SC"
+
+  Bungee Shade        BungeeShade-Regular.ttf
     Copyright 2023 The Bungee Project Authors
     (https://github.com/djrrb/Bungee)
 
-  Butcherman            Butcherman-Regular.ttf
+  Butcherman          Butcherman-Regular.ttf
     Copyright (c) 2011, Typomondo
 
-  Caesar Dressing       CaesarDressing-Regular.ttf
+  Caesar Dressing     CaesarDressing-Regular.ttf
     Copyright (c) 2011, Open Window
     (https://profiles.google.com/openwindowfonts/about)
 
-  Creepster             Creepster-Regular.ttf
+  Cinzel Decorative   CinzelDecorative-Regular.ttf
+    Copyright (c) 2012 Natanael Gama (info@ndiscovered.com),
+    with Reserved Font Name 'Cinzel'
+
+  Creepster           Creepster-Regular.ttf
     Copyright (c) 2011, Font Diner, Inc (diner@fontdiner.com)
 
-  Eagle Lake            EagleLake-Regular.ttf
+  Eagle Lake          EagleLake-Regular.ttf
     Copyright (c) 2012, Brian J. Bonislawsky DBA Astigmatic (AOETI)
     (astigma@astigmatic.com), with Reserved Font Names "Eagle Lake"
 
-  Emblema One           EmblemaOne-Regular.ttf
+  Emblema One         EmblemaOne-Regular.ttf
     Copyright (c) 2011 by Sorkin Type Co (www.sorkintype.com)
 
-  Federant              Federant-Regular.ttf
+  Federant            Federant-Regular.ttf
     Copyright (c) 2011, Cyreal (www.cyreal.org),
     with Reserved Font Name 'Federant'
 
-  MedievalSharp         MedievalSharp.ttf
+  Graduate            Graduate-Regular.ttf
+    Copyright 2012 The Graduate Project Authors
+    (https://github.com/etunni/graduate), with Reserved Font Name "Graduate"
+
+  Limelight           Limelight-Regular.ttf
+    Copyright (c) 2011 by Sorkin Type Co (www.sorkintype.com),
+    with Reserved Font Name "Limelight"
+
+  Lobster             Lobster-Regular.ttf
+    Copyright 2010 The Lobster Project Authors
+    (https://github.com/impallari/The-Lobster-Font),
+    with Reserved Font Name "Lobster"
+
+  MedievalSharp       MedievalSharp.ttf
     Copyright (c) 2011, wmk69 (wmk69@o2.pl)
 
-  Metal Mania           MetalMania-Regular.ttf
+  Metal Mania         MetalMania-Regular.ttf
     Copyright (c) 2012 by Open Window (dathanboardman@gmail.com),
     with Reserved Font Name "Metal Mania"
 
-  Miltonian Tattoo      MiltonianTattoo-Regular.ttf
+  Miltonian Tattoo    MiltonianTattoo-Regular.ttf
     Copyright (c) 2011 by Pablo Impallari (www.impallari.com,
     impallari@gmail.com).  Igino Marini (www.ikern.com)
 
-  Monoton               Monoton-Regular.ttf
+  Monoton             Monoton-Regular.ttf
     Copyright (c) 2011 by vernon adams (vern@newtypography.co.uk)
 
-  New Rocker            NewRocker-Regular.ttf
+  New Rocker          NewRocker-Regular.ttf
     Copyright (c) 2011, Pablo Impallari
     (www.impallari.com | impallari@gmail.com)
 
-  Nosifer               Nosifer-Regular.ttf
+  Nosifer             Nosifer-Regular.ttf
     Copyright (c) 2011, Typomondo
 
-  Piedra                Piedra-Regular.ttf
+  Orbitron            Orbitron[wght].ttf
+    Copyright 2018 The Orbitron Project Authors
+    (https://github.com/theleagueof/orbitron),
+    with Reserved Font Name: "Orbitron"
+
+  Piedra              Piedra-Regular.ttf
     Copyright (c) 2011 Angel Koziupa (sudtipos@sudtipos.com)
 
-  Pirata One            PirataOne-Regular.ttf
+  Pirata One          PirataOne-Regular.ttf
     Copyright (c) 2012, Rodrigo Fuenzalida, Nicolas Massi
     (www.taip.com.ar / abc.taip.com.ar), with Reserved Font Name 'Pirata'
 
-  Rye                   Rye-Regular.ttf
+  Press Start 2P      PressStart2P-Regular.ttf
+    Copyright 2012 The Press Start 2P Project Authors
+    (cody@zone38.net), with Reserved Font Name "Press Start 2P"
+
+  Racing Sans One     RacingSansOne-Regular.ttf
+    Copyright (c) 2012, Pablo Impallari (www.impallari.com),
+    Rodrigo Fuenzalida (www.rfuenzalida.com),
+    with Reserved Font Name Racing Sans
+
+  Righteous           Righteous-Regular.ttf
+    Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
+    (astigma@astigmatic.com), with Reserved Font Names "Righteous"
+
+  Rye                 Rye-Regular.ttf
     Copyright (c) 2011 by Sorkin Type Co (www.sorkintype.com)
 
-  Sancreek              Sancreek-Regular.ttf
+  Saira Stencil One   SairaStencilOne-Regular.ttf
+    Copyright 2019 The Saira Stencil Project Authors
+    (https://github.com/Omnibus-Type/Saira/SairaStencil)
+
+  Sancreek            Sancreek-Regular.ttf
     Copyright 2011 The Sancreek Project Authors
     (https://github.com/googlefonts/sancreek)
 
-  Uncial Antiqua        UncialAntiqua-Regular.ttf
+  Shrikhand           Shrikhand-Regular.ttf
+    Copyright (c) 2015 Jonny Pinhorn (jonpinhorn.typedesign@gmail.com)
+
+  Silkscreen          Silkscreen-Regular.ttf
+    Copyright 2001 The Silkscreen Project Authors
+    (https://github.com/googlefonts/silkscreen)
+
+  Stardos Stencil     StardosStencil-Regular.ttf
+    Copyright (c) 2011 by vernon adams (vern@newtypography.co.uk),
+    with Reserved Font Names "Stardos" and "Stardos Stencil"
+
+  Titan One           TitanOne-Regular.ttf
+    Copyright (c) 2011, Rodrigo Fuenzalida (www.rfuenzalida.com),
+    with Reserved Font Name Titan
+
+  Uncial Antiqua      UncialAntiqua-Regular.ttf
     Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
 
-  UnifrakturCook        UnifrakturCook-Bold.ttf
+  UnifrakturCook      UnifrakturCook-Bold.ttf
     Copyright (c) 2010, j. 'mach' wust,
     with Reserved Font Name UnifrakturCook
 
-  UnifrakturMaguntia    UnifrakturMaguntia-Book.ttf
+  UnifrakturMaguntia  UnifrakturMaguntia-Book.ttf
     Copyright (c) 2010, j. 'mach' wust,
     with Reserved Font Name UnifrakturMaguntia
 
-  Vast Shadow           VastShadow-Regular.ttf
+  Vast Shadow         VastShadow-Regular.ttf
     Copyright (c) 2011 by Sorkin Type Co (www.sorkintype.com)
-
 -------------------------------------------------------------------------------
 This Font Software is licensed under the SIL Open Font License, Version 1.1.
 This license is copied below, and is also available with a FAQ at:

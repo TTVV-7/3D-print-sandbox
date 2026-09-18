@@ -41,9 +41,9 @@ the weld behaves the same way.  What they change is how the word reads.  So
 they are banded from two things about a face that can be measured -- how heavy
 its stem is and how narrow its letters are -- and then left to the eye.
 
-There are twenty-nine faces: the six plain ones the keyring started with, and
-twenty-three display faces for when a name wants to be a thing rather than a
-label.  Six of the twenty-three have a `min_cap` of 26 mm, the top of the
+There are forty-eight faces: the six plain ones the keyring started with, and
+forty-two display faces for when a name wants to be a thing rather than a
+label.  Six of the forty-two have a `min_cap` of 26 mm, the top of the
 sweep, which is the sweep's way of saying that no letter height on the slider
 keeps that face's counters open -- a face drawn as four parallel lines has
 nothing the weld will leave alone.  They are kept anyway, because the stencil
@@ -53,10 +53,11 @@ because the readout tells the truth about what closed.
 Everything here ships in src/fonts next to the code, for the same reason the
 sans always did: a hosted function is guaranteed to carry its source and not
 necessarily anything else, and Vercel has no system fonts at all.  Licences sit
-beside the fonts: Chewy is Apache 2.0, everything else is under the SIL Open
-Font Licence -- the five original ones each with their own file, the
-twenty-three display faces together in LICENSE-Complicated.txt, which carries
-the licence text once and every one of their copyright lines.
+beside the fonts: Chewy, Luckiest Guy and Permanent Marker are Apache 2.0 and
+each have their own file, everything else is under the SIL Open Font Licence --
+the five original ones each with their own file too, the forty OFL display
+faces together in LICENSE-Complicated.txt, which carries the licence text once
+and every one of their copyright lines.
 """
 from pathlib import Path
 
@@ -139,12 +140,12 @@ FACES = {
         weld=0.4, gap=0.3, min_cap=16.0,
         licence="SIL Open Font Licence 1.1, Ryoichi Tsunekawa"),
     # --------------------------------------------------- the complicated ones
-    # Twenty-three display faces, all SIL Open Font Licence, all measured the
-    # same way as the six above by src/measure_faces.py.  They are here for the
+    # Forty-two display faces, all but two SIL Open Font Licence, all measured
+    # the same way as the six above by src/measure_faces.py.  They are here for the
     # stencil as much as for the keyring: a face too fine to weld into a solid
     # word still cuts through a plate, where the bridges do the holding.
     #
-    # Seven of them come back pinned at 26 mm -- the top of the sweep -- which
+    # Six of them come back pinned at 26 mm -- the top of the sweep -- which
     # means no letter height the slider offers keeps every counter open.  That
     # is a true thing about a face drawn as four parallel lines or as a letter
     # plus its own cast shadow, not a reason to leave it out: the readout says
@@ -263,6 +264,15 @@ FACES = {
         file="Federant-Regular.ttf",
         weld=0.5, gap=-0.15, min_cap=10.0,
         licence="SIL Open Font Licence 1.1, Cyreal"),
+    "roman": dict(
+        group="Ornate",
+        label="Roman",
+        font="Cinzel Decorative",
+        note="Classical Roman capitals with a swash and a leaf on the "
+             "terminals, the lettering off a monument.  10 mm.",
+        file="CinzelDecorative-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Natanael Gama"),
     "western": dict(
         group="Western",
         label="Western",
@@ -302,6 +312,16 @@ FACES = {
         file="Piedra-Regular.ttf",
         weld=0.4, gap=-0.15, min_cap=20.0,
         licence="SIL Open Font Licence 1.1, Angel Koziupa (Sudtipos)"),
+    "varsity": dict(
+        group="Western",
+        label="Varsity",
+        font="Graduate",
+        note="Collegiate slab, the letter off an American jacket.  The one "
+             "face in this group that sets at 10 mm -- the rest of the "
+             "western faces are inlined or spurred and pay for it.",
+        file="Graduate-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, The Graduate Project Authors"),
     "drip": dict(
         group="Horror",
         label="Drip",
@@ -377,6 +397,199 @@ FACES = {
         file="BungeeShade-Regular.ttf",
         weld=0.5, gap=-0.15, min_cap=26.0,
         licence="SIL Open Font Licence 1.1, The Bungee Project Authors"),
+    # ------------------------------------------------------ nineteen more
+    # Added in the same way as the twenty-three above and measured by the same
+    # sweep, which had opinions.  Two of them are worth reading before you pick
+    # by eye:
+    #
+    # The stencil faces measure as well as the plain sans -- 10 mm, all three.
+    # That is not a fluke and it is not because they are heavy.  A stencil
+    # breaks the wall of every counter, so the counter is not an enclosed hole
+    # at all but a bay open to the outside, and the weld that shuts a normal
+    # face's `a` has nothing there to shut.  The feature that makes them look
+    # fragile is what makes them print.
+    #
+    # The fat comic faces measure worst in the whole set -- Titan One at 24 mm,
+    # Luckiest Guy at 22, Bangers at 21 -- which is the opposite of what they
+    # look like.  Weight is not the thing; the ratio of counter to stroke is.
+    # A face drawn with a very fat marker has small counters by construction,
+    # and small counters are what the weld eats first.  Bowlby One is the one
+    # that got away with it at 13 mm, because its bowls stayed round holes
+    # rather than narrowing to slots.
+    "comic": dict(
+        group="Comic",
+        label="Comic",
+        font="Bangers",
+        note="Brush-drawn comic lettering on a slant, the sound-effect face.  "
+             "Heavy, but its counters are small for the weight, so it wants "
+             "21 mm -- more than most of the ornate faces do.",
+        file="Bangers-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=21.0,
+        licence="SIL Open Font Licence 1.1, The Bangers Project Authors"),
+    "titan": dict(
+        group="Comic",
+        label="Titan",
+        font="Titan One",
+        note="Fat rounded poster capitals with almost no daylight in them.  "
+             "The hungriest face here: 24 mm before its bowls survive the "
+             "weld, so it is one for a short name set large.  Latin-1 only.",
+        file="TitanOne-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=24.0,
+        licence="SIL Open Font Licence 1.1, Rodrigo Fuenzalida"),
+    "lucky": dict(
+        group="Comic",
+        label="Lucky",
+        font="Luckiest Guy",
+        note="Comic-book capitals, the ones on the cover rather than in the "
+             "speech bubble.  22 mm, for the same reason as Titan One.",
+        file="LuckiestGuy-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=22.0,
+        licence="Apache Licence 2.0, Brian J. Bonislawsky (Astigmatic)"),
+    "chunky": dict(
+        group="Comic",
+        label="Chunky",
+        font="Bowlby One",
+        note="Heavy grotesque with round bowls, and the one comic face that "
+             "sets small -- 13 mm, because its counters stayed holes instead "
+             "of narrowing to slots.  The pick of the group for a keyring.  "
+             "Latin-1 only.",
+        file="BowlbyOne-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=13.0,
+        licence="SIL Open Font Licence 1.1, Vernon Adams"),
+    "marker": dict(
+        group="Comic",
+        label="Marker",
+        font="Permanent Marker",
+        note="Felt-tip handwriting with a dry edge to every stroke.  The "
+             "letters lean into each other before the weld is asked for "
+             "anything, the way the script does.  Latin-1 only.",
+        file="PermanentMarker-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=18.0,
+        licence="Apache Licence 2.0, Font Diner, Inc"),
+    "stencil": dict(
+        group="Stencil",
+        label="Stencil",
+        font="Stardos Stencil",
+        note="A serif cut into stencil strips.  Ties the plain sans at 10 mm, "
+             "the best in the set outside Plain, because a broken counter is "
+             "open to the outside and the weld cannot close it.  Its breaks "
+             "are fine, though, so they read better on the stencil plate than "
+             "on a small keyring.  Latin-1 only.",
+        file="StardosStencil-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Vernon Adams"),
+    "spray": dict(
+        group="Stencil",
+        label="Spray",
+        font="Saira Stencil One",
+        note="Heavier stencil with wide breaks you can see at any size -- the "
+             "one to pick if you want the stencil to read as a stencil.  "
+             "10 mm, on the same trick.",
+        file="SairaStencilOne-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, The Saira Stencil Project Authors"),
+    "military": dict(
+        group="Stencil",
+        label="Military",
+        font="Black Ops One",
+        note="Stencilled military slab, the kind sprayed on a crate.  Fat "
+             "enough that the weld is barely needed and broken enough that it "
+             "would not matter: 10 mm.",
+        file="BlackOpsOne-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, The Black-Ops Project Authors"),
+    "retro": dict(
+        group="Retro",
+        label="Retro",
+        font="Lobster",
+        note="The retro sign script, bold and connected.  Runs together on "
+             "its own like Pacifico but with tighter counters, so it needs "
+             "18 mm rather than 20.",
+        file="Lobster-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=18.0,
+        licence="SIL Open Font Licence 1.1, The Lobster Project Authors"),
+    "deco": dict(
+        group="Retro",
+        label="Deco",
+        font="Righteous",
+        note="Geometric deco capitals with clipped corners.  13 mm, and one "
+             "of the few display faces that stays legible at the bottom of "
+             "the slider.",
+        file="Righteous-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=13.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "marquee": dict(
+        group="Retro",
+        label="Marquee",
+        font="Limelight",
+        note="High-contrast deco display, the lettering on a theatre front.  "
+             "Sets at 10 mm despite the hairlines, because what it has "
+             "instead of small counters is large ones.",
+        file="Limelight-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Sorkin Type Co"),
+    "groovy": dict(
+        group="Retro",
+        label="Groovy",
+        font="Shrikhand",
+        note="Heavy slanted display with a seventies bulge to every curve.  "
+             "16 mm.",
+        file="Shrikhand-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=16.0,
+        licence="SIL Open Font Licence 1.1, Jonny Pinhorn"),
+    "racing": dict(
+        group="Retro",
+        label="Racing",
+        font="Racing Sans One",
+        note="Italic speed-lettering off the side of a car.  The slant means "
+             "no two letters meet square, which is exactly the case the "
+             "negative gap is for.  11 mm.",
+        file="RacingSansOne-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=11.0,
+        licence="SIL Open Font Licence 1.1, Pablo Impallari, "
+                "Rodrigo Fuenzalida"),
+    "orbit": dict(
+        group="Tech",
+        label="Orbit",
+        font="Orbitron",
+        note="Wide geometric science-fiction capitals.  Shipped as the "
+             "variable font Google publishes, unmodified, so what you get is "
+             "its regular weight -- which measured better than a heavy "
+             "instance of it did, 10 mm against 12.  Latin-1 only.",
+        file="Orbitron[wght].ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, The Orbitron Project Authors"),
+    "techno": dict(
+        group="Tech",
+        label="Techno",
+        font="Audiowide",
+        note="Rounded techno capitals with a slot cut in the heavy strokes.  "
+             "10 mm.",
+        file="Audiowide-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "arcade": dict(
+        group="Tech",
+        label="Arcade",
+        font="Press Start 2P",
+        note="An eight-bit face, every stroke a whole number of pixels wide.  "
+             "Its counters are square, and a square shrinks evenly where a "
+             "round bowl pinches at the ends, which is why a face made of "
+             "blocks measures better than the fat ones do -- 11 mm.  Sets "
+             "wide: a long name runs on.",
+        file="PressStart2P-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=11.0,
+        licence="SIL Open Font Licence 1.1, The Press Start 2P Project "
+                "Authors"),
+    "pixel": dict(
+        group="Tech",
+        label="Pixel",
+        font="Silkscreen",
+        note="A smaller, tighter pixel face than the arcade one, drawn for a "
+             "screen that did not have many.  10 mm.  Latin-1 only.",
+        file="Silkscreen-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, The Silkscreen Project Authors"),
 }
 
 DEFAULT = "sans"

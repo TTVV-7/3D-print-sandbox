@@ -1,6 +1,6 @@
 """Set each face's name in that face, in the picker.
 
-A list of twenty-nine typefaces written in one typeface tells you nothing
+A list of forty-eight typefaces written in one typeface tells you nothing
 about any of them.  Written in themselves the list *is* the specimen: you pick
 Fraktur because the word Fraktur is sitting there in blackletter, not because
 you read the note underneath.
@@ -8,7 +8,7 @@ you read the note underneath.
 The whole trick is that a face only ever has to spell its own name here, so
 that is all of it that ships.  Each TTF is subset to the couple of dozen
 characters in its own label, turned into woff2 and written into the page as a
-data URI -- twenty-nine faces come to about 85 KB that way, against 3.4 MB for
+data URI -- forty-eight faces come to about 141 KB that way, against 5.6 MB for
 the files themselves, and nothing new has to be served: public/index.html is a
 static file on Vercel and stays one.
 
