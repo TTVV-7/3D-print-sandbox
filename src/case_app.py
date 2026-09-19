@@ -40,6 +40,8 @@ from phonecase.paint import Palette, plan as plan_paint
 from phonecase.preview import render
 from phonecase.profiles import CASES, FILAMENTS, PALETTES, PRINTERS
 from phonecase.spec import PHONES, CaseSpec, check_case
+from phonecase.solid import (MeshUnavailable, build_solid, mesh_to_stl,
+                             stats as solid_stats)
 from phonecase.svgart import load as load_svg
 from phonecase.toolpath import build, stats
 
@@ -48,7 +50,7 @@ PAGE = ROOT / "public" / "case.html"
 
 #: The commit of ttvv-7/weave-trial that src/phonecase was taken from.
 #: Update it with the copy, so a bug here can be traced to a source there.
-PROVENANCE = "8c7fb7f"
+PROVENANCE = "23da067"
 
 #: Requests bigger than this are not artwork. The SVG reader has its own,
 #: lower, limit; this one is about not buffering a payload to find out.
@@ -255,6 +257,30 @@ def gcode(params):
     return text.encode(), report(r, path, st, cost), "text/plain; charset=utf-8"
 
 
+def stl(params):
+    """(bytes, report, content type): the case as a solid.
+
+    Geometry only -- an STL has no idea which filament lays down which line,
+    so the artwork is not in it. It is here for slicing the case yourself, or
+    painting it in your slicer's own colour tool.
+    """
+    r = resolve(params)
+    try:
+        solid = build_solid(r["spec"], test_fit=bool(r["test_fit"]))
+    except MeshUnavailable as exc:              # not installed on this host
+        raise ValueError(str(exc)) from None
+    data = mesh_to_stl(solid, header=f"{params.get('phone', 'case')} - phonecase")
+    info = report(r, None, None, None)
+    ss = solid_stats(solid)
+    info["solid"] = {
+        "triangles": ss["triangles"],
+        "volumeCm3": round(ss["volume_mm3"] / 1000.0, 2),
+        "grams": round(ss["volume_mm3"] * r["filament"].density / 1000.0, 1),
+        "holes": ss["genus"],
+    }
+    return data, info, "model/stl"
+
+
 def catalogue():
     """Everything the form's menus are made of, from the generator itself.
 
@@ -321,9 +347,12 @@ class Handler(BaseHTTPRequestHandler):
             params = json.loads(body or b"{}")
             if not isinstance(params, dict):
                 raise ValueError("expected a JSON object")
-            want_gcode = params.get("want") == "gcode"
-            if want_gcode:
+            want = params.get("want")
+            want_file = want in ("gcode", "stl")
+            if want == "gcode":
                 data, info, ctype = gcode(params)
+            elif want == "stl":
+                data, info, ctype = stl(params)
             else:
                 svg, info = preview(params)
                 data, ctype = json.dumps({"svg": svg, "report": info}).encode(), \
@@ -336,8 +365,9 @@ class Handler(BaseHTTPRequestHandler):
         headers = [("X-Case-Info", json.dumps(info))]
         # G-code is repetitive text and squashes to about a seventh of its
         # size; a hosted function has a response ceiling a whole case would
-        # otherwise crowd.
-        if want_gcode and params.get("gzip"):
+        # otherwise crowd. A binary STL is mostly floats and squashes less,
+        # but it is a tenth of the size to begin with.
+        if want_file and params.get("gzip"):
             data = gzip.compress(data, compresslevel=6)
             headers.append(("X-Compressed", "gzip"))
             headers.append(("Content-Encoding", "identity"))

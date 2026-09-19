@@ -79,8 +79,22 @@ class Phone:
     #: Radius of the body's rounded corners in plan.
     corner_radius: float
 
-    #: Camera opening: size, corner radius, and the gap from the body's top
-    #: and side edges to the nearest edge of the opening.
+    #: How the camera is arranged on the back, which decides where the
+    #: opening goes as well as how big it is:
+    #:
+    #: ``corner``
+    #:     An island in one corner -- a square for the 13-16 Pro, a vertical
+    #:     pill for the 15/16, a small diagonal pair before that. The opening
+    #:     is measured in from the body's top and side edges.
+    #: ``plateau``
+    #:     The bar across the whole width of the back, introduced on the 17
+    #:     Pro. It is *centred*, not cornered, and it reaches close enough to
+    #:     both side edges that a case is left holding the top of its back
+    #:     plate on a narrow strip. Placing one of these as a corner island
+    #:     puts plastic over two of the three lenses.
+    camera_style: str = "corner"
+    #: Camera opening: size, corner radius, and (``corner`` style only) the
+    #: gap from the body's top and side edges to the nearest edge of it.
     camera_w: float = 38.0
     camera_h: float = 38.0
     camera_r: float = 11.0
@@ -107,10 +121,14 @@ class Phone:
     def cutouts(self, *, back_thickness: float, cavity_depth: float,
                 clearance: float, buttons: bool = True) -> list[Cutout]:
         """The standard hole set for this phone, in case coordinates."""
-        # Camera: measured in from the top and from the +x side of the body,
-        # then converted to a centre. It lives on the phone's back, and this
-        # frame is a front view, so it is at +x.
-        cx = self.width / 2 - self.camera_margin_side - self.camera_w / 2
+        # Camera. A corner island is measured in from the top and from the
+        # +x side of the body -- it lives on the phone's back and this frame
+        # is a front view, so it is at +x. A plateau spans the width and is
+        # centred, so only the top margin places it.
+        if self.camera_style == "plateau":
+            cx = 0.0
+        else:
+            cx = self.width / 2 - self.camera_margin_side - self.camera_w / 2
         cy = self.length / 2 - self.camera_margin_top - self.camera_h / 2
         out = [Cutout("camera", "back", cx, cy,
                       self.camera_w, self.camera_h, self.camera_r)]
@@ -435,6 +453,23 @@ def _pro(name, length, width, thickness) -> Phone:
                  camera_margin_top=3.0, camera_margin_side=3.0)
 
 
+def _plateau(name, length, width, thickness, *, height=25.0,
+             margin_side=2.0, margin_top=2.5) -> Phone:
+    """The 17-generation bar: full width of the back rather than a corner.
+
+    Sized from the body rather than given as a number, because what makes it
+    a plateau is that it runs to both edges. What is left of the back plate
+    beside it is ``margin_side`` plus the case wall, and above it
+    ``margin_top`` plus the wall -- a few millimetres either way, which
+    ``check_case`` measures and complains about if the fit makes it thinner.
+    """
+    return Phone(name=name, length=length, width=width, thickness=thickness,
+                 corner_radius=12.0, camera_style="plateau",
+                 camera_w=width - 2 * margin_side, camera_h=height,
+                 camera_r=min(height / 2, 12.0),
+                 camera_margin_top=margin_top, camera_margin_side=margin_side)
+
+
 def _base(name, length, width, thickness, *, pill=True) -> Phone:
     """Two cameras: a vertical pill on the 15/16 generation, diagonal before."""
     if pill:
@@ -463,9 +498,17 @@ PHONES: dict[str, Phone] = {
     "iphone-16-plus":    _base("iPhone 16 Plus", 160.9, 77.8, 7.80),
     "iphone-16-pro":     _pro("iPhone 16 Pro", 149.6, 71.5, 8.25),
     "iphone-16-pro-max": _pro("iPhone 16 Pro Max", 163.0, 77.6, 8.25),
+    # The 17 Pro moved the cameras into a bar across the whole width of the
+    # back. Sizes below are estimates like every other camera figure here,
+    # but the *shape* is not a guess: a corner island on one of these covers
+    # two of the three lenses.
     "iphone-17":         _base("iPhone 17", 149.6, 71.5, 7.95),
-    "iphone-17-pro":     _pro("iPhone 17 Pro", 150.0, 71.9, 8.75),
-    "iphone-17-pro-max": _pro("iPhone 17 Pro Max", 163.4, 78.0, 8.75),
+    "iphone-17-pro":     _plateau("iPhone 17 Pro", 150.0, 71.9, 8.75),
+    "iphone-17-pro-max": _plateau("iPhone 17 Pro Max", 163.4, 78.0, 8.75),
+    # One camera, and the thinnest body Apple has shipped, so the cavity is
+    # shallow and the lip does more of the work of holding it in.
+    "iphone-air":        _plateau("iPhone Air", 156.2, 74.6, 5.64,
+                                  height=22.0),
     "iphone-se-3":       Phone("iPhone SE (3rd gen)", 138.4, 67.3, 7.3,
                                corner_radius=9.0,
                                camera_w=17.0, camera_h=17.0, camera_r=6.0,

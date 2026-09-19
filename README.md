@@ -1328,9 +1328,10 @@ These are manufacturer trademarks — caps for your own car, not for selling.
 
 # Phone cases
 
-A case for any of seventeen iPhones, written straight to multi-tool g-code,
-with an SVG painted onto the outside of the back by the AMS. Its own page in
-the app, at **[/case](/case)**; from a terminal, `python3 src/case_app.py`.
+A case for any of eighteen iPhones, written straight to multi-tool g-code,
+with an SVG painted onto the outside of the back by the AMS -- or as an STL,
+if you would rather slice it yourself. Its own page in the app, at
+**[/case](/case)**; from a terminal, `python3 src/case_app.py`.
 
 This one does not look like the rest of the repository, and it is worth
 knowing why before reading the code.
@@ -1338,14 +1339,51 @@ knowing why before reading the code.
 - **It is g-code, not a solid.** Nothing here builds a mesh and hands it to a
   slicer. `src/phonecase/` writes the toolpath itself, which is the only way
   to decide which filament lays down each individual line.
-- **It needs nothing installed.** No shapely, no trimesh, no manifold. The
-  section geometry, the SVG reader and the g-code writer are all standard
-  library.
+- **It needs almost nothing installed.** No shapely, no trimesh. The section
+  geometry, the SVG reader, the g-code writer, and the rounded rectangles,
+  lofts and binary STL of the solid are all standard library. `manifold3d`
+  does one job, the boolean that subtracts the cutouts, and the g-code path
+  does not touch it at all.
 - **It is vendored.** The generator is developed and tested in
   [ttvv-7/weave-trial](https://github.com/TTVV-7/weave-trial), where it has
   its own test suite. `src/phonecase/` is a copy; `PROVENANCE` in
   `src/case_app.py` records which commit it came from. Fix bugs there, then
   copy the package across and update that string.
+
+## Two downloads
+
+**G-code** is the painted case, ready to print and not to be re-sliced: the
+colours live in the toolpath, which is the whole point of the thing.
+
+**STL** is the shape on its own, built from the same dimensions rather than
+traced off the toolpath, for slicing yourself or painting in your slicer's
+own colour tool. It is deliberately not marched out of a grid -- a case is
+flat faces and straight walls, and a grid turns a back plate that wants a
+hundred triangles into three hundred thousand. The shell, the cavity and the
+lip are stacks of rounded rectangles stitched into watertight tubes, with the
+base chamfer and the lip taper one exact loft each, and every cutout is a
+convex prism. A whole case is about two thousand triangles and a tenth of a
+megabyte, in a fifth of a second.
+
+A test fit has no STL: leaving the middle of the back plate unfilled is a
+thing g-code can say and a solid cannot, so the button turns off rather than
+quietly handing you a different part.
+
+## The camera is per phone, not one generic hole
+
+| style | phones | opening |
+|---|---|---|
+| square island | 13/14/15/16 Pro and Pro Max | ~39 x 39, top corner |
+| vertical pill | 15, 15 Plus, 16, 16 Plus, 17 | ~27 x 47 |
+| diagonal pair | 13, 14 | ~34 x 34 |
+| small | SE (3rd gen) | ~17 x 17 |
+| **plateau** | 17 Pro, 17 Pro Max, Air | full width, ~25 mm tall, centred |
+
+The 17 Pro's cameras sit in a bar across the whole width of the back, so a
+corner island would put plastic over two of the three lenses. That one is the
+*shape* being different rather than the millimetres, which is why it has its
+own style and is sized from the body -- what makes a plateau a plateau is
+that it reaches both edges -- rather than being given as a number.
 
 ## Printing it face down
 
@@ -1399,11 +1437,12 @@ wrong is still in it, for about half the filament and none of the purge.
 
 ## Two speeds
 
-`/api/case` answers twice. A preview builds only the artwork layers, which are
+`/api/case` answers at two speeds. A preview builds only the artwork layers, which are
 the ones that decide what the back looks like, and comes back in about a
 second; the page rebuilds on every change to the form. Pressing Download
 builds the whole case, which is five to fifteen seconds of real work and why
-`vercel.json` gives that function a longer `maxDuration`.
+`vercel.json` gives that function a longer `maxDuration`. The STL is the
+cheap one -- a fifth of a second, because there is no toolpath in it.
 
 ## From a terminal
 
