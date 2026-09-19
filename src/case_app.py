@@ -50,7 +50,7 @@ PAGE = ROOT / "public" / "case.html"
 
 #: The commit of ttvv-7/weave-trial that src/phonecase was taken from.
 #: Update it with the copy, so a bug here can be traced to a source there.
-PROVENANCE = "23da067"
+PROVENANCE = "8c66fc3"
 
 #: Requests bigger than this are not artwork. The SVG reader has its own,
 #: lower, limit; this one is about not buffering a payload to find out.

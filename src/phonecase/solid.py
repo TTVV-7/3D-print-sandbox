@@ -53,9 +53,10 @@ def _manifold_module():
         import manifold3d
     except ImportError:
         raise MeshUnavailable(
-            "building a solid needs the manifold3d package for the boolean "
-            f"("  "pip install " + REQUIRES + "). The g-code writer does not "
-            "need it, which is why it is not a hard requirement") from None
+            f"building a solid needs {REQUIRES} for the boolean that "
+            f"subtracts the cutouts (pip install {REQUIRES}). Nothing else "
+            "here needs it, and the g-code writer does not touch it at all, "
+            "which is why it is not a hard requirement") from None
     return manifold3d
 
 
