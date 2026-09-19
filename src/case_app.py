@@ -52,7 +52,7 @@ PAGE = ROOT / "public" / "case.html"
 
 #: The commit of ttvv-7/weave-trial that src/phonecase was taken from.
 #: Update it with the copy, so a bug here can be traced to a source there.
-PROVENANCE = "d9fb104"
+PROVENANCE = "f7bf3c7"
 
 #: Requests bigger than this are not artwork. The SVG reader has its own,
 #: lower, limit; this one is about not buffering a payload to find out.
@@ -112,6 +112,25 @@ def palette_from(params):
 def resolve(params):
     """Everything the generator needs, from a request body it does not trust."""
     phone = PHONES[_one_of(params, "phone", PHONES, "iphone-15-pro")]
+
+    # The camera opening is the least certain number in the whole generator
+    # -- body sizes are published, this one is not -- so it is the one the
+    # form gets to correct. Clamped to what could plausibly be a camera on a
+    # phone this size, not to what happens to be in the table.
+    cam = {}
+    for key, attr, lo, hi in (
+            ("cameraW", "camera_w", 4.0, phone.width),
+            ("cameraH", "camera_h", 4.0, phone.length / 2),
+            ("cameraR", "camera_r", 0.0, 30.0),
+            ("cameraMarginTop", "camera_margin_top", 0.0, 40.0),
+            ("cameraMarginSide", "camera_margin_side", 0.0, 40.0)):
+        if params.get(key) is not None:
+            cam[attr] = _num(params, key, getattr(phone, attr), lo, hi)
+    if cam:
+        cam["camera_r"] = min(cam.get("camera_r", phone.camera_r),
+                              cam.get("camera_w", phone.camera_w) / 2,
+                              cam.get("camera_h", phone.camera_h) / 2)
+        phone = replace(phone, **cam)
     preset = dict(CASES[_one_of(params, "fit", CASES, "snug")])
 
     for key, attr, lo, hi in (("clearance", "clearance", 0.1, 1.0),
@@ -185,6 +204,29 @@ def resolve(params):
                 art=art)
 
 
+def _camera_report(spec):
+    """The camera numbers, and the command line that would reproduce them.
+
+    Printed back because they are estimates: seeing what the generator
+    actually used is how you find out it does not match the phone in your
+    hand, and the flags are so a correction can outlive the browser tab.
+    """
+    p = spec.phone
+    cam = next((c for c in spec.cutouts if c.name == "camera"), None)
+    return {
+        "style": p.camera_style,
+        "lenses": p.lenses,
+        "w": round(p.camera_w, 2), "h": round(p.camera_h, 2),
+        "r": round(p.camera_r, 2),
+        "marginTop": round(p.camera_margin_top, 2),
+        "marginSide": round(p.camera_margin_side, 2),
+        "centre": [round(cam.u, 2), round(cam.v, 2)] if cam else None,
+        "flags": (f"--camera {p.camera_w:g}x{p.camera_h:g}:{p.camera_r:g} "
+                  f"--camera-margin {p.camera_margin_top:g},"
+                  f"{p.camera_margin_side:g}"),
+    }
+
+
 def report(r, path, st, tower_cost):
     """The numbers the page prints under the preview."""
     spec, palette = r["spec"], r["palette"]
@@ -211,6 +253,7 @@ def report(r, path, st, tower_cost):
         "lipInset": spec.lip_inset,
         "lipOverhang": round(spec.lip_overhang_deg),
         "cutouts": [c.name for c in spec.cutouts],
+        "camera": _camera_report(spec),
         "bodySlot": palette.base,
         "slots": [{"index": s.index, "name": s.name, "hex": s.hex}
                   for s in palette.slots],
@@ -324,8 +367,15 @@ def catalogue():
     return {
         "ok": True,
         "provenance": PROVENANCE,
+        # Each phone ships its camera defaults so the form can start from
+        # them and put them back when you change phone.
         "phones": [{"id": k, "name": v.name,
-                    "size": [v.length, v.width, v.thickness]}
+                    "size": [v.length, v.width, v.thickness],
+                    "camera": {"style": v.camera_style, "lenses": v.lenses,
+                               "w": v.camera_w, "h": v.camera_h,
+                               "r": v.camera_r,
+                               "marginTop": v.camera_margin_top,
+                               "marginSide": v.camera_margin_side}}
                    for k, v in PHONES.items()],
         "cases": [{"id": k, **v} for k, v in CASES.items()],
         "printers": [{"id": k, "name": v.name, "tools": v.tools,

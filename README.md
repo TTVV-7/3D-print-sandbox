@@ -1407,7 +1407,8 @@ off rather than quietly handing you a different part.
 | vertical pill | 15, 15 Plus, 16, 16 Plus, 17 | ~27 x 47 |
 | diagonal pair | 13, 14 | ~34 x 34 |
 | small | SE (3rd gen) | ~17 x 17 |
-| **plateau** | 17 Pro, 17 Pro Max, Air | full width, ~25 mm tall, centred |
+| **plateau** | 17 Pro, 17 Pro Max | full width, ~34 mm tall, centred |
+| **plateau** | Air | full width, ~26 mm tall, one lens |
 
 The plan panel draws the phone dashed inside the case and the lenses inside
 the opening -- three in a triangle for a Pro, two stacked in the pill, one
@@ -1418,7 +1419,17 @@ the same picture for every phone, which is exactly the blindness that let
 the 17 Pro's camera stay wrong.
 
 The 17 Pro's cameras sit in a bar across the whole width of the back, so a
-corner island would put plastic over two of the three lenses. That one is the
+corner island would put plastic over two of the three lenses.
+
+**The camera opening is the one number you can correct in the form.** Body
+sizes are published specs; camera openings are not, and nothing here has
+been measured against a real phone. The five fields under the fit tiles
+start from the phone's own defaults, outline whichever you have moved, and
+print the command line that reproduces what the generator used, so a
+correction outlives the browser tab. The bar's height was wrong once
+already: 25 mm, which is shorter than the three-lens cluster that has to fit
+inside it, and a test compares how big a lens each opening can hold now so
+that the next one shows up without anyone looking at a photograph. That one is the
 *shape* being different rather than the millimetres, which is why it has its
 own style and is sized from the body -- what makes a plateau a plateau is
 that it reaches both edges -- rather than being given as a number.

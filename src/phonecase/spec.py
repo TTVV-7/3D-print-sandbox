@@ -458,15 +458,23 @@ def _pro(name, length, width, thickness) -> Phone:
                  camera_margin_top=3.0, camera_margin_side=3.0)
 
 
-def _plateau(name, length, width, thickness, *, height=25.0,
+def _plateau(name, length, width, thickness, *, height=34.0,
              margin_side=2.0, margin_top=2.5, lenses=3) -> Phone:
     """The 17-generation bar: full width of the back rather than a corner.
 
-    Sized from the body rather than given as a number, because what makes it
-    a plateau is that it runs to both edges. What is left of the back plate
-    beside it is ``margin_side`` plus the case wall, and above it
-    ``margin_top`` plus the wall -- a few millimetres either way, which
+    The width is taken from the body rather than given as a number, because
+    what makes it a plateau is that it runs to both edges. What is left of
+    the back plate beside it is ``margin_side`` plus the case wall, and above
+    it ``margin_top`` plus the wall -- a few millimetres either way, which
     ``check_case`` measures and complains about if the fit makes it thinner.
+
+    The height is the number to be suspicious of, and it was wrong: 25 mm to
+    begin with, which is shorter than the three-lens cluster that has to fit
+    inside it. The same triangle of lenses needs a 39 mm island on a 16 Pro,
+    so a bar holding it cannot be much under thirty -- the opening and the
+    hardware are not independent, and a plateau too short for its own lenses
+    is a case with plastic over a lens. Still an estimate. Measure yours and
+    pass ``--camera``; the web page has the same fields.
     """
     return Phone(name=name, length=length, width=width, thickness=thickness,
                  corner_radius=12.0, camera_style="plateau", lenses=lenses,
@@ -513,7 +521,7 @@ PHONES: dict[str, Phone] = {
     # One camera, and the thinnest body Apple has shipped, so the cavity is
     # shallow and the lip does more of the work of holding it in.
     "iphone-air":        _plateau("iPhone Air", 156.2, 74.6, 5.64,
-                                  height=22.0, lenses=1),
+                                  height=26.0, lenses=1),
     "iphone-se-3":       Phone("iPhone SE (3rd gen)", 138.4, 67.3, 7.3,
                                corner_radius=9.0,
                                lenses=1,
