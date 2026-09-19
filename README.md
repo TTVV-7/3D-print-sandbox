@@ -1,8 +1,10 @@
 # 3D print sandbox
 
-Five parametric things live here so far.  All of them are plain Python --
+Six parametric things live here so far.  All of them are plain Python --
 shapely for the 2-D work, trimesh and manifold for the solids -- and all of
-them re-run in seconds.
+them re-run in seconds.  The phone case is the exception on every count: it
+needs nothing but the standard library, and it writes g-code rather than a
+mesh.
 
 - **[NFC fobs](#nfc-fobs)** -- a keyring fob printed as two halves with an NFC
   tag glued between them, in up to four colours, in one of three layouts.
@@ -21,6 +23,10 @@ them re-run in seconds.
   Same app, fourth shape.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
+- **[Phone cases](#phone-cases)** -- a case for any of seventeen iPhones,
+  painted on the back with your own SVG by the AMS.  The odd one out: it is
+  g-code rather than a solid, written directly with no slicer, and its
+  generator is vendored from another repository.  Its own page in the app.
 
 ---
 
@@ -1316,3 +1322,96 @@ Check the measured stroke width before committing to a cap size; Ford above is
 the cautionary tale.
 
 These are manufacturer trademarks — caps for your own car, not for selling.
+
+
+---
+
+# Phone cases
+
+A case for any of seventeen iPhones, written straight to multi-tool g-code,
+with an SVG painted onto the outside of the back by the AMS. Its own page in
+the app, at **[/case](/case)**; from a terminal, `python3 src/case_app.py`.
+
+This one does not look like the rest of the repository, and it is worth
+knowing why before reading the code.
+
+- **It is g-code, not a solid.** Nothing here builds a mesh and hands it to a
+  slicer. `src/phonecase/` writes the toolpath itself, which is the only way
+  to decide which filament lays down each individual line.
+- **It needs nothing installed.** No shapely, no trimesh, no manifold. The
+  section geometry, the SVG reader and the g-code writer are all standard
+  library.
+- **It is vendored.** The generator is developed and tested in
+  [ttvv-7/weave-trial](https://github.com/TTVV-7/weave-trial), where it has
+  its own test suite. `src/phonecase/` is a copy; `PROVENANCE` in
+  `src/case_app.py` records which commit it came from. Fix bugs there, then
+  copy the package across and update that string.
+
+## Printing it face down
+
+The case prints with its back against the build plate, so the artwork is
+layer 1 -- the flattest, glossiest surface the printer makes. It is also the
+face you cannot see while it prints, so **the artwork is mirrored into the
+g-code**. Get that backwards and the case reads backwards, with nothing to
+tell you until it is off the plate. The preview panel is deliberately not a
+re-render of your SVG: it is the generated first-layer toolpath, flipped into
+the orientation you will hold, so a mistake shows before it costs an hour.
+
+## What the SVG reader does
+
+Flat fills work best. Every path command including arcs, nested transforms,
+inherited fill, `evenodd` and `nonzero`, and strokes converted to fills --
+plenty of line art has no fills at all and printing nothing would be a poor
+answer. Gradients flatten to their first stop and say so. `<text>` is not
+rendered: convert text to paths before you export, and the page tells you when
+it finds some.
+
+Uploads are bounded, because the page is public: a `DOCTYPE` or `ENTITY`
+declaration is refused outright (entity definitions expand without bound and
+no drawing program emits one), the source is capped at 4 MB and the shape
+count at 20k.
+
+## What a colour change costs
+
+Every tool change flushes the old colour out of the nozzle, and the writer
+builds its own purge tower because nothing downstream is going to. The tower
+is printed only on the layers between the first and the last purge, which is
+the difference between a tower that outweighs the case and one that is two
+layers tall:
+
+| | tool changes | case | purged |
+|---|---|---|---|
+| artwork on the back plate | 8 | 20 g | 1.5 g |
+| artwork carried up the sides | 96 | 19 g | 24 g |
+
+Only the outermost perimeter is painted on the sides, and only the first two
+layers of the back plate are painted at all. Everything under the skin is the
+body colour, because nobody can see it and every change down there is another
+gram in the bin.
+
+## Print the test fit first
+
+The body dimensions are published specs. **The camera openings and the button
+positions are estimates** and have not been measured against a real phone. The
+test fit keeps the walls and a 7 mm rim of back plate around the outline and
+around every hole and leaves the middle open -- every dimension that can be
+wrong is still in it, for about half the filament and none of the purge.
+
+## Two speeds
+
+`/api/case` answers twice. A preview builds only the artwork layers, which are
+the ones that decide what the back looks like, and comes back in about a
+second; the page rebuilds on every change to the form. Pressing Download
+builds the whole case, which is five to fifteen seconds of real work and why
+`vercel.json` gives that function a longer `maxDuration`.
+
+## From a terminal
+
+```
+python3 src/case_app.py        # the same page, on 127.0.0.1:8766
+```
+
+The full command line generator, with the phone and camera overrides, the
+palette syntax and the printability report, lives in the weave-trial
+repository as `case.py`.
+

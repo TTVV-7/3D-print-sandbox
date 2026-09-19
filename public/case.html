@@ -1,0 +1,825 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phone cases</title>
+<style>
+  /* The same Simple Design System tokens and components as index.html, minus
+     the display-face specimens, which this page has no use for.  Kept inline
+     rather than shared so index.html -- which is actively being worked on --
+     does not have to change for this page to exist. */
+  /* Styled on Figma's Simple Design System: Inter, a near-black brand colour
+     on white, 1 px borders, 8 px radii, an 8-based spacing scale.  The tokens
+     below carry its names so the values can be swapped for the file's own. */
+  :root {
+    --bg-default: #ffffff; --bg-secondary: #f5f5f5; --bg-tertiary: #ececec;
+    --text-default: #1e1e1e; --text-secondary: #757575; --text-tertiary: #b3b3b3;
+    --border-default: #d9d9d9; --border-secondary: #767676;
+    --brand: #2c2c2c; --brand-hover: #1e1e1e; --on-brand: #f5f5f5;
+    --neutral: #e3e3e3; --neutral-hover: #cdcdcd;
+    --positive: #02542d; --positive-bg: #ebffee;
+    --warning: #522504; --warning-bg: #fff1c2;
+    --danger: #900b09; --danger-bg: #fee9e7;
+    --space-100: 4px; --space-200: 8px; --space-300: 12px; --space-400: 16px;
+    --space-600: 24px; --space-800: 32px;
+    --radius-100: 4px; --radius-200: 8px; --radius-full: 9999px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; height: 100vh; display: flex; background: var(--bg-default); color: var(--text-default);
+    font: 16px/1.4 Inter, "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  aside {
+    width: 400px; flex: none; padding: var(--space-600); overflow-y: auto;
+    background: var(--bg-default); border-right: 1px solid var(--border-default);
+    display: flex; flex-direction: column; gap: var(--space-600);
+  }
+  h1 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+  .sub { color: var(--text-secondary); margin: var(--space-100) 0 0; }
+
+  /* Card: a bordered panel with a subheading */
+  section {
+    border: 1px solid var(--border-default); border-radius: var(--radius-200);
+    padding: var(--space-600); display: flex; flex-direction: column; gap: var(--space-400);
+    background: var(--bg-default);
+  }
+  h2 { font-size: 20px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+
+  /* Input field: label above, description below */
+  .field { display: flex; flex-direction: column; gap: var(--space-200); }
+  .field > span, .field > label { font-weight: 400; }
+  .row { display: flex; gap: var(--space-400); }
+  .row > .field { flex: 1; min-width: 0; }
+  input[type=text], select, textarea {
+    font: inherit; color: var(--text-default); background: var(--bg-default);
+    border: 1px solid var(--border-default); border-radius: var(--radius-200);
+    padding: var(--space-300) var(--space-400); min-height: 40px; width: 100%;
+  }
+  input[type=text]:focus, select:focus, textarea:focus, input[type=file]:focus {
+    outline: 2px solid var(--brand); outline-offset: 1px; border-color: var(--brand);
+  }
+  select {
+    appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 40px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%231e1e1e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+  textarea { resize: vertical; font-size: 14px; line-height: 1.4; }
+  .hint { color: var(--text-secondary); font-size: 14px; margin: 0; }
+  .hint code { font-family: "Roboto Mono", ui-monospace, monospace; font-size: 13px; background: var(--bg-tertiary);
+               padding: 0 var(--space-100); border-radius: var(--radius-100); }
+  .hint.ok { color: var(--positive); }
+  .hint.bad { color: var(--danger); }
+
+  /* Every description is folded behind its own ?.  There is a paragraph of
+     reasoning under nearly every control on this panel, and all of it at once
+     is a wall of grey: folded, the panel reads as the list of choices it is,
+     and the reasoning is one hover away.  The mark is from Uiverse.io by
+     mirza_3039 -- cyan on grey there, the page's own ink and rules here. */
+  .disclosure { display: flex; flex-direction: column; align-items: flex-start; }
+  .qmark {
+    display: grid; place-items: center; width: 24px; height: 24px; padding: 0; cursor: help;
+    border: 1px solid var(--border-default); border-radius: var(--radius-full);
+    background: var(--bg-secondary); color: var(--text-secondary);
+  }
+  .qmark svg { width: 7px; height: 11px; fill: currentColor; }
+  .qmark:hover, .disclosure[data-open] > .qmark {
+    background: var(--bg-tertiary); border-color: var(--border-secondary); color: var(--text-default);
+  }
+  .qmark:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  /* 0fr to 1fr, so the paragraph opens to its own height without anyone
+     measuring it or writing one down. */
+  .disclosure > div { display: grid; grid-template-rows: 0fr; width: 100%;
+                      transition: grid-template-rows .22s ease; }
+  .disclosure > div > .hint { overflow: hidden; opacity: 0; transition: opacity .18s ease; }
+  .disclosure[data-open] > div { grid-template-rows: 1fr; }
+  .disclosure[data-open] > div > .hint { opacity: 1; padding-top: var(--space-200); }
+
+  /* file picker: styled as a neutral button */
+  input[type=file] { font: inherit; font-size: 14px; color: var(--text-secondary); width: 100%; }
+  input[type=file]::file-selector-button {
+    font: inherit; font-size: 14px; color: var(--text-default); background: var(--neutral);
+    border: 1px solid var(--border-secondary); border-radius: var(--radius-200);
+    padding: var(--space-200) var(--space-300); margin-right: var(--space-300); cursor: pointer;
+  }
+  input[type=file]::file-selector-button:hover { background: var(--neutral-hover); }
+
+  /* Slider */
+  .slider { display: flex; align-items: center; gap: var(--space-300); }
+  .slider output { min-width: 4.5em; text-align: right; color: var(--text-secondary); font-size: 14px; }
+  input[type=range] { flex: 1; accent-color: var(--brand); height: 24px; margin: 0; cursor: pointer; }
+
+  /* Checkbox field */
+  .check { display: flex; align-items: center; gap: var(--space-300); cursor: pointer; }
+  .check input { width: 16px; height: 16px; margin: 0; accent-color: var(--brand); border-radius: var(--radius-100); cursor: pointer; }
+  .check input:disabled + span { color: var(--text-tertiary); }
+
+  /* Shape tiles: the first choice, and the one everything else follows from */
+  .tiles { display: grid; gap: var(--space-300); }
+  .tile {
+    font: inherit; text-align: left; display: grid; align-items: center;
+    grid-template-columns: 60px 1fr; column-gap: var(--space-400);
+    padding: var(--space-300) var(--space-400); cursor: pointer;
+    border: 1px solid var(--border-default); border-radius: var(--radius-200);
+    background: var(--bg-default); color: var(--text-default);
+  }
+  .tile > div { display: flex; flex-direction: column; gap: 2px; }
+  .tile:hover { background: var(--bg-tertiary); }
+  .tile[aria-pressed=true] { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
+  .tile b { font-weight: 600; }
+  .tile span { font-size: 13px; line-height: 1.3; color: var(--text-secondary); }
+  .tile svg { width: 100%; height: 34px; fill: none; stroke: var(--text-secondary);
+              stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+  .tile[aria-pressed=true] svg { stroke: var(--text-default); }
+
+  /* Colour swatches: four Tags in a row */
+  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-200); }
+  .swatches label { display: flex; flex-direction: column; align-items: center; gap: var(--space-100);
+                    font-size: 12px; color: var(--text-secondary); cursor: pointer; }
+  .swatches input {
+    width: 100%; height: 40px; padding: 0; border: 1px solid var(--border-default);
+    border-radius: var(--radius-200); background: none; cursor: pointer;
+  }
+  .swatches input::-webkit-color-swatch-wrapper { padding: 3px; }
+  .swatches input::-webkit-color-swatch { border: none; border-radius: 5px; }
+  .swatches input::-moz-color-swatch { border: none; border-radius: 5px; }
+
+  /* Buttons */
+  .button {
+    font: inherit; font-weight: 400; display: inline-flex; align-items: center; justify-content: center;
+    gap: var(--space-200); padding: var(--space-300); min-height: 40px; border-radius: var(--radius-200);
+    border: 1px solid transparent; cursor: pointer; white-space: nowrap; transition: background .12s;
+  }
+  .button.primary { background: var(--brand); color: var(--on-brand); border-color: var(--brand); }
+  .button.primary:hover { background: var(--brand-hover); }
+  .button.neutral { background: var(--neutral); color: var(--text-default); border-color: var(--border-secondary); }
+  .button.neutral:hover { background: var(--neutral-hover); }
+  .button.subtle { background: transparent; color: var(--text-default); }
+  .button.subtle:hover { background: var(--bg-tertiary); }
+  .button:disabled { opacity: .4; pointer-events: none; }
+  .button svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6;
+                stroke-linecap: round; stroke-linejoin: round; }
+
+  /* Segmented control for the view */
+  .segmented { display: inline-flex; border: 1px solid var(--border-secondary); border-radius: var(--radius-200);
+               background: var(--neutral); padding: 2px; gap: 2px; }
+  .segmented button {
+    font: inherit; font-size: 14px; border: 0; background: transparent; color: var(--text-default);
+    padding: var(--space-200) var(--space-300); border-radius: 6px; cursor: pointer;
+  }
+  .segmented button[aria-pressed=true] { background: var(--brand); color: var(--on-brand); }
+
+  /* the viewer */
+  main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--bg-secondary); }
+  #view { flex: 1; position: relative; min-height: 0; }
+  #gl { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #gl:active { cursor: grabbing; }
+  #hud { position: absolute; left: var(--space-600); top: var(--space-400); color: var(--text-secondary);
+         font-size: 14px; pointer-events: none; }
+  #modes { position: absolute; right: var(--space-600); top: var(--space-400); }
+  #nogl { position: absolute; inset: 0; display: none; place-items: center; padding: 30px;
+          text-align: center; color: var(--text-secondary); }
+  /* A build in flight.  A ring going round says only that something is
+     happening; the jetpack says it is going as fast as it can, which is the
+     truer thing about a boolean on six letters.  From Uiverse.io by
+     anand_4957 -- black on white there, the page's own ink and rules here. */
+  #building {
+    position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    width: 300px; height: 130px; overflow: hidden; pointer-events: none;
+    background: var(--bg-default); border: 1px solid var(--border-default);
+    border-radius: var(--radius-200); color: var(--text-default);
+  }
+  #building p {
+    position: absolute; left: 0; right: 0; bottom: var(--space-300); margin: 0; text-align: center;
+    font-size: 12px; font-weight: 600; letter-spacing: .1em; color: var(--text-secondary);
+  }
+  .loader {
+    position: absolute; top: 46%; left: 50%; margin-left: -50px;
+    animation: speeder .4s linear infinite;
+  }
+  .loader > span {
+    height: 5px; width: 35px; background: currentColor;
+    position: absolute; top: -19px; left: 60px; border-radius: 2px 10px 1px 0;
+  }
+  .base span {
+    position: absolute; width: 0; height: 0;
+    border-top: 6px solid transparent; border-right: 100px solid currentColor;
+    border-bottom: 6px solid transparent;
+  }
+  .base span:before {
+    content: ""; height: 22px; width: 22px; border-radius: 50%; background: currentColor;
+    position: absolute; right: -110px; top: -16px;
+  }
+  .base span:after {
+    content: ""; position: absolute; width: 0; height: 0;
+    border-top: 0 solid transparent; border-right: 55px solid currentColor;
+    border-bottom: 16px solid transparent; top: -16px; right: -98px;
+  }
+  .face {
+    position: absolute; height: 12px; width: 20px; background: currentColor;
+    border-radius: 20px 20px 0 0; transform: rotate(-40deg); right: -125px; top: -15px;
+  }
+  .face:after {
+    content: ""; height: 12px; width: 12px; background: currentColor;
+    right: 4px; top: 7px; position: absolute;
+    transform: rotate(40deg); transform-origin: 50% 50%; border-radius: 0 0 0 2px;
+  }
+  /* the exhaust: four short lines torn off the back of the pack */
+  .loader > span > span { width: 30px; height: 1px; background: currentColor; position: absolute; }
+  .loader > span > span:nth-child(1) { animation: fazer1 .2s linear infinite; }
+  .loader > span > span:nth-child(2) { top: 3px; animation: fazer2 .4s linear infinite; }
+  .loader > span > span:nth-child(3) { top: 1px; animation: fazer3 .4s linear infinite;
+                                       animation-delay: -1s; }
+  .loader > span > span:nth-child(4) { top: 4px; animation: fazer4 1s linear infinite; }
+  @keyframes fazer1 { 0% { left: 0; } 100% { left: -80px; opacity: 0; } }
+  @keyframes fazer2 { 0% { left: 0; } 100% { left: -100px; opacity: 0; } }
+  @keyframes fazer3 { 0% { left: 0; } 100% { left: -50px; opacity: 0; } }
+  @keyframes fazer4 { 0% { left: 0; } 100% { left: -150px; opacity: 0; } }
+  /* the rider shakes; the scenery is what actually moves */
+  @keyframes speeder {
+    0%   { transform: translate(2px, 1px) rotate(0deg); }
+    10%  { transform: translate(-1px, -3px) rotate(-1deg); }
+    20%  { transform: translate(-2px, 0px) rotate(1deg); }
+    30%  { transform: translate(1px, 2px) rotate(0deg); }
+    40%  { transform: translate(1px, -1px) rotate(1deg); }
+    50%  { transform: translate(-1px, 3px) rotate(-1deg); }
+    60%  { transform: translate(-1px, 1px) rotate(0deg); }
+    70%  { transform: translate(3px, 1px) rotate(-1deg); }
+    80%  { transform: translate(-2px, -1px) rotate(1deg); }
+    90%  { transform: translate(2px, 1px) rotate(0deg); }
+    100% { transform: translate(1px, -2px) rotate(-1deg); }
+  }
+  .longfazers { position: absolute; width: 100%; height: 100%; }
+  .longfazers span { position: absolute; height: 2px; width: 20%; background: var(--text-tertiary); }
+  .longfazers span:nth-child(1) { top: 20%; animation: lf .6s linear infinite; animation-delay: -5s; }
+  .longfazers span:nth-child(2) { top: 40%; animation: lf2 .8s linear infinite; animation-delay: -1s; }
+  .longfazers span:nth-child(3) { top: 60%; animation: lf3 .6s linear infinite; }
+  .longfazers span:nth-child(4) { top: 80%; animation: lf4 .5s linear infinite; animation-delay: -3s; }
+  @keyframes lf  { 0% { left: 200%; } 100% { left: -200%; opacity: 0; } }
+  @keyframes lf2 { 0% { left: 200%; } 100% { left: -200%; opacity: 0; } }
+  @keyframes lf3 { 0% { left: 200%; } 100% { left: -100%; opacity: 0; } }
+  @keyframes lf4 { 0% { left: 200%; } 100% { left: -100%; opacity: 0; } }
+  /* Somebody who has asked for less motion still wants to know it is working:
+     the rider stays, the speed lines stop. */
+  @media (prefers-reduced-motion: reduce) {
+    .loader, .loader > span > span, .longfazers span { animation: none; }
+    .longfazers { display: none; }
+    .disclosure > div, .disclosure > div > .hint { transition: none; }
+  }
+  #buttons { position: absolute; right: var(--space-600); bottom: var(--space-600); display: flex; gap: var(--space-300);
+             flex-wrap: wrap; justify-content: flex-end; }
+
+  /* the readout */
+  #specs {
+    background: var(--bg-default); border-top: 1px solid var(--border-default); padding: var(--space-400) var(--space-600);
+    display: flex; flex-wrap: wrap; gap: var(--space-100) var(--space-600); font-size: 14px; color: var(--text-secondary);
+  }
+  #specs b { color: var(--text-default); font-weight: 600; }
+  #specs .warn { color: var(--warning); background: var(--warning-bg); padding: 0 var(--space-200); border-radius: var(--radius-100); }
+  #specs .err { color: var(--danger); background: var(--danger-bg); padding: 0 var(--space-200); border-radius: var(--radius-100); }
+
+  aside { scrollbar-width: thin; scrollbar-color: var(--border-default) transparent; }
+
+  @media (max-width: 800px) {
+    body { flex-direction: column; height: auto; }
+    aside { width: 100%; border-right: 0; border-bottom: 1px solid var(--border-default); }
+    #view { height: 64vh; }
+    #buttons { right: var(--space-400); bottom: var(--space-400); }
+  }
+
+  /* ---- the case preview ---------------------------------------------- */
+  #view { display: grid; place-items: center; padding: var(--space-600); overflow: auto; }
+  #preview { width: 100%; max-width: 1100px; }
+  #preview svg { width: 100%; height: auto; display: block;
+                 border: 1px solid var(--border-default); border-radius: var(--radius-200);
+                 background: var(--bg-default); }
+  #empty { color: var(--text-secondary); text-align: center; max-width: 34ch; }
+
+  /* The readout under the preview: the numbers, then anything wrong. */
+  #specs { padding: 0 var(--space-600) var(--space-600); flex-wrap: wrap; }
+  #notes { display: flex; flex-direction: column; gap: var(--space-100);
+           padding: 0 var(--space-600) var(--space-600); font-size: 14px; }
+  #notes p { margin: 0; padding: var(--space-200) var(--space-300); border-radius: var(--radius-100); }
+  #notes .warn { color: var(--warning); background: var(--warning-bg); }
+  #notes .err { color: var(--danger); background: var(--danger-bg); }
+  #notes .ok { color: var(--positive); background: var(--positive-bg); }
+
+  /* Top bar: this page and the other one */
+  .nav { display: flex; gap: var(--space-300); align-items: center; font-size: 14px; }
+  .nav a { color: var(--text-secondary); text-decoration: none; }
+  .nav a:hover { color: var(--text-default); text-decoration: underline; }
+
+  /* Colour slots: a swatch and the share of the back it covers */
+  .slotrow { display: grid; grid-template-columns: 40px 1fr auto; align-items: center;
+             gap: var(--space-300); font-size: 14px; }
+  .slotrow .chip { width: 32px; height: 32px; border-radius: var(--radius-100);
+                   border: 1px solid var(--border-default); }
+  .slotrow .share { color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+  .slotrow b { font-weight: 600; }
+  .dropped { border: 1px dashed var(--border-secondary); border-radius: var(--radius-200);
+             padding: var(--space-400); text-align: center; color: var(--text-secondary); }
+  .dropped.over { border-color: var(--brand); background: var(--bg-secondary); color: var(--text-default); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-300); }
+</style>
+</head>
+<body>
+<aside>
+  <div>
+    <div class="nav"><a href="/">&larr; The other generator</a></div>
+    <h1>Phone cases</h1>
+    <p class="sub">Pick a phone, paint the back with an SVG, print it face down.</p>
+  </div>
+
+  <section>
+    <h2>1 &middot; Phone</h2>
+    <div class="field">
+      <label for="phone">Model</label>
+      <select id="phone"></select>
+      <div class="disclosure">
+        <button type="button" class="qmark" aria-label="about these dimensions">
+          <svg viewBox="0 0 7 11"><path d="M3.5 7.4c-.5 0-.8-.3-.8-.7 0-1.4 2-1.5 2-2.9 0-.7-.5-1.2-1.3-1.2-.7 0-1.2.4-1.4 1-.1.4-.4.6-.8.6-.5 0-.8-.3-.8-.8C.4 2.1 1.7 1 3.5 1c1.9 0 3.1 1.1 3.1 2.6 0 1.9-2.3 2.1-2.3 3.1 0 .4-.3.7-.8.7zm0 3.1c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z"/></svg>
+        </button>
+        <div><p class="hint">Body sizes are published specs. <b>The camera openings
+          and the button positions are estimates</b> and have not been measured
+          against a real phone. Print the test fit below before you trust them.</p></div>
+      </div>
+    </div>
+    <div class="field">
+      <span>Fit</span>
+      <div class="tiles" id="fits"></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>2 &middot; Artwork</h2>
+    <div class="field">
+      <div class="dropped" id="drop">
+        <div><b id="artname">No artwork</b></div>
+        <div style="font-size:13px">Drop an SVG here, or</div>
+        <input type="file" id="art" accept=".svg,image/svg+xml" style="margin-top:8px">
+      </div>
+      <div class="row">
+        <button type="button" class="button subtle" id="example">Use the example</button>
+        <button type="button" class="button subtle" id="clearart">Clear</button>
+      </div>
+      <div class="disclosure">
+        <button type="button" class="qmark" aria-label="about SVG support">
+          <svg viewBox="0 0 7 11"><path d="M3.5 7.4c-.5 0-.8-.3-.8-.7 0-1.4 2-1.5 2-2.9 0-.7-.5-1.2-1.3-1.2-.7 0-1.2.4-1.4 1-.1.4-.4.6-.8.6-.5 0-.8-.3-.8-.8C.4 2.1 1.7 1 3.5 1c1.9 0 3.1 1.1 3.1 2.6 0 1.9-2.3 2.1-2.3 3.1 0 .4-.3.7-.8.7zm0 3.1c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z"/></svg>
+        </button>
+        <div><p class="hint">Flat fills work best. Every path command, nested
+          transforms and inherited fill are understood, and strokes are turned
+          into fills. <code>&lt;text&gt;</code> is not rendered &mdash; convert
+          text to paths before you export. Gradients are flattened to their
+          first stop.</p></div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="artFit">Placement</label>
+      <select id="artFit">
+        <option value="contain">Contain &mdash; all of it, letterboxed</option>
+        <option value="cover">Cover &mdash; fills the back, cropped</option>
+        <option value="stretch">Stretch &mdash; distorted to fit</option>
+        <option value="none">None &mdash; user units are millimetres</option>
+      </select>
+    </div>
+    <div class="field">
+      <label for="artScale">Scale</label>
+      <div class="slider"><input type="range" id="artScale" min="0.2" max="3" step="0.02" value="1"><output>1.00&times;</output></div>
+    </div>
+    <div class="field">
+      <label for="artRotate">Rotate</label>
+      <div class="slider"><input type="range" id="artRotate" min="-180" max="180" step="1" value="0"><output>0&deg;</output></div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label for="artX">Across</label>
+        <div class="slider"><input type="range" id="artX" min="-40" max="40" step="0.5" value="0"><output>0 mm</output></div>
+      </div>
+      <div class="field">
+        <label for="artY">Along</label>
+        <div class="slider"><input type="range" id="artY" min="-80" max="80" step="0.5" value="0"><output>0 mm</output></div>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="wrap"><span>Carry it up the sides</span></label>
+    <label class="check"><input type="checkbox" id="noMirror"><span>Do not mirror</span></label>
+    <div class="disclosure">
+      <button type="button" class="qmark" aria-label="about mirroring">
+        <svg viewBox="0 0 7 11"><path d="M3.5 7.4c-.5 0-.8-.3-.8-.7 0-1.4 2-1.5 2-2.9 0-.7-.5-1.2-1.3-1.2-.7 0-1.2.4-1.4 1-.1.4-.4.6-.8.6-.5 0-.8-.3-.8-.8C.4 2.1 1.7 1 3.5 1c1.9 0 3.1 1.1 3.1 2.6 0 1.9-2.3 2.1-2.3 3.1 0 .4-.3.7-.8.7zm0 3.1c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z"/></svg>
+      </button>
+      <div><p class="hint">The case prints back face down, so the artwork goes
+        into the g-code flipped. Turning the mirror off makes the finished case
+        read backwards &mdash; which is occasionally what you want, and
+        otherwise is the mistake you only find once it is off the plate. The
+        preview above is always shown the way you will hold it.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>3 &middot; Filament</h2>
+    <div class="field">
+      <label for="palette">Palette</label>
+      <select id="palette"></select>
+    </div>
+    <div class="swatches" id="swatches"></div>
+    <div class="field">
+      <label for="base">Body colour</label>
+      <select id="base"><option value="">Auto &mdash; the artwork's main colour</option></select>
+    </div>
+    <div id="slotlist" class="field"></div>
+  </section>
+
+  <section>
+    <h2>4 &middot; Print</h2>
+    <div class="row">
+      <div class="field"><label for="printer">Printer</label><select id="printer"></select></div>
+      <div class="field"><label for="filament">Filament</label><select id="filament"></select></div>
+    </div>
+    <div class="row">
+      <div class="field">
+        <label for="layerHeight">Layer</label>
+        <select id="layerHeight">
+          <option value="0.16">0.16 mm</option>
+          <option value="0.2" selected>0.20 mm</option>
+          <option value="0.24">0.24 mm</option>
+          <option value="0.28">0.28 mm</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="artLayers">Art layers</label>
+        <select id="artLayers">
+          <option value="1">1</option><option value="2" selected>2</option>
+          <option value="3">3</option><option value="4">4</option>
+        </select>
+      </div>
+    </div>
+    <div class="field">
+      <label for="purge">Purge per colour change</label>
+      <div class="slider"><input type="range" id="purge" min="0" max="400" step="10" value="110"><output>110 mm&sup3;</output></div>
+      <div class="disclosure">
+        <button type="button" class="qmark" aria-label="about purging">
+          <svg viewBox="0 0 7 11"><path d="M3.5 7.4c-.5 0-.8-.3-.8-.7 0-1.4 2-1.5 2-2.9 0-.7-.5-1.2-1.3-1.2-.7 0-1.2.4-1.4 1-.1.4-.4.6-.8.6-.5 0-.8-.3-.8-.8C.4 2.1 1.7 1 3.5 1c1.9 0 3.1 1.1 3.1 2.6 0 1.9-2.3 2.1-2.3 3.1 0 .4-.3.7-.8.7zm0 3.1c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z"/></svg>
+        </button>
+        <div><p class="hint">Every tool change flushes the old colour out of the
+          nozzle into a purge tower. Artwork on the back plate changes colour
+          twice and never again, so the tower is a couple of layers tall.
+          Carrying it up the sides changes colour on every layer, and the tower
+          can end up heavier than the case.</p></div>
+      </div>
+    </div>
+    <div class="field">
+      <span>Detail</span>
+      <div class="segmented" id="res">
+        <button type="button" data-res="0.32" aria-pressed="false">Fine</button>
+        <button type="button" data-res="0.45" aria-pressed="true">Normal</button>
+        <button type="button" data-res="0.7" aria-pressed="false">Fast</button>
+      </div>
+    </div>
+    <label class="check"><input type="checkbox" id="testFit"><span>Test fit &mdash; rim only, no artwork</span></label>
+    <div class="disclosure">
+      <button type="button" class="qmark" aria-label="about the test fit">
+        <svg viewBox="0 0 7 11"><path d="M3.5 7.4c-.5 0-.8-.3-.8-.7 0-1.4 2-1.5 2-2.9 0-.7-.5-1.2-1.3-1.2-.7 0-1.2.4-1.4 1-.1.4-.4.6-.8.6-.5 0-.8-.3-.8-.8C.4 2.1 1.7 1 3.5 1c1.9 0 3.1 1.1 3.1 2.6 0 1.9-2.3 2.1-2.3 3.1 0 .4-.3.7-.8.7zm0 3.1c-.6 0-1-.4-1-1s.4-1 1-1 1 .4 1 1-.4 1-1 1z"/></svg>
+      </button>
+      <div><p class="hint">Keeps the walls and a 7 mm rim of back plate around
+        the outline and around every hole, and leaves the middle open. Every
+        dimension that can be wrong is still in it, for about half the
+        filament and none of the purge. Print this one first.</p></div>
+    </div>
+  </section>
+
+  <button class="button primary" id="save">
+    <svg viewBox="0 0 16 16"><path d="M8 2v8m0 0L5 7m3 3 3-3M3 12v2h10v-2"/></svg>
+    Download g-code
+  </button>
+  <p class="hint" id="savenote">The whole case is five to fifteen seconds of work.</p>
+</aside>
+
+<main>
+  <div id="view">
+    <div id="preview"></div>
+    <div id="empty">Pick a phone and drop in an SVG. The preview is the real
+      first-layer toolpath, shown the way you will hold the finished case.</div>
+    <div id="building" hidden>
+      <div class="loader">
+        <span><span></span><span></span><span></span><span></span></span>
+        <div class="base"><span></span><div class="face"></div></div>
+      </div>
+      <div class="longfazers"><span></span><span></span><span></span><span></span></div>
+      <p>BUILDING</p>
+    </div>
+  </div>
+  <div id="specs"></div>
+  <div id="notes"></div>
+</main>
+
+<script>
+"use strict";
+/* The page talks to /api/case, which is src/case_app.py whether that is a
+   Vercel function or `python3 src/case_app.py` on this machine.  Two calls:
+   a preview, which builds only the artwork layers and comes back in about a
+   second, and a download, which builds the whole case and takes five to
+   fifteen.  Everything in the menus comes from the generator on first load,
+   so adding a phone to src/phonecase/spec.py puts it in the list here. */
+
+const $ = id => document.getElementById(id);
+const MAX_ART = 4 << 20;                       // the reader's own limit, mirrored
+
+let catalogue = null;
+let artText = null, artName = null;
+let slots = [];                                 // [{hex, name}]
+let lastReport = null;
+let seq = 0;                                    // a later change wins
+
+/* ---- building the form ------------------------------------------------ */
+
+function fillSelect(el, items, selected) {
+  el.innerHTML = items.map(o =>
+    `<option value="${o.id}"${o.id === selected ? " selected" : ""}>${o.label}</option>`
+  ).join("");
+}
+
+function fitTiles(cases) {
+  const blurb = {
+    snug: "The default",
+    slim: "Faster, thinner, protects less",
+    rugged: "Thicker wall, taller lip",
+    test: "Loose, for an unfamiliar phone",
+  };
+  $("fits").innerHTML = cases.map((c, i) => `
+    <button type="button" class="tile" data-fit="${c.id}" aria-pressed="${i === 0}">
+      <svg viewBox="0 0 34 62" aria-hidden="true" style="width:34px">
+        <rect x="1.5" y="1.5" width="31" height="59" rx="7"/>
+        <rect x="${1.5 + c.wall * 2}" y="${1.5 + c.wall * 2}"
+              width="${31 - c.wall * 4}" height="${59 - c.wall * 4}" rx="5"/>
+      </svg>
+      <div><b>${c.id}</b><span>${blurb[c.id] || ""} &middot; ${c.wall} mm wall,
+        ${c.clearance} mm gap</span></div>
+    </button>`).join("");
+  $("fits").querySelectorAll(".tile").forEach(t => t.addEventListener("click", () => {
+    $("fits").querySelectorAll(".tile").forEach(o =>
+      o.setAttribute("aria-pressed", String(o === t)));
+    refresh();
+  }));
+}
+
+function setPalette(name) {
+  slots = (catalogue.palettes[name] || []).map(s => ({ hex: s.hex, name: s.name }));
+  drawSwatches();
+}
+
+function drawSwatches() {
+  $("swatches").innerHTML = slots.map((s, i) => `
+    <label title="${s.name}">
+      <input type="color" value="${s.hex}" data-slot="${i}">
+      <span>T${i}</span>
+    </label>`).join("");
+  $("swatches").querySelectorAll("input").forEach(inp =>
+    inp.addEventListener("change", () => {
+      slots[+inp.dataset.slot].hex = inp.value;
+      // A hand-picked colour is no longer the palette's, so it loses its name.
+      slots[+inp.dataset.slot].name = inp.value.slice(1);
+      refresh();
+    }));
+  $("base").innerHTML = '<option value="">Auto &mdash; the artwork\'s main colour</option>'
+    + slots.map((s, i) => `<option value="${i}">T${i} ${s.name}</option>`).join("");
+}
+
+/* ---- reading the form ------------------------------------------------- */
+
+function params(extra) {
+  const fit = $("fits").querySelector('.tile[aria-pressed=true]');
+  const res = $("res").querySelector('button[aria-pressed=true]');
+  return Object.assign({
+    phone: $("phone").value,
+    fit: fit ? fit.dataset.fit : "snug",
+    printer: $("printer").value,
+    filament: $("filament").value,
+    slots: slots,
+    base: $("base").value === "" ? null : Number($("base").value),
+    art: artText,
+    artFit: $("artFit").value,
+    artScale: Number($("artScale").value),
+    artRotate: Number($("artRotate").value),
+    artX: Number($("artX").value),
+    artY: Number($("artY").value),
+    artLayers: Number($("artLayers").value),
+    layerHeight: Number($("layerHeight").value),
+    purge: Number($("purge").value),
+    res: res ? Number(res.dataset.res) : 0.45,
+    wrap: $("wrap").checked,
+    noMirror: $("noMirror").checked,
+    testFit: $("testFit").checked,
+  }, extra || {});
+}
+
+/* ---- the preview ------------------------------------------------------ */
+
+let timer = null;
+function refresh() {
+  clearTimeout(timer);
+  timer = setTimeout(rebuild, 220);             // one build per pause, not per keystroke
+}
+
+async function rebuild() {
+  const mine = ++seq;
+  $("building").hidden = false;
+  try {
+    const res = await fetch("/api/case", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params()),
+    });
+    if (mine !== seq) return;                   // a later change got there first
+    const payload = await res.json();
+    if (!res.ok) return fail(payload.error || res.statusText);
+    $("preview").innerHTML = payload.svg;       // our own SVG, from validated input
+    $("empty").hidden = true;
+    lastReport = payload.report;
+    readout(payload.report);
+  } catch (exc) {
+    if (mine === seq) fail(String(exc));
+  } finally {
+    if (mine === seq) $("building").hidden = true;
+  }
+}
+
+function fail(message) {
+  $("notes").innerHTML = `<p class="err">${escape_(message)}</p>`;
+  $("save").disabled = true;
+}
+
+function escape_(s) {
+  return String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
+
+function readout(r) {
+  const [w, l, h] = r.size;
+  const bits = [
+    `<span><b>${escape_(r.phone)}</b></span>`,
+    `<span>${w} &times; ${l} &times; ${h} mm</span>`,
+    `<span>${r.clearance} mm gap &middot; ${r.wall} mm wall
+       (${r.perimeters} perimeters at ${r.wallLine} mm)</span>`,
+    `<span>back ${r.backThickness} mm, ${r.solidLayers} layers,
+       artwork on the first ${r.artLayers}</span>`,
+    `<span>lip ${r.lip} mm, ${r.lipInset} mm in (${r.lipOverhang}&deg;)</span>`,
+  ];
+  if (r.grams !== null && r.grams !== undefined) {
+    bits.push(`<span><b>${r.grams} g</b>${r.purgeGrams ? ` + ${r.purgeGrams} g purged` : ""}</span>`);
+    bits.push(`<span>${r.layers} layers &middot; ${r.toolChanges} tool changes</span>`);
+  }
+  $("specs").innerHTML = bits.join("");
+
+  // Which filament covers how much of the back, straight off the raster.
+  const area = r.areaBySlot || {};
+  const total = Object.values(area).reduce((a, b) => a + b, 0) || 1;
+  const rows = r.slots.filter(s => area[String(s.index)]).map(s => {
+    const mm2 = area[String(s.index)] || 0;
+    const g = r.gramsBySlot ? r.gramsBySlot[String(s.index)] : null;
+    return `<div class="slotrow">
+      <span class="chip" style="background:${s.hex}"></span>
+      <span>T${s.index} <b>${escape_(s.name)}</b>${s.index === r.bodySlot
+        ? ' <span class="share">&middot; body</span>' : ""}</span>
+      <span class="share">${(mm2 / total * 100).toFixed(0)}%${g !== null && g !== undefined
+        ? ` &middot; ${g} g` : ""}</span>
+    </div>`;
+  }).join("");
+  $("slotlist").innerHTML = rows;
+
+  const notes = [];
+  for (const p of r.problems) notes.push(`<p class="err">${escape_(p)}</p>`);
+  for (const wn of r.warnings) notes.push(`<p class="warn">${escape_(wn)}</p>`);
+  if (!notes.length) notes.push('<p class="ok">Printable.</p>');
+  if (r.testFit) notes.push(`<p class="warn">Test fit: back plate reduced to a
+    ${r.testFit} mm rim, artwork off.</p>`);
+  $("notes").innerHTML = notes.join("");
+  $("save").disabled = !r.ok;
+  $("savenote").textContent = r.ok
+    ? "The whole case is five to fifteen seconds of work."
+    : "Fix what is in red first.";
+}
+
+/* ---- the download ----------------------------------------------------- */
+
+$("save").addEventListener("click", async () => {
+  const btn = $("save");
+  btn.disabled = true;
+  $("savenote").textContent = "Building the whole case…";
+  $("building").hidden = false;
+  try {
+    const res = await fetch("/api/case", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params({ want: "gcode", gzip: true })),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || res.statusText);
+    }
+    const info = JSON.parse(res.headers.get("X-Case-Info"));
+    let blob = await res.blob();
+    if (res.headers.get("X-Compressed") === "gzip" && "DecompressionStream" in window) {
+      blob = await new Response(
+        blob.stream().pipeThrough(new DecompressionStream("gzip"))).blob();
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${$("phone").value}-${info.testFit ? "test-fit" : "case"}.gcode`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    readout(info);                              // now it knows grams and changes
+    $("savenote").textContent = `${info.grams} g of case`
+      + (info.purgeGrams ? `, ${info.purgeGrams} g of purge tower.` : ".");
+  } catch (exc) {
+    $("savenote").textContent = String(exc.message || exc);
+  } finally {
+    $("building").hidden = true;
+    btn.disabled = false;
+  }
+});
+
+/* ---- artwork ---------------------------------------------------------- */
+
+async function takeFile(file) {
+  if (!file) return;
+  if (file.size > MAX_ART) {
+    return fail(`${file.name} is ${(file.size / 1e6).toFixed(1)} MB; the limit is 4 MB`);
+  }
+  artText = await file.text();
+  artName = file.name;
+  $("artname").textContent = artName;
+  refresh();
+}
+
+$("art").addEventListener("change", e => takeFile(e.target.files[0]));
+
+const drop = $("drop");
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.add("over");
+}));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => {
+  e.preventDefault(); drop.classList.remove("over");
+}));
+drop.addEventListener("drop", e => takeFile(e.dataTransfer.files[0]));
+
+$("example").addEventListener("click", async () => {
+  const res = await fetch("/example-art.svg");
+  artText = await res.text();
+  artName = "example-art.svg";
+  $("artname").textContent = artName;
+  refresh();
+});
+
+$("clearart").addEventListener("click", () => {
+  artText = artName = null;
+  $("artname").textContent = "No artwork";
+  $("art").value = "";
+  refresh();
+});
+
+/* ---- wiring ----------------------------------------------------------- */
+
+document.querySelectorAll(".disclosure .qmark").forEach(q =>
+  q.addEventListener("click", () => {
+    const d = q.parentElement;
+    d.hasAttribute("data-open") ? d.removeAttribute("data-open")
+      : d.setAttribute("data-open", "");
+  }));
+
+$("res").querySelectorAll("button").forEach(b => b.addEventListener("click", () => {
+  $("res").querySelectorAll("button").forEach(o =>
+    o.setAttribute("aria-pressed", String(o === b)));
+  refresh();
+}));
+
+document.querySelectorAll('input[type=range]').forEach(r => {
+  const out = r.parentElement.querySelector("output");
+  const unit = { artScale: "×", artRotate: "°", purge: " mm³" };
+  const show = () => {
+    const u = unit[r.id] !== undefined ? unit[r.id] : " mm";
+    out.textContent = (r.id === "artScale" ? Number(r.value).toFixed(2) : r.value) + u;
+  };
+  r.addEventListener("input", show);
+  r.addEventListener("change", refresh);
+  show();
+});
+
+["phone", "printer", "filament", "layerHeight", "artLayers", "artFit", "base"]
+  .forEach(id => $(id).addEventListener("change", refresh));
+["wrap", "noMirror", "testFit"].forEach(id => $(id).addEventListener("change", refresh));
+$("palette").addEventListener("change", () => { setPalette($("palette").value); refresh(); });
+
+(async function start() {
+  const res = await fetch("/api/case");
+  catalogue = await res.json();
+  fillSelect($("phone"), catalogue.phones.map(p => ({ id: p.id, label: p.name })),
+             "iphone-15-pro");
+  fillSelect($("printer"), catalogue.printers.map(p =>
+    ({ id: p.id, label: `${p.name} (${p.tools} slots)` })), "bambu-p1s-ams");
+  fillSelect($("filament"), catalogue.filaments.map(f => ({ id: f.id, label: f.id })), "pla");
+  fillSelect($("palette"), Object.keys(catalogue.palettes).map(k =>
+    ({ id: k, label: `${k} (${catalogue.palettes[k].length})` })), "primary");
+  fitTiles(catalogue.cases);
+  setPalette("primary");
+  rebuild();
+})();
+</script>
+</body>
+</html>

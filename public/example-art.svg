@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 600" width="300" height="600">
+  <!-- Sample artwork for case.py. Flat fills, no text, no gradients:
+       exactly the shape of SVG the generator is happiest with. -->
+  <rect width="300" height="600" fill="#1b1b1f"/>
+  <circle cx="150" cy="430" r="96" fill="#e03131"/>
+  <path d="M150 120 L246 300 L54 300 Z" fill="#1c7ed6"/>
+  <path d="M40 520 C 110 470, 190 590, 260 540" stroke="#f4f4f2"
+        stroke-width="14" fill="none" stroke-linecap="round"/>
+  <rect x="40" y="60" width="220" height="16" rx="8" fill="#f4f4f2"/>
+</svg>
