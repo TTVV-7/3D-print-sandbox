@@ -43,6 +43,8 @@ from phonecase.spec import PHONES, CaseSpec, check_case
 from phonecase.solid import (MeshUnavailable, build_solid, mesh_to_stl,
                              stats as solid_stats)
 from phonecase.svgart import load as load_svg
+from phonecase.threemf import (colour_parts, parts_to_3mf,
+                               stats as threemf_stats)
 from phonecase.toolpath import build, stats
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -50,7 +52,7 @@ PAGE = ROOT / "public" / "case.html"
 
 #: The commit of ttvv-7/weave-trial that src/phonecase was taken from.
 #: Update it with the copy, so a bug here can be traced to a source there.
-PROVENANCE = "0e84e6a"
+PROVENANCE = "d9fb104"
 
 #: Requests bigger than this are not artwork. The SVG reader has its own,
 #: lower, limit; this one is about not buffering a payload to find out.
@@ -281,6 +283,38 @@ def stl(params):
     return data, info, "model/stl"
 
 
+def threemf(params):
+    """(bytes, report, content type): the case as a 3MF, colours and all.
+
+    The one export that keeps the artwork: the back plate is cut into inlays,
+    one solid per filament, so a slicer opens a single object with a part per
+    colour instead of a shape it has to be told about.
+    """
+    r = resolve(params)
+    if r["test_fit"]:
+        raise ValueError(
+            "a test fit leaves the middle of the back plate unfilled, which "
+            "is a thing g-code can say and a solid cannot. Take the test fit "
+            "as g-code")
+    try:
+        parts = colour_parts(r["spec"], r["paint"], wrap=r["wrap"])
+    except MeshUnavailable as exc:
+        raise ValueError(str(exc)) from None
+    spec = r["spec"]
+    data = parts_to_3mf(parts, origin=(spec.outer_w / 2, spec.outer_l / 2),
+                        name=params.get("phone", "case"))
+    info = report(r, None, None, None)
+    ms = threemf_stats(parts)
+    info["solid"] = {
+        "triangles": ms["triangles"],
+        "volumeCm3": round(ms["volume_mm3"] / 1000.0, 2),
+        "grams": round(ms["volume_mm3"] * r["filament"].density / 1000.0, 1),
+        "parts": ms["parts"],
+        "perPart": ms["per_part"],
+    }
+    return data, info, "model/3mf"
+
+
 def catalogue():
     """Everything the form's menus are made of, from the generator itself.
 
@@ -348,11 +382,13 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(params, dict):
                 raise ValueError("expected a JSON object")
             want = params.get("want")
-            want_file = want in ("gcode", "stl")
+            want_file = want in ("gcode", "stl", "3mf")
             if want == "gcode":
                 data, info, ctype = gcode(params)
             elif want == "stl":
                 data, info, ctype = stl(params)
+            elif want == "3mf":
+                data, info, ctype = threemf(params)
             else:
                 svg, info = preview(params)
                 data, ctype = json.dumps({"svg": svg, "report": info}).encode(), \

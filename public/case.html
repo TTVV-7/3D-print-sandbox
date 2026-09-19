@@ -498,6 +498,10 @@
       <svg viewBox="0 0 16 16"><path d="M8 2v8m0 0L5 7m3 3 3-3M3 12v2h10v-2"/></svg>
       G-code
     </button>
+    <button class="button neutral" id="save3mf" style="flex:1">
+      <svg viewBox="0 0 16 16"><path d="M8 1.5 14 5v6l-6 3.5L2 11V5zM2 5l6 3.5M14 5 8 8.5m0 0v6"/><path d="M5 6.7v4.1l3 1.7"/></svg>
+      3MF
+    </button>
     <button class="button neutral" id="savestl" style="flex:1">
       <svg viewBox="0 0 16 16"><path d="M8 1.5 14 5v6l-6 3.5L2 11V5zM2 5l6 3.5M14 5 8 8.5m0 0v6"/></svg>
       STL
@@ -510,11 +514,13 @@
     </button>
     <div><p class="hint"><b>The g-code is the painted case</b>, ready to print
       and not to be re-sliced &mdash; the colours live in the toolpath, which
-      is the whole point. <b>The STL is the shape only</b>, built from the same
-      dimensions rather than traced off the toolpath: slice it yourself, or
-      paint it in your slicer's own colour tool. A test fit has no STL, because
-      leaving the middle of the back plate unfilled is a thing g-code can say
-      and a solid cannot.</p></div>
+      is the whole point. <b>The 3MF keeps the colours</b>: the back plate is
+      cut into inlays, one solid per filament, so your slicer opens one object
+      with a part per colour. <b>The STL is the shape on its own</b> &mdash; a
+      single colour, because an STL cannot hold more. Neither carries the purge
+      tower or the tool-change ordering; none of that is geometry. A test fit
+      has neither, because leaving the middle of the back plate unfilled is a
+      thing g-code can say and a solid cannot.</p></div>
   </div>
 </aside>
 
@@ -719,18 +725,19 @@ function readout(r) {
     ${r.testFit} mm rim, artwork off.</p>`);
   $("notes").innerHTML = notes.join("");
   $("save").disabled = !r.ok;
-  $("savestl").disabled = !r.ok || !!r.testFit;
+  $("savestl").disabled = $("save3mf").disabled = !r.ok || !!r.testFit;
   $("savenote").textContent = !r.ok ? "Fix what is in red first."
     : r.testFit ? "A test fit is g-code only — see the note below."
-    : "G-code is the painted case; STL is the shape on its own.";
+    : "G-code prints as is; 3MF keeps the colours; STL is the shape alone.";
 }
 
 /* ---- the download ----------------------------------------------------- */
 
 async function download(want) {
-  const buttons = [$("save"), $("savestl")];
+  const buttons = [$("save"), $("save3mf"), $("savestl")];
   buttons.forEach(b => b.disabled = true);
-  $("savenote").textContent = want === "stl" ? "Building the solid…" : "Building the whole case…";
+  $("savenote").textContent = want === "gcode"
+    ? "Building the whole case…" : "Building the solid…";
   $("building").hidden = false;
   try {
     const res = await fetch("/api/case", {
@@ -753,7 +760,11 @@ async function download(want) {
     a.click();
     URL.revokeObjectURL(a.href);
     readout(info);                              // now it knows grams and changes
-    $("savenote").textContent = want === "stl"
+    $("savenote").textContent = want === "3mf"
+      ? `${info.solid.parts} parts, one per filament, `
+        + `${info.solid.triangles} triangles — open it and check the `
+        + `colours before you slice.`
+      : want === "stl"
       ? `${info.solid.triangles} triangles, ${info.solid.volumeCm3} cm³`
         + ` — about ${info.solid.grams} g if you print it solid.`
       : `${info.grams} g of case`
@@ -763,11 +774,14 @@ async function download(want) {
   } finally {
     $("building").hidden = true;
     buttons.forEach(b => b.disabled = false);
-    if ($("testFit").checked) $("savestl").disabled = true;
+    if ($("testFit").checked) {
+      $("savestl").disabled = $("save3mf").disabled = true;
+    }
   }
 }
 
 $("save").addEventListener("click", () => download("gcode"));
+$("save3mf").addEventListener("click", () => download("3mf"));
 $("savestl").addEventListener("click", () => download("stl"));
 
 /* ---- artwork ---------------------------------------------------------- */

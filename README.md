@@ -1329,8 +1329,8 @@ These are manufacturer trademarks — caps for your own car, not for selling.
 # Phone cases
 
 A case for any of eighteen iPhones, written straight to multi-tool g-code,
-with an SVG painted onto the outside of the back by the AMS -- or as an STL,
-if you would rather slice it yourself. Its own page in the app, at
+with an SVG painted onto the outside of the back by the AMS -- or as a 3MF
+that keeps the colours, or an STL if you only want the shape. Its own page in the app, at
 **[/case](/case)**; from a terminal, `python3 src/case_app.py`.
 
 This one does not look like the rest of the repository, and it is worth
@@ -1364,14 +1364,30 @@ artwork away from the direction you pushed it.
 Nothing stops you pushing a drawing off the edge, and what falls off is
 simply not in the g-code, so the page says how much has gone.
 
-## Two downloads
+## Three downloads
 
 **G-code** is the painted case, ready to print and not to be re-sliced: the
 colours live in the toolpath, which is the whole point of the thing.
 
-**STL** is the shape on its own, built from the same dimensions rather than
-traced off the toolpath, for slicing yourself or painting in your slicer's
-own colour tool. It is deliberately not marched out of a grid -- a case is
+**3MF** keeps the colours. The artwork becomes real geometry: each SVG shape
+is turned into a 2-D region, the stack is resolved top-down by the same
+painter's rule the raster uses, and each colour's region is extruded to the
+depth of the artwork layers and cut into the back plate. The body is the case
+with those inlays taken out, so the parts add up to exactly the whole case --
+no overlaps, no gaps, tested to a millionth -- and the slicer opens one
+object with a part per filament. The package structure is the card
+generator's, copied rather than invented because it is the one already known
+to survive the trip into a slicer on this hardware. **That trip has not been
+verified from here**: the file is checked against the spec and against the
+raster the g-code colours from, but it has not been opened in Bambu Studio.
+Open it once and look.
+
+**STL** is the shape on its own -- a single colour, because an STL cannot
+hold more -- built from the same dimensions rather than traced off the
+toolpath, for slicing yourself or painting in your slicer's own colour tool.
+
+None of the three carries the purge tower or the tool-change ordering. None
+of that is geometry. It is deliberately not marched out of a grid -- a case is
 flat faces and straight walls, and a grid turns a back plate that wants a
 hundred triangles into three hundred thousand. The shell, the cavity and the
 lip are stacks of rounded rectangles stitched into watertight tubes, with the
@@ -1379,9 +1395,9 @@ base chamfer and the lip taper one exact loft each, and every cutout is a
 convex prism. A whole case is about two thousand triangles and a tenth of a
 megabyte, in a fifth of a second.
 
-A test fit has no STL: leaving the middle of the back plate unfilled is a
-thing g-code can say and a solid cannot, so the button turns off rather than
-quietly handing you a different part.
+A test fit has neither solid export: leaving the middle of the back plate
+unfilled is a thing g-code can say and a solid cannot, so the buttons turn
+off rather than quietly handing you a different part.
 
 ## The camera is per phone, not one generic hole
 

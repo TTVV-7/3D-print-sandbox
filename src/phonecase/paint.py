@@ -286,6 +286,10 @@ class PaintPlan:
     raster: Raster
     palette: Palette
     placement: Placement
+    #: The artwork the raster was made from, kept so anything that needs the
+    #: shapes themselves rather than the grid -- the 3MF, which carries the
+    #: colours as real inlays -- does not have to be handed it separately.
+    art: Art | None = None
     #: Each distinct SVG colour, the slot it became, and its share of the art.
     mapping: list[tuple[tuple[int, int, int], int, float]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -326,7 +330,7 @@ def plan(art: Art | None, palette: Palette, width: float, length: float, *,
                 warnings.append(
                     f"{len(rgbs)} artwork colours all land on slot {slot} "
                     f"({palette.slots[slot].name}); they will merge")
-    return PaintPlan(raster, palette, pl, mapping, warnings)
+    return PaintPlan(raster, palette, pl, art, mapping, warnings)
 
 
 def _fraction_off_the_case(art: Art, pl: Placement,
