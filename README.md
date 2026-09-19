@@ -1350,6 +1350,20 @@ knowing why before reading the code.
   `src/case_app.py` records which commit it came from. Fix bugs there, then
   copy the package across and update that string.
 
+## Moving the artwork
+
+Drag it on the preview and scroll to scale it; the sliders in the panel
+follow, and still work on their own. **Recentre** puts it back.
+
+The offsets are in the frame you look at the case in, not the one the g-code
+is written in -- positive is right *as you hold the finished case*, which is
+the case's -x, because everything on that face is mirrored. They used to be
+in case coordinates, which meant the slider marked "Across" moved the
+artwork away from the direction you pushed it.
+
+Nothing stops you pushing a drawing off the edge, and what falls off is
+simply not in the g-code, so the page says how much has gone.
+
 ## Two downloads
 
 **G-code** is the painted case, ready to print and not to be re-sliced: the
@@ -1378,6 +1392,14 @@ quietly handing you a different part.
 | diagonal pair | 13, 14 | ~34 x 34 |
 | small | SE (3rd gen) | ~17 x 17 |
 | **plateau** | 17 Pro, 17 Pro Max, Air | full width, ~25 mm tall, centred |
+
+The plan panel draws the phone dashed inside the case and the lenses inside
+the opening -- three in a triangle for a Pro, two stacked in the pill, one
+for an SE or an Air, the cluster at one end of the 17 Pro's bar. It is an
+illustration of what is behind the hole rather than geometry, and it is
+there because a rounded rectangle with a rounded rectangle cut out of it is
+the same picture for every phone, which is exactly the blindness that let
+the 17 Pro's camera stay wrong.
 
 The 17 Pro's cameras sit in a bar across the whole width of the back, so a
 corner island would put plastic over two of the three lenses. That one is the

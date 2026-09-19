@@ -295,6 +295,11 @@
                  border: 1px solid var(--border-default); border-radius: var(--radius-200);
                  background: var(--bg-default); }
   #empty { color: var(--text-secondary); text-align: center; max-width: 34ch; }
+  #preview.grabbable svg { cursor: grab; }
+  #preview.dragging svg { cursor: grabbing; }
+  #preview.dragging #art-runs { opacity: .85; }
+  #hint { font-size: 13px; color: var(--text-tertiary); text-align: center;
+          padding: 0 var(--space-600) var(--space-300); }
 
   /* The readout under the preview: the numbers, then anything wrong. */
   #specs { padding: 0 var(--space-600) var(--space-600); flex-wrap: wrap; }
@@ -361,6 +366,7 @@
       </div>
       <div class="row">
         <button type="button" class="button subtle" id="example">Use the example</button>
+        <button type="button" class="button subtle" id="resetart">Recentre</button>
         <button type="button" class="button subtle" id="clearart">Clear</button>
       </div>
       <div class="disclosure">
@@ -526,6 +532,7 @@
       <p>BUILDING</p>
     </div>
   </div>
+  <div id="hint" hidden>Drag the artwork to move it, scroll to scale it.</div>
   <div id="specs"></div>
   <div id="notes"></div>
 </main>
@@ -651,6 +658,8 @@ async function rebuild() {
     if (!res.ok) return fail(payload.error || res.statusText);
     $("preview").innerHTML = payload.svg;       // our own SVG, from validated input
     $("empty").hidden = true;
+    view.classList.toggle("grabbable", !!artText);
+    $("hint").hidden = !artText;
     lastReport = payload.report;
     readout(payload.report);
   } catch (exc) {
@@ -797,6 +806,84 @@ $("clearart").addEventListener("click", () => {
   artText = artName = null;
   $("artname").textContent = "No artwork";
   $("art").value = "";
+  refresh();
+});
+
+/* ---- dragging the artwork on the preview ------------------------------ */
+
+/* The preview carries its own scale: the back face is a rect that says how
+   many millimetres wide it is, so the page can turn a drag in pixels into a
+   move in millimetres without being told the layout.  While the pointer is
+   down the artwork group is slid under the fixed outline, which is instant;
+   letting go asks the generator for the real answer, which re-clips it round
+   the camera hole and the edges. */
+
+const view = $("preview");
+let drag = null;
+
+function setRange(id, value) {
+  const el = $(id);
+  const v = Math.min(Number(el.max), Math.max(Number(el.min), value));
+  el.value = v;
+  el.dispatchEvent(new Event("input"));          // repaints its own readout
+  return v;
+}
+
+function scaleOf() {
+  const face = view.querySelector("#backface");
+  if (!face) return null;
+  const box = face.getBoundingClientRect();
+  const mm = Number(face.getAttribute("data-mm-w"));
+  return (box.width > 0 && mm > 0) ? { box, k: box.width / mm } : null;
+}
+
+view.addEventListener("pointerdown", e => {
+  if (!artText || e.button !== 0) return;
+  const s = scaleOf();
+  const runs = view.querySelector("#art-runs");
+  if (!s || !runs) return;
+  // Only a drag that starts on the back of the case moves the artwork.
+  if (e.clientX < s.box.left || e.clientX > s.box.right
+      || e.clientY < s.box.top || e.clientY > s.box.bottom) return;
+  drag = { x: e.clientX, y: e.clientY, k: s.k, runs,
+           ax: Number($("artX").value), ay: Number($("artY").value) };
+  view.setPointerCapture(e.pointerId);
+  view.classList.add("dragging");
+  e.preventDefault();
+});
+
+view.addEventListener("pointermove", e => {
+  if (!drag) return;
+  const dx = (e.clientX - drag.x) / drag.k;
+  const dy = (e.clientY - drag.y) / drag.k;
+  drag.runs.setAttribute("transform", `translate(${dx.toFixed(2)} ${dy.toFixed(2)})`);
+  setRange("artX", drag.ax + dx);                // right on screen is +artX
+  setRange("artY", drag.ay - dy);                // and down on screen is -artY
+});
+
+function endDrag(e) {
+  if (!drag) return;
+  drag = null;
+  view.classList.remove("dragging");
+  try { view.releasePointerCapture(e.pointerId); } catch (_) {}
+  rebuild();                                      // now do it properly
+}
+view.addEventListener("pointerup", endDrag);
+view.addEventListener("pointercancel", endDrag);
+
+view.addEventListener("wheel", e => {
+  if (!artText) return;
+  const s = scaleOf();
+  if (!s || e.clientX < s.box.left || e.clientX > s.box.right
+      || e.clientY < s.box.top || e.clientY > s.box.bottom) return;
+  e.preventDefault();
+  setRange("artScale", Number($("artScale").value) * (e.deltaY < 0 ? 1.06 : 1 / 1.06));
+  refresh();
+}, { passive: false });
+
+$("resetart").addEventListener("click", () => {
+  setRange("artX", 0); setRange("artY", 0);
+  setRange("artScale", 1); setRange("artRotate", 0);
   refresh();
 });
 

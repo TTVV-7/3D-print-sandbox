@@ -101,6 +101,11 @@ class Phone:
     camera_margin_top: float = 3.0
     camera_margin_side: float = 3.0
 
+    #: How many lenses sit behind that opening. Drawing only: the cutout is
+    #: the opening, and this is what the preview puts inside it so that one
+    #: phone's picture does not look like every other phone's.
+    lenses: int = 2
+
     #: USB-C / Lightning opening, centred on the bottom edge.
     port_w: float = 13.0
     port_h: float = 9.0
@@ -448,13 +453,13 @@ def check_case(spec: CaseSpec, *, bed: tuple[float, float, float] | None = None,
 def _pro(name, length, width, thickness) -> Phone:
     """Three-camera square island, action button in place of the mute switch."""
     return Phone(name=name, length=length, width=width, thickness=thickness,
-                 corner_radius=11.5,
+                 corner_radius=11.5, lenses=3,
                  camera_w=39.0, camera_h=39.0, camera_r=11.5,
                  camera_margin_top=3.0, camera_margin_side=3.0)
 
 
 def _plateau(name, length, width, thickness, *, height=25.0,
-             margin_side=2.0, margin_top=2.5) -> Phone:
+             margin_side=2.0, margin_top=2.5, lenses=3) -> Phone:
     """The 17-generation bar: full width of the back rather than a corner.
 
     Sized from the body rather than given as a number, because what makes it
@@ -464,7 +469,7 @@ def _plateau(name, length, width, thickness, *, height=25.0,
     ``check_case`` measures and complains about if the fit makes it thinner.
     """
     return Phone(name=name, length=length, width=width, thickness=thickness,
-                 corner_radius=12.0, camera_style="plateau",
+                 corner_radius=12.0, camera_style="plateau", lenses=lenses,
                  camera_w=width - 2 * margin_side, camera_h=height,
                  camera_r=min(height / 2, 12.0),
                  camera_margin_top=margin_top, camera_margin_side=margin_side)
@@ -508,9 +513,10 @@ PHONES: dict[str, Phone] = {
     # One camera, and the thinnest body Apple has shipped, so the cavity is
     # shallow and the lip does more of the work of holding it in.
     "iphone-air":        _plateau("iPhone Air", 156.2, 74.6, 5.64,
-                                  height=22.0),
+                                  height=22.0, lenses=1),
     "iphone-se-3":       Phone("iPhone SE (3rd gen)", 138.4, 67.3, 7.3,
                                corner_radius=9.0,
+                               lenses=1,
                                camera_w=17.0, camera_h=17.0, camera_r=6.0,
                                camera_margin_top=6.0, camera_margin_side=6.0,
                                buttons=(("power", "right", 6.0, 20.0),
