@@ -39,6 +39,40 @@
   h1 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
   .sub { color: var(--text-secondary); margin: var(--space-100) 0 0; }
 
+  /* Folding panel: the whole section closes behind its heading, because
+     four of them open at once is a metre of scrolling before you reach the
+     download buttons.  Same 0fr-to-1fr trick as the little ? disclosures,
+     so the two behave the same way. */
+  .fold { padding: 0; gap: 0; overflow: hidden; }
+  .foldhead {
+    display: flex; align-items: center; gap: var(--space-300); width: 100%;
+    font: inherit; text-align: left; cursor: pointer; border: 0;
+    background: none; color: inherit; padding: var(--space-400) var(--space-600);
+  }
+  .foldhead:hover { background: var(--bg-secondary); }
+  .foldhead:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
+  .foldtitle { font-size: 18px; font-weight: 600; letter-spacing: -0.02em; }
+  /* Takes whatever the heading leaves rather than a share of the panel, so
+     a long printer name is not cut off to protect space nothing is using. */
+  .foldsum {
+    flex: 1; min-width: 0; font-size: 12px; line-height: 1.3; text-align: right;
+    color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .chev { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--text-secondary);
+          stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+          transition: transform .22s ease; }
+  .fold[data-open] .chev { transform: rotate(180deg); }
+  .fold[data-open] .foldsum { opacity: 0; }
+  .foldbody { display: grid; grid-template-rows: 0fr; transition: grid-template-rows .22s ease; }
+  .fold[data-open] .foldbody { grid-template-rows: 1fr; }
+  .foldinner { overflow: hidden; display: flex; flex-direction: column;
+               gap: var(--space-400); padding: 0 var(--space-600); }
+  .fold[data-open] .foldinner { padding-bottom: var(--space-600); }
+  @media (prefers-reduced-motion: reduce) {
+    .foldbody, .chev { transition: none; }
+  }
+
   /* Card: a bordered panel with a subheading */
   section {
     border: 1px solid var(--border-default); border-radius: var(--radius-200);
@@ -346,8 +380,13 @@
     <p class="sub">Pick a phone, paint the back with an SVG, print it face down.</p>
   </div>
 
-  <section>
-    <h2>1 &middot; Phone</h2>
+  <section class="fold" data-fold="phone">
+    <button type="button" class="foldhead" aria-expanded="false">
+      <span class="foldtitle">1 &middot; Phone</span>
+      <span class="foldsum" id="sum-phone"></span>
+      <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+    </button>
+    <div class="foldbody" inert><div class="foldinner">
     <div class="field">
       <label for="phone">Model</label>
       <select id="phone"></select>
@@ -395,10 +434,16 @@
           centred, so only the top margin places it.</p></div>
       </div>
     </div>
+    </div></div>
   </section>
 
-  <section>
-    <h2>2 &middot; Artwork</h2>
+  <section class="fold" data-fold="art">
+    <button type="button" class="foldhead" aria-expanded="false">
+      <span class="foldtitle">2 &middot; Artwork</span>
+      <span class="foldsum" id="sum-art"></span>
+      <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+    </button>
+    <div class="foldbody" inert><div class="foldinner">
     <div class="field">
       <div class="dropped" id="drop">
         <div><b id="artname">No artwork</b></div>
@@ -460,10 +505,16 @@
         otherwise is the mistake you only find once it is off the plate. The
         preview above is always shown the way you will hold it.</p></div>
     </div>
+    </div></div>
   </section>
 
-  <section>
-    <h2>3 &middot; Filament</h2>
+  <section class="fold" data-fold="fil">
+    <button type="button" class="foldhead" aria-expanded="false">
+      <span class="foldtitle">3 &middot; Filament</span>
+      <span class="foldsum" id="sum-fil"></span>
+      <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+    </button>
+    <div class="foldbody" inert><div class="foldinner">
     <div class="field">
       <label for="palette">Palette</label>
       <select id="palette"></select>
@@ -474,10 +525,16 @@
       <select id="base"><option value="">Auto &mdash; the artwork's main colour</option></select>
     </div>
     <div id="slotlist" class="field"></div>
+    </div></div>
   </section>
 
-  <section>
-    <h2>4 &middot; Print</h2>
+  <section class="fold" data-fold="prt">
+    <button type="button" class="foldhead" aria-expanded="false">
+      <span class="foldtitle">4 &middot; Print</span>
+      <span class="foldsum" id="sum-prt"></span>
+      <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
+    </button>
+    <div class="foldbody" inert><div class="foldinner">
     <div class="row">
       <div class="field"><label for="printer">Printer</label><select id="printer"></select></div>
       <div class="field"><label for="filament">Filament</label><select id="filament"></select></div>
@@ -532,6 +589,7 @@
         dimension that can be wrong is still in it, for about half the
         filament and none of the purge. Print this one first.</p></div>
     </div>
+    </div></div>
   </section>
 
   <div class="row">
@@ -716,6 +774,7 @@ async function rebuild() {
     $("hint").hidden = !artText;
     lastReport = payload.report;
     readout(payload.report);
+    foldSummaries();
   } catch (exc) {
     if (mine === seq) fail(String(exc));
   } finally {
@@ -847,6 +906,7 @@ async function takeFile(file) {
   artText = await file.text();
   artName = file.name;
   $("artname").textContent = artName;
+  openFold("art");                              // so the controls are there
   refresh();
 }
 
@@ -869,12 +929,83 @@ $("example").addEventListener("click", async () => {
   refresh();
 });
 
+/* A file dropped anywhere on the page counts, including on a shut panel --
+   otherwise collapsing Artwork quietly takes the drop target away with it. */
+["dragenter", "dragover"].forEach(ev =>
+  document.addEventListener(ev, e => e.preventDefault()));
+document.addEventListener("drop", e => {
+  if (drop.contains(e.target)) return;          // its own handler has it
+  e.preventDefault();
+  if (e.dataTransfer.files[0]) takeFile(e.dataTransfer.files[0]);
+});
+
 $("clearart").addEventListener("click", () => {
   artText = artName = null;
   $("artname").textContent = "No artwork";
   $("art").value = "";
   refresh();
 });
+
+/* ---- the folding panels ----------------------------------------------- */
+
+/* All four start shut.  Open is one click, several can be open at once, and
+   a shut panel still says what it is set to -- a heading on its own tells
+   you nothing, and the point of shutting them was to see the whole form at
+   a glance rather than to hide it. */
+
+function foldSummary(key) {
+  const phone = $("phone").selectedOptions[0];
+  const fit = $("fits").querySelector('.tile[aria-pressed=true]');
+  switch (key) {
+    case "phone":
+      return [phone ? phone.textContent : "", fit ? fit.dataset.fit : ""]
+        .filter(Boolean).join(" \u00b7 ");
+    case "art": {
+      if (!artText) return "none";
+      const bits = [artName];
+      if ($("wrap").checked) bits.push("wrapped");
+      if (Number($("artScale").value) !== 1)
+        bits.push(`${Number($("artScale").value).toFixed(2)}\u00d7`);
+      return bits.join(" \u00b7 ");
+    }
+    case "fil": {
+      const used = lastReport ? (lastReport.slots || []).length : slots.length;
+      return `${$("palette").value} \u00b7 ${used} ${used === 1 ? "slot" : "slots"}`;
+    }
+    case "prt": {
+      const bits = [$("printer").value, $("filament").value,
+                    `${Number($("layerHeight").value).toFixed(2)}`];
+      if ($("testFit").checked) bits.push("test fit");
+      return bits.join(" \u00b7 ");
+    }
+  }
+  return "";
+}
+
+function foldSummaries() {
+  document.querySelectorAll(".fold").forEach(f => {
+    const el = $(`sum-${f.dataset.fold}`);
+    if (el) el.textContent = foldSummary(f.dataset.fold);
+  });
+}
+
+function setFold(fold, open) {
+  fold.toggleAttribute("data-open", open);
+  fold.querySelector(".foldhead").setAttribute("aria-expanded", String(open));
+  // inert as well as invisible, or tab lands in a panel nobody can see.
+  fold.querySelector(".foldbody").toggleAttribute("inert", !open);
+}
+
+document.querySelectorAll(".fold").forEach(fold => {
+  fold.querySelector(".foldhead").addEventListener("click", () => {
+    setFold(fold, !fold.hasAttribute("data-open"));
+  });
+});
+
+function openFold(key) {
+  const fold = document.querySelector(`.fold[data-fold="${key}"]`);
+  if (fold && !fold.hasAttribute("data-open")) setFold(fold, true);
+}
 
 /* ---- the camera opening ----------------------------------------------- */
 
@@ -1040,6 +1171,7 @@ $("palette").addEventListener("change", () => { setPalette($("palette").value); 
   fitTiles(catalogue.cases);
   setPalette("primary");
   cameraDefaults();
+  foldSummaries();
   rebuild();
 })();
 </script>

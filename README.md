@@ -1350,6 +1350,19 @@ knowing why before reading the code.
   `src/case_app.py` records which commit it came from. Fix bugs there, then
   copy the package across and update that string.
 
+## The panel folds
+
+All four sections start shut, because four of them open at once is a metre
+of scrolling before you reach the download buttons. A shut one still says
+what it is set to -- the phone and fit, the artwork file, the palette, the
+printer and layer height -- since a heading on its own tells you nothing and
+the point was to see the whole form at a glance, not to hide it.
+
+A shut panel is `inert`, so tab skips its controls rather than landing
+somewhere invisible. A file dropped anywhere on the page still counts and
+opens the artwork panel, which would otherwise take its own drop target away
+with it when shut.
+
 ## Moving the artwork
 
 Drag it on the preview and scroll to scale it; the sliders in the panel
