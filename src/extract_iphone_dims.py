@@ -761,10 +761,341 @@ def dump(sheets: list[Sheet]) -> dict:
     return out
 
 
+# --------------------------------------------------------------------------
+# named features: what the drawing calls things, and where they are
+# --------------------------------------------------------------------------
+#
+# Four of the twenty-seven drawings -- iPhone 16, 16 Pro, 16 Pro Max and 17e
+# -- have their general-dimensions sheet published as real text, and that
+# sheet labels the side features by name:
+#
+#     ACTION BUTTON    (+) VOLUME BUTTON    (-) VOLUME BUTTON
+#     SIDE BUTTON      CAMERA CONTROL       SIM TRAY
+#
+# Each name sits at the end of a horizontal leader line whose other end
+# touches the feature, at its centre. That is the whole trick: the leader's
+# far end is a measurement, in page points, of something the drawing has just
+# told you the name of. Convert with the view's own scale and you have a
+# button position from Apple rather than from an eye.
+#
+# HOW GOOD IS IT. About a millimetre. Three of the values can be checked
+# against a printed ordinate on the same sheet, and they agree to 0.3, 0.5 and
+# 0.8 mm. That is not the hundredth of a millimetre the ordinate chains give,
+# because a leader ends *on* a feature rather than at a dimensioned point, and
+# because the printed ordinates on this sheet are stepped out of line to stop
+# them colliding -- which is also why they cannot simply be read positionally.
+#
+# A millimetre is enough here and would not be enough everywhere. The openings
+# this feeds are cut a clearance oversize, are stadium-shaped, and in Camera
+# Control's case use a keepout nearly twelve millimetres longer than the
+# control. What it replaces is a power button opening that was twenty-one
+# millimetres out.
+
+#: Feature names worth pulling off a sheet, and what to call them in
+#: :data:`~phonecase.spec.PHONES`.
+FEATURE_NAMES = {
+    "ACTION BUTTON": "action",
+    "SIDE BUTTON": "power",
+    "CAMERA CONTROL": "camera-control",
+    "(+) VOLUME BUTTON": "volume-up",
+    "(-) VOLUME BUTTON": "volume-down",
+    "SIM TRAY": "sim-tray",
+}
+
+
+@dataclass
+class View:
+    """One elevation of the whole body, found by its own outline."""
+
+    y0: float
+    y1: float
+    x0: float
+    x1: float
+    scale: float              # points per mm, from the known body length
+
+    def from_top(self, y: float) -> float:
+        """A page coordinate, in mm down from the top of the body."""
+        return (self.y1 - y) / self.scale
+
+    def holds(self, x: float, y: float) -> bool:
+        """Is this point inside the view?
+
+        Both axes. Checking x alone picks whichever band was listed first
+        when two elevations sit side by side at different heights, and a band
+        chosen wrong is its whole y-offset of error -- eight points between
+        two rows on the 16 Pro's sheet is five millimetres of button.
+        """
+        return (self.x0 - 12 <= x <= self.x1 + 12
+                and self.y0 - 2 <= y <= self.y1 + 2)
+
+
+@dataclass
+class Feature:
+    name: str                 # the drawing's own words
+    key: str                  # what phonecase calls it
+    from_top_mm: float
+    leader: tuple[float, float]
+
+
+def _vertical_runs(sheet: Sheet, min_len: float = 120.0):
+    """Collinear vertical segments, merged. The bones of every elevation."""
+    cov: dict[float, list[tuple[float, float]]] = {}
+    for p in sheet.paths:
+        for a, b in zip(p.pts, p.pts[1:]):
+            if abs(a[0] - b[0]) < 0.2 and abs(a[1] - b[1]) > 3:
+                cov.setdefault(round((a[0] + b[0]) / 2, 1), []).append(
+                    (min(a[1], b[1]), max(a[1], b[1])))
+    out = []
+    for x, segs in cov.items():
+        segs.sort()
+        lo, hi = segs[0]
+        for s, e in segs[1:]:
+            if s <= hi + 1.0:
+                hi = max(hi, e)
+            else:
+                if hi - lo > min_len:
+                    out.append((x, lo, hi))
+                lo, hi = s, e
+        if hi - lo > min_len:
+            out.append((x, lo, hi))
+    return sorted(out)
+
+
+def views(sheet: Sheet, length_mm: float, tol: float = 0.02) -> list[View]:
+    """The elevations on a sheet, and the scale each is drawn at.
+
+    A full-body elevation is as tall as the phone is long, so the vertical
+    runs that matter are the ones whose length divided by the body length is
+    the same number for all of them -- that number being the scale. Views that
+    share a y range are one band, and two bands on one sheet can sit at
+    different heights, which is worth getting right.
+    """
+    runs = _vertical_runs(sheet)
+    if not runs:
+        return []
+    spans: dict[tuple[float, float], list[float]] = {}
+    for x, lo, hi in runs:
+        spans.setdefault((round(lo, 1), round(hi, 1)), []).append(x)
+    # The body appears more often than anything else its exact height.
+    best = max(spans.items(), key=lambda kv: (len(kv[1]), kv[0][1] - kv[0][0]))
+    height = best[0][1] - best[0][0]
+    scale = height / length_mm
+    out = []
+    for (lo, hi), xs in spans.items():
+        if abs((hi - lo) - height) > max(1.0, height * tol):
+            continue
+        out.append(View(lo, hi, min(xs), max(xs), scale))
+    return sorted(out, key=lambda v: v.x0)
+
+
+def _blocks(sheet: Sheet) -> list[dict]:
+    """Text runs gathered into the multi-line notes a reader sees.
+
+    Not :func:`phrases`, which joins a prefix onto one number and nothing
+    else. An annotation is prose -- ``(+) VOLUME BUTTON`` is three runs on one
+    baseline, ``SIDE`` / ``BUTTON`` is two runs stacked -- and it has to be
+    whole before it can be matched against a name.
+    """
+    lines = []
+    for lb in sorted(sheet.labels, key=lambda l: (-round(l.y, 1), l.x)):
+        t = re.sub(r'\s+', ' ', lb.text).strip()
+        if not t:
+            continue
+        if (lines and abs(lines[-1]['y'] - lb.y) < 0.4
+                and 0 <= lb.x - lines[-1]['x1'] < 14):
+            lines[-1]['t'] += ' ' + t
+            lines[-1]['x1'] = lb.x + len(t) * 2.3
+        else:
+            lines.append({'t': t, 'x0': lb.x, 'x1': lb.x + len(t) * 2.3,
+                          'y': lb.y})
+    out: list[dict] = []
+    for ln in lines:
+        for b in out:
+            if (abs(b['y'] - ln['y']) < 7.0
+                    and ln['x0'] < b['x1'] + 6 and ln['x1'] > b['x0'] - 6):
+                b['t'] += ' ' + ln['t']
+                b['y'] = min(b['y'], ln['y'])
+                b['x0'] = min(b['x0'], ln['x0'])
+                b['x1'] = max(b['x1'], ln['x1'])
+                break
+        else:
+            out.append(dict(ln))
+    return out
+
+
+def _leaders(sheet: Sheet):
+    """Collinear horizontal runs -- the lines annotations point along."""
+    cov: dict[float, list[tuple[float, float]]] = {}
+    for p in sheet.paths:
+        for a, b in zip(p.pts, p.pts[1:]):
+            if abs(a[1] - b[1]) < 0.2 and abs(a[0] - b[0]) > 0.8:
+                cov.setdefault(round((a[1] + b[1]) / 2, 1), []).append(
+                    (min(a[0], b[0]), max(a[0], b[0])))
+    out = []
+    for y, segs in cov.items():
+        segs.sort()
+        lo, hi = segs[0]
+        for s, e in segs[1:]:
+            if s <= hi + 1.2:
+                hi = max(hi, e)
+            else:
+                out.append((y, lo, hi))
+                lo, hi = s, e
+        out.append((y, lo, hi))
+    return out
+
+
+#: The order these run down the side of every iPhone. A set that comes out in
+#: a different order has matched something to the wrong leader, and is worth
+#: less than no answer at all.
+DOWN_THE_SIDE = ("action", "volume-up", "volume-down")
+
+
+def features(sheet: Sheet, length_mm: float) -> list[Feature]:
+    """Every named side feature on a sheet, as mm down from the body's top."""
+    band = views(sheet, length_mm)
+    if not band:
+        return []
+    leads = _leaders(sheet)
+    found: list[Feature] = []
+    for blk in _blocks(sheet):
+        text = blk['t'].upper()
+        key = next((k for n, k in FEATURE_NAMES.items() if n in text), None)
+        if key is None or len(blk['t']) > 48:
+            continue
+        best = None
+        for y, lo, hi in leads:
+            if hi - lo < 8 or not (blk['y'] - 16 < y < blk['y'] + 16):
+                continue
+            left, right = abs(hi - blk['x0']), abs(lo - blk['x1'])
+            if min(left, right) > 12:
+                continue
+            far = lo if left < right else hi
+            if best is None or hi - lo > best[2]:
+                best = (y, far, hi - lo)
+        if best is None:
+            continue
+        y, far, _ = best
+        view = next((v for v in band if v.holds(far, y)), None)
+        if view is None:
+            continue
+        name = next(n for n in FEATURE_NAMES if n in text)
+        found.append(Feature(name, key, view.from_top(y), (far, y)))
+    return _sane(found, length_mm)
+
+
+def _sane(found: list[Feature], length_mm: float) -> list[Feature]:
+    """Drop what cannot be right, and refuse a set that contradicts itself.
+
+    Three things go wrong. A name can appear twice on a sheet (a note and a
+    detail view), and the same key is then matched to two leaders. A leader
+    belonging to a neighbouring note can be picked up. And a feature can land
+    outside the body altogether, which means the view or the band was wrong.
+
+    The last check is the one worth having: the action button is above volume
+    up which is above volume down on every iPhone ever made, so a set that
+    comes back out of order has mismatched something, and the whole set goes
+    back rather than the one value that happens to look odd.
+    """
+    by_key: dict[str, Feature] = {}
+    for f in found:
+        if not 0.0 <= f.from_top_mm <= length_mm:
+            continue
+        prev = by_key.get(f.key)
+        if prev is None or (abs(f.from_top_mm - length_mm / 2)
+                            < abs(prev.from_top_mm - length_mm / 2)):
+            by_key[f.key] = f
+    order = [by_key[k].from_top_mm for k in DOWN_THE_SIDE if k in by_key]
+    if order != sorted(order):
+        return []
+    return sorted(by_key.values(), key=lambda f: f.from_top_mm)
+
+
+#: Published body sizes, which is where the scale for every view comes from.
+#: Every view on a sheet is scaled by dividing its height by the number here,
+#: so a wrong length is a wrong scale and every feature off that sheet is
+#: wrong with it -- the 17e was guessed at 150.4 and came back 2.5% adrift on
+#: everything until its own drawing was read and said 146.71.
+#:
+#: Four drawings print their own figures and agree with the published ones:
+#: 16 (147.64 x 71.63 x 7.81), 16 Pro (149.61 x 71.45 x 8.25), 16 Pro Max
+#: (163.03 x 77.58 x 8.25) and 17e (146.71 x 71.52 x 7.80).
+BODIES = {
+    "iphone-12": 146.7, "iphone-12-mini": 131.5, "iphone-12-pro": 146.7,
+    "iphone-12-pro-max": 160.8, "iphone-13": 146.7, "iphone-13-mini": 131.5,
+    "iphone-13-pro": 146.7, "iphone-13-pro-max": 160.8, "iphone-14": 146.7,
+    "iphone-14-plus": 160.8, "iphone-14-pro": 147.5, "iphone-14-pro-max": 160.7,
+    "iphone-15": 147.6, "iphone-15-plus": 160.9, "iphone-15-pro": 146.6,
+    "iphone-15-pro-max": 159.9, "iphone-16": 147.6, "iphone-16-plus": 160.9,
+    "iphone-16-pro": 149.6, "iphone-16-pro-max": 163.0, "iphone-16e": 146.7,
+    "iphone-17": 149.6, "iphone-17-pro": 150.0, "iphone-17-pro-max": 163.4,
+    "iphone-17e": 146.71, "iphone-air": 156.2, "iphone-se-3rd-generation": 138.4,
+}
+
+
+def harvest(path: Path, length_mm: float) -> dict:
+    """Everything one drawing will give up, with where each part came from."""
+    sheets = load(path)
+    drawing = [s for s in sheets if len(s.paths) > 500]
+    out: dict = {
+        "model": path.stem,
+        "length_mm": length_mm,
+        "sheets": len(sheets),
+        "outlined_sheets": [s.number for s in drawing
+                            if len(phrases(s.labels)) < 5],
+        "features": {},
+        "chains": [],
+        "notes": [],
+    }
+    for sheet in drawing:
+        text = phrases(sheet.labels)
+        for f in features(sheet, length_mm):
+            out["features"].setdefault(f.key, {
+                "from_top_mm": round(f.from_top_mm, 2),
+                "drawing_name": f.name,
+                "sheet": sheet.number,
+                "source": "leader line on a named annotation",
+            })
+        for c in chains(text, 'x') + chains(text, 'y'):
+            out["chains"].append({
+                "sheet": sheet.number, "axis": c.axis,
+                "scale_pt_per_mm": round(c.scale, 6),
+                "residual_pt": round(c.residual, 5),
+                "values_mm": sorted(lb.value for lb in c.members),
+            })
+        # Apple states some case rules in words. They are worth keeping.
+        for lb in text:
+            t = re.sub(r'\s+', ' ', lb.text).strip()
+            if re.search(r'CASE THICKNESS|MAGNETIC PERMEABILITY|DO NOT OBSTRUCT'
+                         r'|NO METAL CONTACT|KEEPOUT', t, re.I) and 8 < len(t) < 120:
+                if t not in out["notes"]:
+                    out["notes"].append(t)
+    return out
+
+
 def main(argv: list[str]) -> int:
+    """With a file, report it. With ``--all``, harvest every drawing found."""
     if len(argv) < 2:
         print(__doc__)
         return 2
+
+    if argv[1] == "--all":
+        folder = Path(argv[2]) if len(argv) > 2 else ROOT / "drawings"
+        found = {}
+        for slug, length in sorted(BODIES.items()):
+            pdf = folder / f"{slug}.pdf"
+            if not pdf.exists():
+                continue
+            rec = harvest(pdf, length)
+            found[slug] = rec
+            keys = ", ".join(sorted(rec["features"])) or "-"
+            print(f"{slug:26s} sheets {rec['sheets']}  "
+                  f"outlined {rec['outlined_sheets']}  features: {keys}")
+        out = ROOT / "src" / "iphone_dims.json"
+        out.write_text(json.dumps(found, indent=1))
+        print(f"\n{len(found)} models -> {out.relative_to(ROOT)}")
+        return 0
+
     src = Path(argv[1])
     if not src.exists():
         print(f"no such drawing: {src}", file=sys.stderr)
@@ -773,22 +1104,25 @@ def main(argv: list[str]) -> int:
     print(f"{src.name}: {len(sheets)} pages, "
           f"{sum(len(s.paths) for s in sheets)} painted subpaths, "
           f"{sum(len(s.labels) for s in sheets)} text runs")
-    data = dump(sheets)
-    for rec in data["sheets"]:
-        print(f"\nsheet {rec['sheet']}: {rec['paths']} paths, "
-              f"{rec['text_runs']} text runs")
-        if "unreadable" in rec:
-            print(f"   !! {rec['unreadable']}")
+    length = BODIES.get(src.stem)
+    for sheet in sheets:
+        text = phrases(sheet.labels)
+        if len(text) < 5 and len(sheet.paths) > 500:
+            print(f"\nsheet {sheet.number}: text is outlined, not text "
+                  f"({len(glyph_cells(sheet))} stroked character cells)")
             continue
-        for c in rec["chains"]:
-            lo, hi = c["values_mm"][0], c["values_mm"][-1]
-            print(f"   {c['axis']} datum {c['origin_pt']:9.3f} pt  "
-                  f"{c['scale_pt_per_mm']:+.4f} pt/mm  "
-                  f"residual {c['residual_pt']:.5f} pt  "
-                  f"{len(c['values_mm'])} labels  {lo:g}..{hi:g} mm")
-    out = ROOT / "src" / "iphone_dims.json"
-    out.write_text(json.dumps(data, indent=1))
-    print(f"\nwrote {out.relative_to(ROOT)}")
+        found = chains(text, 'x') + chains(text, 'y')
+        feats = features(sheet, length) if length else []
+        if not found and not feats:
+            continue
+        print(f"\nsheet {sheet.number}: {len(sheet.paths)} paths")
+        for c in found:
+            print(f"   {c.axis} datum {c.origin_pt:9.3f} pt  "
+                  f"{c.scale:+.4f} pt/mm  residual {c.residual:.5f} pt  "
+                  f"{len(c.members)} labels")
+        for f in feats:
+            print(f"   {f.key:15s} {f.from_top_mm:7.2f} mm from the top "
+                  f"({f.name})")
     return 0
 
 

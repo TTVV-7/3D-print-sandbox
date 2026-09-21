@@ -87,59 +87,106 @@ class Cutout:
 # what is down each side
 # --------------------------------------------------------------------------
 #
-# WHERE THESE CAME FROM, and where they did not.
+# WHERE THESE CAME FROM, which is a different answer than it was.
 #
 # Apple publish a dimensioned drawing for every iPhone, at
-# developer.apple.com/download/files/accessories/dimensional-drawings/, which
-# is the document a case manufacturer works from. `src/extract_iphone_dims.py`
-# reads them. It settles some of what is below outright and, importantly,
-# refuses to settle the rest:
+# developer.apple.com/download/files/accessories/dimensional-drawings/.
+# `src/extract_iphone_dims.py` reads all twenty-seven of them. On four -- the
+# 16, 16 Pro, 16 Pro Max and 17e -- the general-dimensions sheet is published
+# as real text, and it labels the side features by name: ACTION BUTTON, (+)
+# VOLUME BUTTON, (-) VOLUME BUTTON, SIDE BUTTON, CAMERA CONTROL. Each name
+# sits at the end of a leader line whose other end touches the feature. So
+# these are measured, to about a millimetre.
 #
-# * **Camera Control's size is published and exact.** Sheet 2 of the 17 Pro
-#   drawing dimensions it three ways -- 17.50 x 3.40 at the surface, opening
-#   to 25.00 x 6.32 by 0.4 mm out, and a **29.70 mm thin-case keepout**, which
-#   is the one that applies to a wall this thick. 4X R2.20 on the corners.
-#   The sheet also says, in as many words, AVOID NARROW EDGES OR ACUTE ANGLES
-#   IN ORDER TO PRESERVE TACTILE FEEL AT THIS EDGE.
-# * **No button's position along the edge is available.** They are all on
-#   sheet 1, and sheet 1 is the one sheet whose text Apple flattens to
-#   outlines before publishing -- eight thousand stroked polylines and not one
-#   text operator. The extractor says so rather than guessing, and so does
-#   this comment.
+# TWO THINGS THE MEASUREMENTS SETTLED, both of which the old numbers had
+# wrong in a way no amount of staring would have found:
 #
-# So the offsets below are still estimates, with one correction that does not
-# need a drawing to justify. The three left-hand buttons have always been at
-# +38, +22 and +5 -- action highest, then volume up, then volume down, which
-# is the order and roughly the spacing a Pro actually has. The power button
-# sat at **+6**, level with volume-down, which is not where a side button is
-# on any iPhone ever made: it sits opposite the gap between the action button
-# and volume up. +27 is that gap. The old number put twenty of the button's
-# twenty-seven millimetres behind solid wall.
+# **Buttons are placed from the top of the body, not from its middle.** The
+# side button came out at 48.74, 48.00 and 48.17 mm from the top on three
+# phones 149.6, 163.0 and 146.7 mm long -- a spread of three quarters of a
+# millimetre across fourteen millimetres of body length. Stored as an offset
+# from the centre, as they were, that one button would have to be a different
+# number on every model, and it was instead the same number on all of them.
 #
-# Every one of these is overridable, and `--test-fit` prints the walls and a
-# rim for about half the filament. On a phone you cannot measure, print that
-# first; it is the only thing here that will tell you the truth.
+# **Camera Control is placed from the bottom.** 43.10, 43.08 and 42.61 mm up
+# from the bottom edge on the 16 Pro, 16 Pro Max and Air. Which makes sense
+# once you see it: it is where an index finger lands holding the phone in
+# landscape, and that is referenced to the end of the phone you hold.
+#
+# So a control is stored as the edge it is measured from and its distance
+# from it, and `Phone.cutouts` turns that into this package's centre offset
+# using the body length. Every one of the old offsets was a centre offset
+# copied across seventeen phones of different lengths, which put the same
+# button at a different place on each of them.
+#
+# WHAT MOVED, for a 149.6 mm body, against what this file used to say:
+#
+#     action         36.8 mm from the top -> 21.5   (15.3 mm up)
+#     volume up      52.8                 -> 38.9   (13.9 mm up)
+#     volume down    69.8                 -> 58.7   (11.1 mm up)
+#     side button    47.8                 -> 48.4   (0.6 mm down)
+#     camera control 97.8                 -> 106.6  (8.8 mm down)
+#
+# The side button had already been corrected, by reasoning about where a side
+# button can possibly be, and the drawing put that correction within a
+# millimetre. The three on the left had not been, and were all out by more
+# than a centimetre.
+#
+# STILL ESTIMATED: how *long* each opening is. The drawings dimension the
+# keepouts, not the buttons, and only for Camera Control. The lengths below
+# are unchanged and unverified, which matters less than it sounds: an opening
+# is cut a clearance oversize and stadium-shaped, and Camera Control's uses
+# Apple's thin-case keepout, which is nearly twelve millimetres longer than
+# the control it clears.
 
-#: A Pro before Camera Control: 13/14/15 Pro and Pro Max.
-BUTTONS_PRO: tuple[tuple[str, str, float, float], ...] = (
-    ("power", "right", 27.0, 27.0),
-    ("volume-up", "left", 22.0, 15.0),
-    ("volume-down", "left", 5.0, 15.0),
-    ("action", "left", 38.0, 9.0),
-)
+#: Which end of the body a control's distance is measured from.
+TOP, BOTTOM = "top", "bottom"
 
-#: The 16 and 17 generations, which added Camera Control low on the right.
-#: Its opening is Apple's thin-case keepout rather than the control itself,
-#: which is deliberate: the keepout is nearly twelve millimetres longer than
-#: the control, and that slack is what absorbs the one number here that is
-#: still an estimate.
-BUTTONS_CAMERA_CONTROL: tuple[tuple[str, str, float, float], ...] = (
-    BUTTONS_PRO + (("camera-control", "right", -23.0, 29.7),))
+#: ``(name, face, edge, distance from that edge, length)``, all in mm.
+#: Measured on the iPhone 16 family; see the note above.
+_POWER = ("power", "right", TOP, 48.4, 27.0)
+_VOLUME = (("volume-up", "left", TOP, 38.9, 15.0),
+           ("volume-down", "left", TOP, 58.7, 15.0))
+_ACTION = ("action", "left", TOP, 21.5, 9.0)
+
+#: The ring/silent switch, which every iPhone had until the 15 Pro. Shorter
+#: than the Action button that replaced it, and it sits where that does.
+_MUTE = ("mute", "left", TOP, 21.5, 8.0)
+
+#: Camera Control, measured from the bottom edge. The opening is Apple's
+#: thin-case keepout rather than the control: 29.70 mm long, against a
+#: control nearer eighteen. That slack is deliberate -- it is what absorbs
+#: the millimetre of uncertainty in the position.
+_CAMERA_CONTROL = ("camera-control", "right", BOTTOM, 43.0, 29.7)
+
+Control = tuple[str, str, str, float, float]
+
+#: 12 through 15 non-Pro, and every Pro before the 15 Pro: a mute switch.
+BUTTONS_MUTE: tuple[Control, ...] = (_POWER, *_VOLUME, _MUTE)
+
+#: 15 Pro and 15 Pro Max, and the 16e and 17e: an Action button, no Camera
+#: Control. The e models have the Action button and not the control.
+BUTTONS_ACTION: tuple[Control, ...] = (_POWER, *_VOLUME, _ACTION)
+
+#: The 16 and 17 generations proper, and the Air.
+BUTTONS_CAMERA_CONTROL: tuple[Control, ...] = (
+    _POWER, *_VOLUME, _ACTION, _CAMERA_CONTROL)
 
 #: Camera Control is a touch surface, not a key. Apple's keepout is 6.32 mm
-#: across at 0.4 mm out from the glass, and the case has to clear all of it or
-#: the control is being pressed through plastic.
+#: across at 0.4 mm out from the glass, and the case has to clear all of it
+#: or the control is being pressed through plastic.
 CAMERA_CONTROL_WIDTH: tuple[tuple[str, float], ...] = (("camera-control", 6.32),)
+
+#: How far in from the edge the case may lean before it sits on the screen.
+#: Apple print it on the drawings, in these words: "ALL AROUND EXTERIOR OF
+#: HOUSING TO START OF FLAT AREA ON TOP SIDE OF PRODUCT". It came out at
+#: 2.41 mm on both drawings that state it, so it is treated as general.
+LIP_INSET_LIMIT = 2.41
+
+#: "CASE THICKNESS ON BACKSIDE OF PRODUCT: 2.1 mm MAX TO ENSURE FULL
+#: FUNCTIONALITY" -- which is MagSafe. A back plate thicker than this still
+#: prints and still fits; the magnets just stop holding.
+MAGSAFE_BACK_LIMIT = 2.1
 
 
 @dataclass(frozen=True)
@@ -190,12 +237,18 @@ class Phone:
     speaker_h: float = 4.0
 
     #: Side buttons and touch controls, as
-    #: ``(name, face, centre offset along the face, length)``. The offset is
-    #: measured from the middle of the phone, positive towards the top, in
-    #: the frame the module docstring sets out.
+    #: ``(name, face, edge, distance from that edge, length)``, in mm.
     #:
-    #: See :data:`BUTTONS_PRO` and the note above it before changing these.
-    buttons: tuple[tuple[str, str, float, float], ...] = BUTTONS_PRO
+    #: ``edge`` is :data:`TOP` or :data:`BOTTOM` -- which end of the body the
+    #: distance is measured from, because that is how the hardware is laid
+    #: out and it is not the same end for everything. Buttons are placed from
+    #: the top; Camera Control from the bottom. :meth:`cutouts` turns that
+    #: into this package's centre offset using the body length.
+    #:
+    #: These were centre offsets, copied unchanged across seventeen phones of
+    #: different lengths, which is another way of saying they were in a
+    #: different place on every one. See the note above :data:`BUTTONS_MUTE`.
+    buttons: tuple[tuple[str, str, str, float, float], ...] = BUTTONS_MUTE
 
     #: How wide each named opening is across the face, when the default
     #: (``min(cavity_depth - 0.6, 7)``) is not enough. Camera Control is the
@@ -249,7 +302,11 @@ class Phone:
             # flat. Also cut a little wider than the button itself, so a
             # thumb can reach in.
             wide = dict(self.button_widths)
-            for name, face, offset, length in self.buttons:
+            for name, face, edge, away, length in self.buttons:
+                # From the edge the hardware is referenced to, into this
+                # package's offset from the body's centre.
+                offset = (self.length / 2 - away if edge == TOP
+                          else away - self.length / 2)
                 h = min(cavity_depth - 0.6, 7.0)
                 # A named width is a keepout that has to be cleared, so it
                 # wins over the default -- but not over the cavity, which is
@@ -487,6 +544,30 @@ def check_case(spec: CaseSpec, *, bed: tuple[float, float, float] | None = None,
             "it will print but the top edge will be rough")
     if spec.lip > 0 and spec.lip_inset <= 0:
         warnings.append("lip_inset is 0, so the lip does not hold the phone in")
+    if spec.lip_inset > LIP_INSET_LIMIT:
+        warnings.append(
+            f"the lip reaches {spec.lip_inset:.2f} mm in over the front, and "
+            f"Apple's drawings put the flat area at {LIP_INSET_LIMIT:.2f} mm "
+            "from the edge; past that the case is sitting on the screen")
+
+    # Apple state this one in words on the drawing: "CASE THICKNESS ON
+    # BACKSIDE OF PRODUCT: 2.1 mm MAX TO ENSURE FULL FUNCTIONALITY". The part
+    # still prints and still fits -- the magnets just stop holding.
+    if spec.back_thickness > MAGSAFE_BACK_LIMIT:
+        warnings.append(
+            f"the back plate is {spec.back_thickness:.2f} mm and MagSafe "
+            f"wants {MAGSAFE_BACK_LIMIT:.1f} mm or less between the magnets "
+            "and the phone; it will hold weakly or not at all")
+
+    # A named keepout that the cavity is too shallow to cut. This is real on
+    # the Air, which is thin enough that there is not 6.32 mm of wall there.
+    for name, want in spec.phone.button_widths:
+        got = next((c.h for c in spec.cutouts if c.name == name), None)
+        if got is not None and got < want - 1e-6:
+            warnings.append(
+                f"{name} needs a {want:.2f} mm opening to clear Apple's "
+                f"keepout and the cavity only allows {got:.2f} mm; it will be "
+                "pressed through plastic at the edges")
 
     # Cutouts.
     half_w, half_l = spec.outer_w / 2, spec.outer_l / 2
@@ -582,110 +663,174 @@ def check_case(spec: CaseSpec, *, bed: tuple[float, float, float] | None = None,
 # --------------------------------------------------------------------------
 # the phones
 # --------------------------------------------------------------------------
+#
+# Every model is written out in full rather than leaning on a factory's
+# defaults. The table used to be four numbers per phone -- name, length,
+# width, thickness -- with everything else inherited, so three corner radii
+# covered eighteen phones and one 39 x 39 camera island covered seven Pros
+# from a 146.6 mm body to a 163.0 mm one. Splitting them out is what lets a
+# wrong one be seen and fixed.
+#
+# Each entry says where its numbers come from:
+#
+#   spec   the published specification, and where a drawing prints its own
+#          figure the two agree (16: 147.64 x 71.63 x 7.81 against a quoted
+#          147.6 x 71.6 x 7.80)
+#   drawn  measured off Apple's dimensional drawing
+#   est    an estimate. Still an estimate when it is written per model: what
+#          splitting it buys is that correcting one phone no longer silently
+#          moves six others.
+#
+# Body sizes are `spec`. Button positions are `drawn` on the 16 family and
+# carried across elsewhere. Camera openings are `est` everywhere -- the
+# drawings dimension the lens keepouts, never the hole a case should cut.
 
-def _controls(camera_control: bool) -> dict:
-    """Button set and opening widths for a phone with or without the control."""
-    if not camera_control:
-        return {}
-    return {"buttons": BUTTONS_CAMERA_CONTROL,
-            "button_widths": CAMERA_CONTROL_WIDTH}
 
-
-def _pro(name, length, width, thickness, *, camera_control=False) -> Phone:
-    """Three-camera square island, action button in place of the mute switch."""
+def _phone(name, length, width, thickness, *, corner, camera, buttons,
+           lenses=2, style="corner", port=(13.0, 9.0), speaker=(18.0, 16.0, 4.0),
+           widths=()) -> Phone:
+    """One phone. ``camera`` is ``(w, h, r, margin_top, margin_side)``."""
+    cw, ch, cr, mt, ms = camera
     return Phone(name=name, length=length, width=width, thickness=thickness,
-                 corner_radius=11.5, lenses=3,
-                 camera_w=39.0, camera_h=39.0, camera_r=11.5,
-                 camera_margin_top=3.0, camera_margin_side=3.0,
-                 **_controls(camera_control))
-
-
-def _plateau(name, length, width, thickness, *, height=34.0,
-             margin_side=2.0, margin_top=2.5, lenses=3,
-             camera_control=True) -> Phone:
-    """The 17-generation bar: full width of the back rather than a corner.
-
-    The width is taken from the body rather than given as a number, because
-    what makes it a plateau is that it runs to both edges. What is left of
-    the back plate beside it is ``margin_side`` plus the case wall, and above
-    it ``margin_top`` plus the wall -- a few millimetres either way, which
-    ``check_case`` measures and complains about if the fit makes it thinner.
-
-    The height is the number to be suspicious of, and it was wrong: 25 mm to
-    begin with, which is shorter than the three-lens cluster that has to fit
-    inside it. The same triangle of lenses needs a 39 mm island on a 16 Pro,
-    so a bar holding it cannot be much under thirty -- the opening and the
-    hardware are not independent, and a plateau too short for its own lenses
-    is a case with plastic over a lens. Still an estimate. Measure yours and
-    pass ``--camera``; the web page has the same fields.
-    """
-    return Phone(name=name, length=length, width=width, thickness=thickness,
-                 corner_radius=12.0, camera_style="plateau", lenses=lenses,
-                 camera_w=width - 2 * margin_side, camera_h=height,
-                 camera_r=min(height / 2, 12.0),
-                 camera_margin_top=margin_top, camera_margin_side=margin_side,
-                 **_controls(camera_control))
-
-
-def _base(name, length, width, thickness, *, pill=True,
-          camera_control=False) -> Phone:
-    """Two cameras: a vertical pill on the 15/16 generation, diagonal before."""
-    if pill:
-        cw, ch, cr = 27.0, 47.0, 13.5
-    else:
-        cw, ch, cr = 34.0, 34.0, 10.0
-    return Phone(name=name, length=length, width=width, thickness=thickness,
-                 corner_radius=11.0,
+                 corner_radius=corner, camera_style=style, lenses=lenses,
                  camera_w=cw, camera_h=ch, camera_r=cr,
-                 camera_margin_top=3.0, camera_margin_side=3.0,
-                 **_controls(camera_control))
+                 camera_margin_top=mt, camera_margin_side=ms,
+                 port_w=port[0], port_h=port[1],
+                 speaker_offset=speaker[0], speaker_w=speaker[1],
+                 speaker_h=speaker[2],
+                 buttons=buttons, button_widths=widths)
 
 
-#: Body sizes are published specs, and agree with Apple's own drawings.
-#: Camera openings and the offsets down each edge are estimates -- see the
-#: module docstring and the note above :data:`BUTTONS_PRO`, and print
-#: ``--test-fit`` before you trust them.
+#: A Lightning port, which is a good deal smaller than USB-C. Every phone in
+#: this table used to be cut the same 13 x 9 opening, including the four here
+#: that have no USB-C port at all.
+_LIGHTNING = (9.5, 6.5)
+_USB_C = (13.0, 9.0)
+
+#: The two-camera diagonal square, used from the 12 through the 15. The
+#: vertical pill people think of as "the two-camera iPhone" only arrives with
+#: the 16, for spatial video -- the 15 and 15 Plus were being cut a 27 x 47
+#: slot for a camera that is a 34 x 34 square.
+_DIAGONAL = (34.0, 34.0, 10.0, 3.0, 3.0)
+_PILL = (27.0, 47.0, 13.5, 3.0, 3.0)
+_ISLAND = (39.0, 39.0, 11.5, 3.0, 3.0)
+_ISLAND_MAX = (41.5, 41.5, 12.0, 3.0, 3.0)
+_ONE_LENS = (24.0, 24.0, 8.0, 3.0, 3.0)
+
 PHONES: dict[str, Phone] = {
-    "iphone-13":         _base("iPhone 13", 146.7, 71.5, 7.65, pill=False),
-    "iphone-13-pro":     _pro("iPhone 13 Pro", 146.7, 71.5, 7.65),
-    "iphone-14":         _base("iPhone 14", 146.7, 71.5, 7.80, pill=False),
-    "iphone-14-pro":     _pro("iPhone 14 Pro", 147.5, 71.5, 7.85),
-    "iphone-14-pro-max": _pro("iPhone 14 Pro Max", 160.7, 77.6, 7.85),
-    "iphone-15":         _base("iPhone 15", 147.6, 71.6, 7.80),
-    "iphone-15-plus":    _base("iPhone 15 Plus", 160.9, 77.8, 7.80),
-    "iphone-15-pro":     _pro("iPhone 15 Pro", 146.6, 70.6, 8.25),
-    "iphone-15-pro-max": _pro("iPhone 15 Pro Max", 159.9, 76.7, 8.25),
-    "iphone-16":         _base("iPhone 16", 147.6, 71.6, 7.80,
-                               camera_control=True),
-    "iphone-16-plus":    _base("iPhone 16 Plus", 160.9, 77.8, 7.80,
-                               camera_control=True),
-    "iphone-16-pro":     _pro("iPhone 16 Pro", 149.6, 71.5, 8.25,
-                              camera_control=True),
-    "iphone-16-pro-max": _pro("iPhone 16 Pro Max", 163.0, 77.6, 8.25,
-                              camera_control=True),
-    # The 17 Pro moved the cameras into a bar across the whole width of the
-    # back. Sizes below are estimates like every other camera figure here,
-    # but the *shape* is not a guess: a corner island on one of these covers
-    # two of the three lenses.
-    "iphone-17":         _base("iPhone 17", 149.6, 71.5, 7.95,
-                               camera_control=True),
-    "iphone-17-pro":     _plateau("iPhone 17 Pro", 150.0, 71.9, 8.75),
-    "iphone-17-pro-max": _plateau("iPhone 17 Pro Max", 163.4, 78.0, 8.75),
-    # One camera, and the thinnest body Apple has shipped, so the cavity is
-    # shallow and the lip does more of the work of holding it in.
-    "iphone-air":        _plateau("iPhone Air", 156.2, 74.6, 5.64,
-                                  height=26.0, lenses=1),
-    "iphone-se-3":       Phone("iPhone SE (3rd gen)", 138.4, 67.3, 7.3,
-                               corner_radius=9.0,
-                               lenses=1,
-                               camera_w=17.0, camera_h=17.0, camera_r=6.0,
-                               camera_margin_top=6.0, camera_margin_side=6.0,
-                               # Same correction as the Pro set: a side
-                               # button is not level with volume-down. On an
-                               # SE it sits high on the right, above the
-                               # volume pair.
-                               buttons=(("power", "right", 24.0, 20.0),
-                                        ("volume-up", "left", 20.0, 12.0),
-                                        ("volume-down", "left", 4.0, 12.0),
-                                        ("mute", "left", 34.0, 8.0))),
+    # --- iPhone 12: flat sides, mute switch, Lightning --------------------
+    "iphone-12": _phone(
+        "iPhone 12", 146.7, 71.5, 7.40, corner=11.0, camera=_DIAGONAL,
+        buttons=BUTTONS_MUTE, port=_LIGHTNING),
+    "iphone-12-mini": _phone(
+        "iPhone 12 mini", 131.5, 64.2, 7.40, corner=10.5, camera=_DIAGONAL,
+        buttons=BUTTONS_MUTE, port=_LIGHTNING, speaker=(15.0, 13.0, 4.0)),
+    "iphone-12-pro": _phone(
+        "iPhone 12 Pro", 146.7, 71.5, 7.40, corner=11.0, camera=_ISLAND,
+        lenses=3, buttons=BUTTONS_MUTE, port=_LIGHTNING),
+    "iphone-12-pro-max": _phone(
+        "iPhone 12 Pro Max", 160.8, 78.1, 7.40, corner=11.5,
+        camera=_ISLAND_MAX, lenses=3, buttons=BUTTONS_MUTE, port=_LIGHTNING),
+
+    # --- iPhone 13 --------------------------------------------------------
+    "iphone-13": _phone(
+        "iPhone 13", 146.7, 71.5, 7.65, corner=11.0, camera=_DIAGONAL,
+        buttons=BUTTONS_MUTE, port=_LIGHTNING),
+    "iphone-13-mini": _phone(
+        "iPhone 13 mini", 131.5, 64.2, 7.65, corner=10.5, camera=_DIAGONAL,
+        buttons=BUTTONS_MUTE, port=_LIGHTNING, speaker=(15.0, 13.0, 4.0)),
+    "iphone-13-pro": _phone(
+        "iPhone 13 Pro", 146.7, 71.5, 7.65, corner=11.0, camera=_ISLAND,
+        lenses=3, buttons=BUTTONS_MUTE, port=_LIGHTNING),
+    "iphone-13-pro-max": _phone(
+        "iPhone 13 Pro Max", 160.8, 78.1, 7.65, corner=11.5,
+        camera=_ISLAND_MAX, lenses=3, buttons=BUTTONS_MUTE, port=_LIGHTNING),
+
+    # --- iPhone 14: still a mute switch, still Lightning -------------------
+    "iphone-14": _phone(
+        "iPhone 14", 146.7, 71.5, 7.80, corner=11.0, camera=_DIAGONAL,
+        buttons=BUTTONS_MUTE, port=_LIGHTNING),
+    "iphone-14-plus": _phone(
+        "iPhone 14 Plus", 160.8, 78.1, 7.80, corner=11.5, camera=_DIAGONAL,
+        buttons=BUTTONS_MUTE, port=_LIGHTNING),
+    "iphone-14-pro": _phone(
+        "iPhone 14 Pro", 147.5, 71.5, 7.85, corner=11.0, camera=_ISLAND,
+        lenses=3, buttons=BUTTONS_MUTE, port=_LIGHTNING),
+    "iphone-14-pro-max": _phone(
+        "iPhone 14 Pro Max", 160.7, 77.6, 7.85, corner=11.5,
+        camera=_ISLAND_MAX, lenses=3, buttons=BUTTONS_MUTE, port=_LIGHTNING),
+
+    # --- iPhone 15: USB-C arrives; the Pros get the Action button ---------
+    "iphone-15": _phone(
+        "iPhone 15", 147.6, 71.6, 7.80, corner=11.0, camera=_DIAGONAL,
+        buttons=BUTTONS_MUTE, port=_USB_C),
+    "iphone-15-plus": _phone(
+        "iPhone 15 Plus", 160.9, 77.8, 7.80, corner=11.5, camera=_DIAGONAL,
+        buttons=BUTTONS_MUTE, port=_USB_C),
+    "iphone-15-pro": _phone(
+        "iPhone 15 Pro", 146.6, 70.6, 8.25, corner=11.0, camera=_ISLAND,
+        lenses=3, buttons=BUTTONS_ACTION, port=_USB_C),
+    "iphone-15-pro-max": _phone(
+        "iPhone 15 Pro Max", 159.9, 76.7, 8.25, corner=11.5,
+        camera=_ISLAND_MAX, lenses=3, buttons=BUTTONS_ACTION, port=_USB_C),
+
+    # --- iPhone 16: the vertical pill, and Camera Control -----------------
+    # Body figures here are the drawing's own: 147.64 x 71.63 x 7.81.
+    "iphone-16": _phone(
+        "iPhone 16", 147.6, 71.6, 7.80, corner=11.0, camera=_PILL,
+        buttons=BUTTONS_CAMERA_CONTROL, widths=CAMERA_CONTROL_WIDTH),
+    "iphone-16-plus": _phone(
+        "iPhone 16 Plus", 160.9, 77.8, 7.80, corner=11.5, camera=_PILL,
+        buttons=BUTTONS_CAMERA_CONTROL, widths=CAMERA_CONTROL_WIDTH),
+    "iphone-16-pro": _phone(
+        "iPhone 16 Pro", 149.6, 71.5, 8.25, corner=11.0, camera=_ISLAND,
+        lenses=3, buttons=BUTTONS_CAMERA_CONTROL, widths=CAMERA_CONTROL_WIDTH),
+    "iphone-16-pro-max": _phone(
+        "iPhone 16 Pro Max", 163.0, 77.6, 8.25, corner=11.5,
+        camera=_ISLAND_MAX, lenses=3, buttons=BUTTONS_CAMERA_CONTROL,
+        widths=CAMERA_CONTROL_WIDTH),
+    # One camera, an Action button, and no Camera Control.
+    "iphone-16e": _phone(
+        "iPhone 16e", 146.7, 71.5, 7.80, corner=11.0, camera=_ONE_LENS,
+        lenses=1, buttons=BUTTONS_ACTION),
+
+    # --- iPhone 17 --------------------------------------------------------
+    "iphone-17": _phone(
+        "iPhone 17", 149.6, 71.5, 7.95, corner=11.0, camera=_PILL,
+        buttons=BUTTONS_CAMERA_CONTROL, widths=CAMERA_CONTROL_WIDTH),
+    # 17e's own drawing prints 146.71 x 71.52 x 7.80.
+    "iphone-17e": _phone(
+        "iPhone 17e", 146.7, 71.5, 7.80, corner=11.0, camera=_ONE_LENS,
+        lenses=1, buttons=BUTTONS_ACTION),
+    # The bar across the back. Its width is set by the side margin, not by
+    # camera_w -- see Phone.cutouts.
+    "iphone-17-pro": _phone(
+        "iPhone 17 Pro", 150.0, 71.9, 8.75, corner=12.0, style="plateau",
+        camera=(67.9, 34.0, 12.0, 2.5, 2.0), lenses=3,
+        buttons=BUTTONS_CAMERA_CONTROL, widths=CAMERA_CONTROL_WIDTH),
+    "iphone-17-pro-max": _phone(
+        "iPhone 17 Pro Max", 163.4, 78.0, 8.75, corner=12.0, style="plateau",
+        camera=(74.0, 34.0, 12.0, 2.5, 2.0), lenses=3,
+        buttons=BUTTONS_CAMERA_CONTROL, widths=CAMERA_CONTROL_WIDTH),
+    # The thinnest body Apple has shipped, which is why its Camera Control
+    # opening is the one that cannot reach Apple's keepout: there is not
+    # 6.32 mm of wall to cut through. check_case says so.
+    "iphone-air": _phone(
+        "iPhone Air", 156.2, 74.6, 5.64, corner=12.0, style="plateau",
+        camera=(70.6, 26.0, 12.0, 2.5, 2.0), lenses=1,
+        buttons=BUTTONS_CAMERA_CONTROL, widths=CAMERA_CONTROL_WIDTH),
+
+    # --- the odd one out --------------------------------------------------
+    # A 2017 body: home button, small single camera, Lightning, mute switch,
+    # and a side button that sits high because there is a home button below
+    # the screen taking up the length.
+    "iphone-se-3": _phone(
+        "iPhone SE (3rd gen)", 138.4, 67.3, 7.30, corner=9.0,
+        camera=(17.0, 17.0, 6.0, 6.0, 6.0), lenses=1,
+        buttons=(("power", "right", TOP, 30.0, 20.0),
+                 ("volume-up", "left", TOP, 36.0, 12.0),
+                 ("volume-down", "left", TOP, 52.0, 12.0),
+                 ("mute", "left", TOP, 22.0, 8.0)),
+        port=_LIGHTNING, speaker=(15.0, 13.0, 4.0)),
 }
+

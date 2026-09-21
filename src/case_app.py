@@ -73,6 +73,23 @@ PROVENANCE = "f7bf3c7"
 #:   got a first layer thinner than the rest.
 #: * Runs were built in slot 0 rather than the palette's base.
 #:
+#: And then, across the whole table rather than one phone:
+#:
+#: * Buttons were stored as offsets from the body's centre, one set copied
+#:   across every phone, which put the same button in a different place on
+#:   each of them. They are stored as a distance from the top (or, for Camera
+#:   Control, the bottom) now, measured off Apple's drawings.
+#: * The three left-hand buttons were 11-15 mm too low on every model.
+#: * The iPhone 15 and 15 Plus were cut the vertical pill camera. The pill
+#:   arrives with the 16; the 15 has the diagonal square.
+#: * Seven phones were given an Action button they do not have.
+#: * Every phone was cut the same 13 x 9 port, including the five with a
+#:   Lightning connector.
+#: * `check_case` knew none of Apple's stated case rules: 2.1 mm of back
+#:   plate for MagSafe, 2.41 mm of lip before it sits on the screen, and a
+#:   keepout the cavity is too shallow to cut.
+#: * Nine models Apple publish drawings for were missing.
+#:
 #: Before re-vendoring: take these there first, then copy back and delete
 #: this note.
 DIVERGED = True

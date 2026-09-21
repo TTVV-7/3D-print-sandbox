@@ -23,7 +23,7 @@ mesh.
   Same app, fourth shape.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
-- **[Phone cases](#phone-cases)** -- a case for any of eighteen iPhones,
+- **[Phone cases](#phone-cases)** -- a case for any of twenty-seven iPhones,
   painted on the back with your own SVG by the AMS.  The odd one out: it is
   g-code rather than a solid, written directly with no slicer, and its
   generator is vendored from another repository.  Its own page in the app.
@@ -1328,7 +1328,7 @@ These are manufacturer trademarks — caps for your own car, not for selling.
 
 # Phone cases
 
-A case for any of eighteen iPhones, written straight to multi-tool g-code,
+A case for any of twenty-seven iPhones, written straight to multi-tool g-code,
 with an SVG painted onto the outside of the back by the AMS -- or as a 3MF
 that keeps the colours, or an STL if you only want the shape. Its own page in the app, at
 **[/case](/case)**; from a terminal, `python3 src/case_app.py`.
@@ -1416,9 +1416,10 @@ off rather than quietly handing you a different part.
 
 | style | phones | opening |
 |---|---|---|
-| square island | 13/14/15/16 Pro and Pro Max | ~39 x 39, top corner |
-| vertical pill | 15, 15 Plus, 16, 16 Plus, 17 | ~27 x 47 |
-| diagonal pair | 13, 14 | ~34 x 34 |
+| square island | 12-16 Pro; Pro Max a little larger | ~39 x 39, top corner |
+| vertical pill | 16, 16 Plus, 17 | ~27 x 47 |
+| diagonal pair | 12, 13, 14, **15, 15 Plus** | ~34 x 34 |
+| one lens | 16e, 17e | ~24 x 24 |
 | small | SE (3rd gen) | ~17 x 17 |
 | **plateau** | 17 Pro, 17 Pro Max | full width less 2 mm a side, ~34 mm tall |
 | **plateau** | Air | full width less 2 mm a side, ~26 mm tall, one lens |
@@ -1478,12 +1479,64 @@ What it settles, and what it does not:
 | the camera opening | never dimensioned as a case opening at all |
 
 Sheet 1 is the general-dimensions sheet and the only one carrying button
-positions, and it is the one sheet published as eight thousand stroked
+positions, and on most models it is published as eight thousand stroked
 polylines with not a single text operator on it. The extractor says so and
 stops, rather than recognising digit outlines and handing back a number that
 might be off by one -- which would be a hole in the wrong place, the exact
 thing the drawing was fetched to prevent. `glyph_cells()` is left in as the
 diagnostic that demonstrates what sheet 1 is.
+
+**On four models it is not.** The iPhone 16, 16 Pro, 16 Pro Max and 17e have
+sheet 1 published as real text, and it labels the side features by name --
+`ACTION BUTTON`, `(+) VOLUME BUTTON`, `SIDE BUTTON`, `CAMERA CONTROL` -- each
+at the end of a leader line whose other end touches the feature. Follow the
+leader, convert with the view's own scale, and the button position is Apple's
+rather than somebody's. It is good to about a millimetre: three of the values
+can be checked against a printed ordinate on the same sheet and agree to 0.3,
+0.5 and 0.8 mm.
+
+That is enough to settle two things about the whole range.
+
+**Buttons are placed from the top of the body, not from its middle.** The
+side button came out at 48.74, 48.00 and 48.17 mm from the top on three
+phones 149.6, 163.0 and 146.7 mm long -- three quarters of a millimetre of
+spread across fourteen millimetres of body. They had been stored as offsets
+from the centre, one set copied across every phone, which is the same button
+in a different place on each of them.
+
+**Camera Control is placed from the bottom**: 43.10, 43.08 and 42.61 mm up
+from the bottom edge on the 16 Pro, 16 Pro Max and Air. Which makes sense --
+it is where an index finger lands holding the phone in landscape, and that is
+referenced to the end you hold.
+
+What moved, for a 149.6 mm body:
+
+| | was | now | |
+|---|---|---|---|
+| action | 36.8 mm from the top | 21.5 | 15.3 mm up |
+| volume up | 52.8 | 38.9 | 13.9 mm up |
+| volume down | 69.8 | 58.7 | 11.1 mm up |
+| side button | 47.8 | 48.4 | 0.6 mm down |
+| camera control | 97.8 | 106.6 | 8.8 mm down |
+
+The side button had already been corrected once, by reasoning about where a
+side button can possibly be, and the drawing put that correction within a
+millimetre. The three on the left had not been, and were all out by more than
+a centimetre.
+
+### What Apple tell you about cases, in words
+
+The same sheets carry design rules as prose, and `check_case` now knows them:
+
+- `CASE THICKNESS ON BACKSIDE OF PRODUCT: 2.1 mm MAX TO ENSURE FULL
+  FUNCTIONALITY` -- which is MagSafe. The part still prints and still fits;
+  the magnets just stop holding.
+- `2.41 ALL AROUND EXTERIOR OF HOUSING TO START OF FLAT AREA ON TOP SIDE OF
+  PRODUCT` -- past that the lip is sitting on the screen. Stated identically
+  on both drawings that give it.
+- Camera Control's keepout, which the iPhone Air is too thin to cut: it needs
+  6.32 mm and a 5.64 mm body leaves 5.39 mm of wall. The generator used to
+  clamp it silently; it says so now.
 
 ## Printing it face down
 
