@@ -54,6 +54,29 @@ PAGE = ROOT / "public" / "case.html"
 #: Update it with the copy, so a bug here can be traced to a source there.
 PROVENANCE = "f7bf3c7"
 
+#: **This copy has diverged from that commit.** The rule in the README is to
+#: fix bugs upstream and re-copy, and that is still the rule -- these changes
+#: belong in weave-trial and should be taken there. They were made here
+#: because the phone they were found on is a present that has to be printed,
+#: and because a straight re-copy of f7bf3c7 would put every one of them back:
+#:
+#: * ``preview._side`` drew the bottom and left faces only, so no cutout on
+#:   the right face appeared in any panel of any preview.
+#: * The power button was at +6 mm, level with volume-down. It is at +27.
+#: * The 16 and 17 generations had no Camera Control opening at all.
+#: * ``camera_margin_side`` did nothing on a bar camera: the opening's width
+#:   was fixed when the phone was built, so the field and the flag changed
+#:   the report and not the geometry.
+#: * ``check_case`` said nothing about the back-plate strip a bar camera
+#:   leaves, which is the thinnest thing in the whole part.
+#: * ``first_layer_height`` did not follow ``layer_height``, so fine layers
+#:   got a first layer thinner than the rest.
+#: * Runs were built in slot 0 rather than the palette's base.
+#:
+#: Before re-vendoring: take these there first, then copy back and delete
+#: this note.
+DIVERGED = True
+
 #: Requests bigger than this are not artwork. The SVG reader has its own,
 #: lower, limit; this one is about not buffering a payload to find out.
 MAX_BODY = 6 << 20
@@ -127,6 +150,15 @@ def resolve(params):
         if params.get(key) is not None:
             cam[attr] = _num(params, key, getattr(phone, attr), lo, hi)
     if cam:
+        # A plateau's opening is the body less a margin at each side, so the
+        # margin is what places it and the width is a consequence. Asking for
+        # a width is still a reasonable thing to do -- it is the number you
+        # can measure -- so turn it into the margin it implies rather than
+        # taking it and silently ignoring it.
+        if (phone.camera_style == "plateau" and "camera_w" in cam
+                and "camera_margin_side" not in cam):
+            cam["camera_margin_side"] = max(
+                0.0, (phone.width - cam["camera_w"]) / 2)
         cam["camera_r"] = min(cam.get("camera_r", phone.camera_r),
                               cam.get("camera_w", phone.camera_w) / 2,
                               cam.get("camera_h", phone.camera_h) / 2)
@@ -141,6 +173,8 @@ def resolve(params):
         if params.get(key) is not None:
             preset[attr] = _num(params, key, preset.get(attr, 1.0), lo, hi)
     preset["layer_height"] = _num(params, "layerHeight", 0.2, 0.1, 0.32)
+    if params.get("firstLayer") is not None:
+        preset["first_layer_height"] = _num(params, "firstLayer", 0.24, 0.1, 0.3)
     preset["art_layers"] = int(_num(params, "artLayers", 2, 1, 6))
     preset["section_res"] = _num(params, "res", 0.45, MIN_RES, 1.2)
 
@@ -213,17 +247,22 @@ def _camera_report(spec):
     """
     p = spec.phone
     cam = next((c for c in spec.cutouts if c.name == "camera"), None)
+    # The opening as cut, not as configured. On a bar camera the width is
+    # derived from the side margin, so the phone's own ``camera_w`` is the
+    # figure it was built with rather than the hole you will get.
     return {
         "style": p.camera_style,
         "lenses": p.lenses,
-        "w": round(p.camera_w, 2), "h": round(p.camera_h, 2),
-        "r": round(p.camera_r, 2),
+        "w": round(cam.w if cam else p.camera_w, 2),
+        "h": round(cam.h if cam else p.camera_h, 2),
+        "r": round(cam.r if cam else p.camera_r, 2),
         "marginTop": round(p.camera_margin_top, 2),
         "marginSide": round(p.camera_margin_side, 2),
         "centre": [round(cam.u, 2), round(cam.v, 2)] if cam else None,
         "flags": (f"--camera {p.camera_w:g}x{p.camera_h:g}:{p.camera_r:g} "
                   f"--camera-margin {p.camera_margin_top:g},"
                   f"{p.camera_margin_side:g}"),
+        "flagsFor": "python3 src/gen_case.py",
     }
 
 

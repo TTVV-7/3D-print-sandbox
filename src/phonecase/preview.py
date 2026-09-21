@@ -162,11 +162,28 @@ def _plan(spec: CaseSpec) -> str:
     return "\n".join(parts)
 
 
-def _side(spec: CaseSpec, scale: float) -> str:
-    """Bottom and left edges unrolled, stacked, with their cutouts."""
+#: The four walls, unrolled, and how wide each one is. All four, in an order
+#: that pairs the two edges you hold: left and right first, then the ends.
+#:
+#: It used to be two of them -- bottom and left. Every cutout on the right
+#: face was therefore absent from every panel of every preview, which is how
+#: a power button sitting twenty millimetres from where the button actually
+#: is went unnoticed through the whole of this generator's life, and how the
+#: 16 and 17 generations went that whole time with no Camera Control opening
+#: at all. A view that cannot show a mistake will not find one.
+FACES = ("left", "right", "top", "bottom")
+
+
+def _side(spec: CaseSpec) -> tuple[str, float]:
+    """All four edges unrolled and stacked, with their cutouts.
+
+    Returns the body and the vertical centre of what was drawn, so the caller
+    can place it; it does not scale anything itself.
+    """
     parts = []
     y = 0.0
-    for face, span in (("bottom", spec.outer_w), ("left", spec.outer_l)):
+    for face in FACES:
+        span = spec.outer_w if face in ("top", "bottom") else spec.outer_l
         parts.append(
             f'<rect x="{-span / 2:.2f}" y="{y - spec.height:.2f}" '
             f'width="{span:.2f}" height="{spec.height:.2f}" fill="#fafafb" '
@@ -190,6 +207,11 @@ def _side(spec: CaseSpec, scale: float) -> str:
     return "\n".join(parts), (y - 9.0 + 3.2 - spec.height) / 2
 
 
+def _side_height(spec: CaseSpec) -> float:
+    """How tall the unrolled edges are, before scaling."""
+    return len(FACES) * (spec.height + 9.0) - 9.0 + 3.2
+
+
 def render(spec: CaseSpec, path: CasePath, plan: PaintPlan, *,
            stats: dict | None = None) -> str:
     """Build the full SVG document.
@@ -201,9 +223,11 @@ def render(spec: CaseSpec, path: CasePath, plan: PaintPlan, *,
     """
     w, l = spec.outer_w, spec.outer_l
     col_w = max(w + 2 * PAD, 168.0)
-    side_scale = 2.2
+    # Four faces instead of two are twice as tall, so the scale comes from
+    # the room there is rather than from a constant that used to fit.
+    side_scale = min(2.2, (l + 2 * PAD) / max(1.0, _side_height(spec)))
     side_col = l * side_scale + 2 * PAD
-    side_body, side_mid = _side(spec, side_scale)
+    side_body, side_mid = _side(spec)
     total_h = l + 2 * PAD + 80
     total_w = col_w * 2 + side_col
     # One caption grid for all three panels, so the columns line up.
@@ -245,6 +269,10 @@ def render(spec: CaseSpec, path: CasePath, plan: PaintPlan, *,
                         f"wall {spec.wall:.2f}  gap {spec.clearance:.2f}"))
     parts.append(_label(col_w * 1.5, r2,
                         f"{spec.phone.camera_style} camera, {lens}"))
+    # Only a whole-case build has these. The page's preview is two layers
+    # deep by design, so it comes through the other way and says what the
+    # dashes mean instead; a caller that has already built the toolpath (the
+    # library's own report, or a batch run) passes them in.
     if stats:
         parts.append(_label(col_w * 1.5, r3,
                             f"{stats['grams']:.1f} g  {stats['layers']} layers  "

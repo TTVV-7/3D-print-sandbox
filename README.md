@@ -23,7 +23,7 @@ mesh.
   Same app, fourth shape.
 - **[Car-brand valve caps](#car-brand-valve-caps)** -- Schrader valve stem caps
   with a car maker's emblem on top.  Twelve marks.
-- **[Phone cases](#phone-cases)** -- a case for any of seventeen iPhones,
+- **[Phone cases](#phone-cases)** -- a case for any of eighteen iPhones,
   painted on the back with your own SVG by the AMS.  The odd one out: it is
   g-code rather than a solid, written directly with no slicer, and its
   generator is vendored from another repository.  Its own page in the app.
@@ -1420,8 +1420,8 @@ off rather than quietly handing you a different part.
 | vertical pill | 15, 15 Plus, 16, 16 Plus, 17 | ~27 x 47 |
 | diagonal pair | 13, 14 | ~34 x 34 |
 | small | SE (3rd gen) | ~17 x 17 |
-| **plateau** | 17 Pro, 17 Pro Max | full width, ~34 mm tall, centred |
-| **plateau** | Air | full width, ~26 mm tall, one lens |
+| **plateau** | 17 Pro, 17 Pro Max | full width less 2 mm a side, ~34 mm tall |
+| **plateau** | Air | full width less 2 mm a side, ~26 mm tall, one lens |
 
 The plan panel draws the phone dashed inside the case and the lenses inside
 the opening -- three in a triangle for a Pro, two stacked in the pill, one
@@ -1435,17 +1435,55 @@ The 17 Pro's cameras sit in a bar across the whole width of the back, so a
 corner island would put plastic over two of the three lenses.
 
 **The camera opening is the one number you can correct in the form.** Body
-sizes are published specs; camera openings are not, and nothing here has
-been measured against a real phone. The five fields under the fit tiles
-start from the phone's own defaults, outline whichever you have moved, and
-print the command line that reproduces what the generator used, so a
-correction outlives the browser tab. The bar's height was wrong once
-already: 25 mm, which is shorter than the three-lens cluster that has to fit
-inside it, and a test compares how big a lens each opening can hold now so
-that the next one shows up without anyone looking at a photograph. That one is the
-*shape* being different rather than the millimetres, which is why it has its
-own style and is sized from the body -- what makes a plateau a plateau is
-that it reaches both edges -- rather than being given as a number.
+sizes are published specs; the opening is not, and nothing here has been
+measured against a real phone. The five fields under the fit tiles start from
+the phone's own defaults, outline whichever you have moved, and print the
+command line that reproduces what the generator used, so a correction
+outlives the browser tab. The bar's height was wrong once already: 25 mm,
+which is shorter than the three-lens cluster that has to fit inside it.
+
+On a bar camera, **the side margin is the width**. What makes a plateau a
+plateau is that it reaches both edges, so the opening is the body less a
+margin at each end and there is only one number, not two. It used to be two:
+the width was fixed when the phone was built and the side margin did nothing
+at all, so the field outlined itself as changed, the flag appeared in the
+printed command line, and the geometry came out byte for byte identical
+whatever you typed. Now either field moves the other, and both move the hole.
+
+### What Apple actually publishes
+
+Apple ship a dimensioned drawing for every iPhone, at
+[developer.apple.com/download/files/accessories/dimensional-drawings/](https://developer.apple.com/download/files/accessories/dimensional-drawings/),
+and `src/extract_iphone_dims.py` reads one without any PDF library: the pages
+are Flate-compressed content streams, and the dimension labels are CID text
+with a `ToUnicode` table.
+
+The trick that makes it trustworthy is that Apple dimension these drawings
+*ordinately* -- one `0.00` datum per view, every feature labelled with its
+distance from it -- and an ordinate label is drawn **at** the feature's own
+coordinate. So the number a label prints and the place it sits are two
+measurements of the same thing in two different units, and a straight line
+through them is the drawing's scale. On the 17 Pro that line comes out at
+2.7657 points per millimetre in `y` and 2.7658 in `x`, independently, with
+residuals under a hundredth of a point. That agreement is the check: a
+scale nobody typed in, arrived at twice.
+
+What it settles, and what it does not:
+
+| | |
+|---|---|
+| body size, corner radius | published, and the table agrees to the hundredth |
+| Camera Control's opening | published and exact, including a thin-case keepout |
+| where each button sits | **sheet 1, whose text Apple flattens to outlines** |
+| the camera opening | never dimensioned as a case opening at all |
+
+Sheet 1 is the general-dimensions sheet and the only one carrying button
+positions, and it is the one sheet published as eight thousand stroked
+polylines with not a single text operator on it. The extractor says so and
+stops, rather than recognising digit outlines and handing back a number that
+might be off by one -- which would be a hole in the wrong place, the exact
+thing the drawing was fetched to prevent. `glyph_cells()` is left in as the
+diagnostic that demonstrates what sheet 1 is.
 
 ## Printing it face down
 
@@ -1489,10 +1527,34 @@ layers of the back plate are painted at all. Everything under the skin is the
 body colour, because nobody can see it and every change down there is another
 gram in the bin.
 
+## What is down each side
+
+Four openings on the left and right, and two of them were wrong for the whole
+of this generator's life:
+
+- **The power button was at +6 mm**, level with volume-down, which is not
+  where a side button is on any iPhone ever made -- it sits opposite the gap
+  between the action button and volume up. It is at +27 now. The old number
+  left twenty of the button's twenty-seven millimetres behind solid wall.
+- **The 16 and 17 generations had no Camera Control opening at all.** It is a
+  touch surface, so plastic over it does not make it stiff, it makes it dead.
+  Apple publish a keepout for exactly this case: 17.50 x 3.40 mm at the glass,
+  opening to 25.00 x 6.32 by 0.4 mm out, with a 29.70 mm thin-case keepout for
+  a wall this thick. The opening uses the thin-case figure, which is nearly
+  twelve millimetres longer than the control itself -- and that slack is what
+  absorbs the one number here that is still an estimate, which is where along
+  the edge it goes.
+
+Neither was visible. The edge panel unrolled **the bottom and left faces
+only**, so every cutout on the right face -- both of these -- was drawn in no
+panel of any preview. It draws all four now. A view that cannot show a
+mistake will not find one.
+
 ## Print the test fit first
 
-The body dimensions are published specs. **The camera openings and the button
-positions are estimates** and have not been measured against a real phone. The
+The body dimensions are published specs, and so is Camera Control's opening.
+**The camera opening and the offsets down each edge are estimates** and have
+not been measured against a real phone. The
 test fit keeps the walls and a 7 mm rim of back plate around the outline and
 around every hole and leaves the middle open -- every dimension that can be
 wrong is still in it, for about half the filament and none of the purge.
@@ -1510,9 +1572,17 @@ cheap one -- a fifth of a second, because there is no toolpath in it.
 
 ```
 python3 src/case_app.py        # the same page, on 127.0.0.1:8766
+
+python3 src/gen_case.py --phone iphone-17-pro --test-fit
+python3 src/gen_case.py --phone iphone-17-pro --art logo.svg --format all
+python3 src/gen_case.py --phone iphone-17-pro --check       # report only
 ```
 
-The full command line generator, with the phone and camera overrides, the
-palette syntax and the printability report, lives in the weave-trial
-repository as `case.py`.
+`gen_case.py` is a front end over the same `resolve()` the page posts to, so
+the two cannot drift: every flag is a key the browser already sends, clamped
+by the same code. It exists because the page prints the command line that
+reproduces its camera numbers -- `--camera 67.9x34:12 --camera-margin 2.5,2`
+-- and until now there was nothing in this repository to paste it into. The
+full generator still lives in weave-trial as `case.py`; this is the part of
+it the page was already advertising.
 

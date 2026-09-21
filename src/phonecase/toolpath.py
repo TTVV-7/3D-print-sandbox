@@ -209,7 +209,8 @@ def build(spec: CaseSpec, plan: PaintPlan, *, wrap: bool = False,
             level = -(k + 0.5) * width
             kind = "plate" if solid else ("wall-outer" if k == 0 else "wall")
             for loop in fld.contours(level):
-                runs.append(Run(loop, z_top, h, width, kind, 0, True))
+                runs.append(Run(loop, z_top, h, width, kind,
+                                plan.palette.base, True))
 
         if solid:
             # Solid infill, alternating direction so the plate does not warp
@@ -218,10 +219,17 @@ def build(spec: CaseSpec, plan: PaintPlan, *, wrap: bool = False,
             angle = 45.0 if i % 2 == 0 else 135.0
             floor = -test_fit if test_fit else None
             for line in fld.infill(level, lw, angle, floor=floor):
-                runs.append(Run(line, z_top, h, lw, "infill", 0, False))
+                runs.append(Run(line, z_top, h, lw, "infill",
+                                plan.palette.base, False))
 
         # Colour. The skin is the only thing anyone sees, so it is the only
         # thing that costs a purge.
+        #
+        # Runs are built in the body colour rather than in slot 0 and fixed up
+        # afterwards. The fix-up below still happens and the output is the
+        # same either way, but a run that is never painted and never reaches
+        # the fix-up -- one more kind, one early `continue` -- used to come
+        # out in whatever filament slot 0 happened to hold.
         out: list[Run] = []
         for r in runs:
             paint_this = (painted and r.kind in ("plate", "infill")) or \

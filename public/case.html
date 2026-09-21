@@ -417,7 +417,8 @@
           <input type="number" id="cameraMarginTop" step="0.1" min="0"></label>
       </div>
       <label class="num" id="sidefield">From the side
-        <input type="number" id="cameraMarginSide" step="0.1" min="0"></label>
+        <input type="number" id="cameraMarginSide" step="0.1" min="0">
+        <span class="share" id="sidenote"></span></label>
       <div class="row">
         <button type="button" class="button subtle" id="camreset">Back to defaults</button>
       </div>
@@ -727,8 +728,8 @@ function params(extra) {
     slots: slots,
     base: $("base").value === "" ? null : Number($("base").value),
     art: artText,
-    cameraW: Number($("cameraW").value) || null,
-    cameraH: Number($("cameraH").value) || null,
+    cameraW: $("cameraW").value === "" ? null : Number($("cameraW").value),
+    cameraH: $("cameraH").value === "" ? null : Number($("cameraH").value),
     cameraR: $("cameraR").value === "" ? null : Number($("cameraR").value),
     cameraMarginTop: $("cameraMarginTop").value === "" ? null
       : Number($("cameraMarginTop").value),
@@ -1026,7 +1027,15 @@ function cameraDefaults() {
   if (!camDefaults) return;
   for (const id of CAM) $(id).value = camDefaults[CAM_KEY[id]];
   // A plateau spans the width, so its side margin sets how far it stops
-  // short of each edge rather than which corner it sits in.
+  // short of each edge rather than which corner it sits in -- which means
+  // the width is a consequence of the margin, not a separate number. Say so,
+  // and keep the two in step, instead of offering two fields that fight.
+  const bar = camDefaults.style === "plateau";
+  $("sidenote").textContent = bar ? "sets the width" : "";
+  $("cameraW").title = bar
+    ? "On a bar camera this follows the side margin: the opening is the body "
+      + "less a margin at each end."
+    : "";
   $("camstyle").textContent = `${camDefaults.style}, ${camDefaults.lenses} `
     + (camDefaults.lenses === 1 ? "lens" : "lenses");
   markCamera();
@@ -1040,7 +1049,27 @@ function markCamera() {
   }
 }
 
+// On a bar camera the width and the side margin are the same number said
+// two ways, so whichever one is typed into moves the other.
+function linkBar() {
+  if (!camDefaults || camDefaults.style !== "plateau") return;
+  const phone = (catalogue.phones || []).find(p => p.id === $("phone").value);
+  const body = phone && phone.size && phone.size[1];
+  if (!body) return;
+  return {
+    cameraW: () => { const v = Number($("cameraW").value);
+      if (v > 0) $("cameraMarginSide").value = ((body - v) / 2).toFixed(2); },
+    cameraMarginSide: () => { const v = Number($("cameraMarginSide").value);
+      if ($("cameraMarginSide").value !== "")
+        $("cameraW").value = (body - 2 * v).toFixed(2); },
+  };
+}
+
 CAM.forEach(id => {
+  $(id).addEventListener("input", () => {
+    const link = linkBar();
+    if (link && link[id]) link[id]();
+  });
   $(id).addEventListener("input", markCamera);
   $(id).addEventListener("change", () => { markCamera(); refresh(); });
 });

@@ -223,7 +223,7 @@ class Raster:
             return
         # Active edge table, bucketed by the first row each edge touches, so
         # the cost is edges plus rows rather than edges times rows.
-        buckets: dict[int, list[tuple[float, float, float, int]]] = {}
+        buckets: dict[int, list[tuple[float, float, float, float, int]]] = {}
         y_lo, y_hi = self.ny, -1
         for poly in polys:
             pts = poly if math.dist(poly[0], poly[-1]) < 1e-12 else poly + [poly[0]]
@@ -243,8 +243,12 @@ class Raster:
                 buckets.setdefault(r0, []).append((by, ax, ay, slope, direction))
                 y_lo, y_hi = min(y_lo, r0), max(y_hi, r1)
 
+        # ``r1`` is the row after the last one an edge touches, so ``y_hi``
+        # is already an exclusive bound and must not have one added to it.
+        # The extra row was harmless -- the active-edge test threw every edge
+        # out again -- but it was a row of work per shape for nothing.
         active: list[tuple] = []
-        for row in range(max(0, y_lo), min(self.ny, y_hi + 1)):
+        for row in range(max(0, y_lo), min(self.ny, y_hi)):
             yc = self.y0 + (row + 0.5) * self.res
             if row in buckets:
                 active += buckets[row]
@@ -342,6 +346,11 @@ def _fraction_off_the_case(art: Art, pl: Placement,
     the g-code, and you find out when the case comes off the plate with half
     a logo on it.
     """
+    # The content box, deliberately, even when ``box="view"`` placed the
+    # artwork: what the warning is counting is how much of the *drawing* is
+    # going to be missing from the case, and an SVG's viewBox is often larger
+    # than anything drawn in it. Measuring the view here would report a
+    # quarter of the artwork lost when what fell off the edge was margin.
     x0, y0, x1, y1 = art.bbox()
     corners = [pl.apply(p) for p in ((x0, y0), (x1, y0), (x1, y1), (x0, y1))]
     ax0 = min(c[0] for c in corners)

@@ -17,11 +17,26 @@ draw has to go into the g-code mirrored, or the finished case reads backwards.
 
 A NOTE ON THE NUMBERS BELOW, which matters more than any of the code.
 
-The body dimensions are published spec-sheet figures. The camera openings and
-the button positions are **not** published; they are measured-by-eye estimates
-and they are the numbers most likely to be wrong for your phone. Every one of
-them is overridable from the command line, and ``--test-fit`` exists so that
-finding out costs twenty minutes instead of six hours. Print that first.
+The body dimensions are published spec-sheet figures. This file used to say
+that the camera openings and the button positions were not published at all.
+That was wrong, and it was the half worth being wrong about: Apple ship a
+dimensioned drawing for every iPhone, and
+:mod:`extract_iphone_dims <extract_iphone_dims>` reads it. What that buys, and
+what it does not:
+
+* **Body size and corner radius**: published, and the drawing agrees with the
+  table below to the hundredth.
+* **Camera Control's opening**: published and exact, including a thin-case
+  keepout meant for precisely this. See the note above :data:`BUTTONS_PRO`.
+* **Where each button sits along the edge**: on the one drawing sheet whose
+  text Apple flattens to outlines before publishing. Still an estimate.
+* **The camera opening**: never dimensioned as a case opening at all. Still an
+  estimate, and the one most likely to be wrong for your phone.
+
+So two of the four are settled and two are not. Every one of them is
+overridable, and ``--test-fit`` exists so that finding out costs twenty
+minutes instead of six hours. Print that first -- and if the phone is a
+present and you cannot measure it, print that first twice.
 """
 
 from __future__ import annotations
@@ -66,6 +81,65 @@ class Cutout:
     def flat_top_span(self) -> float:
         """Width of the unsupported bridge over the hole (mm)."""
         return max(0.0, self.w - 2 * self.r)
+
+
+# --------------------------------------------------------------------------
+# what is down each side
+# --------------------------------------------------------------------------
+#
+# WHERE THESE CAME FROM, and where they did not.
+#
+# Apple publish a dimensioned drawing for every iPhone, at
+# developer.apple.com/download/files/accessories/dimensional-drawings/, which
+# is the document a case manufacturer works from. `src/extract_iphone_dims.py`
+# reads them. It settles some of what is below outright and, importantly,
+# refuses to settle the rest:
+#
+# * **Camera Control's size is published and exact.** Sheet 2 of the 17 Pro
+#   drawing dimensions it three ways -- 17.50 x 3.40 at the surface, opening
+#   to 25.00 x 6.32 by 0.4 mm out, and a **29.70 mm thin-case keepout**, which
+#   is the one that applies to a wall this thick. 4X R2.20 on the corners.
+#   The sheet also says, in as many words, AVOID NARROW EDGES OR ACUTE ANGLES
+#   IN ORDER TO PRESERVE TACTILE FEEL AT THIS EDGE.
+# * **No button's position along the edge is available.** They are all on
+#   sheet 1, and sheet 1 is the one sheet whose text Apple flattens to
+#   outlines before publishing -- eight thousand stroked polylines and not one
+#   text operator. The extractor says so rather than guessing, and so does
+#   this comment.
+#
+# So the offsets below are still estimates, with one correction that does not
+# need a drawing to justify. The three left-hand buttons have always been at
+# +38, +22 and +5 -- action highest, then volume up, then volume down, which
+# is the order and roughly the spacing a Pro actually has. The power button
+# sat at **+6**, level with volume-down, which is not where a side button is
+# on any iPhone ever made: it sits opposite the gap between the action button
+# and volume up. +27 is that gap. The old number put twenty of the button's
+# twenty-seven millimetres behind solid wall.
+#
+# Every one of these is overridable, and `--test-fit` prints the walls and a
+# rim for about half the filament. On a phone you cannot measure, print that
+# first; it is the only thing here that will tell you the truth.
+
+#: A Pro before Camera Control: 13/14/15 Pro and Pro Max.
+BUTTONS_PRO: tuple[tuple[str, str, float, float], ...] = (
+    ("power", "right", 27.0, 27.0),
+    ("volume-up", "left", 22.0, 15.0),
+    ("volume-down", "left", 5.0, 15.0),
+    ("action", "left", 38.0, 9.0),
+)
+
+#: The 16 and 17 generations, which added Camera Control low on the right.
+#: Its opening is Apple's thin-case keepout rather than the control itself,
+#: which is deliberate: the keepout is nearly twelve millimetres longer than
+#: the control, and that slack is what absorbs the one number here that is
+#: still an estimate.
+BUTTONS_CAMERA_CONTROL: tuple[tuple[str, str, float, float], ...] = (
+    BUTTONS_PRO + (("camera-control", "right", -23.0, 29.7),))
+
+#: Camera Control is a touch surface, not a key. Apple's keepout is 6.32 mm
+#: across at 0.4 mm out from the glass, and the case has to clear all of it or
+#: the control is being pressed through plastic.
+CAMERA_CONTROL_WIDTH: tuple[tuple[str, float], ...] = (("camera-control", 6.32),)
 
 
 @dataclass(frozen=True)
@@ -115,32 +189,51 @@ class Phone:
     speaker_w: float = 16.0
     speaker_h: float = 4.0
 
-    #: Side buttons, as (name, face, centre offset along the face, length).
-    buttons: tuple[tuple[str, str, float, float], ...] = (
-        ("power", "right", 6.0, 26.0),
-        ("volume-up", "left", 22.0, 14.0),
-        ("volume-down", "left", 5.0, 14.0),
-        ("action", "left", 38.0, 9.0),
-    )
+    #: Side buttons and touch controls, as
+    #: ``(name, face, centre offset along the face, length)``. The offset is
+    #: measured from the middle of the phone, positive towards the top, in
+    #: the frame the module docstring sets out.
+    #:
+    #: See :data:`BUTTONS_PRO` and the note above it before changing these.
+    buttons: tuple[tuple[str, str, float, float], ...] = BUTTONS_PRO
+
+    #: How wide each named opening is across the face, when the default
+    #: (``min(cavity_depth - 0.6, 7)``) is not enough. Camera Control is the
+    #: only one so far: it is a touch surface rather than a key, and Apple
+    #: publish a keepout for it that is wider than a button needs.
+    button_widths: tuple[tuple[str, float], ...] = ()
 
     def cutouts(self, *, back_thickness: float, cavity_depth: float,
                 clearance: float, buttons: bool = True) -> list[Cutout]:
         """The standard hole set for this phone, in case coordinates."""
         # Camera. A corner island is measured in from the top and from the
         # +x side of the body -- it lives on the phone's back and this frame
-        # is a front view, so it is at +x. A plateau spans the width and is
-        # centred, so only the top margin places it.
+        # is a front view, so it is at +x.
+        #
+        # A plateau is centred, so the side margin cannot place it. It sizes
+        # it instead: what makes a plateau a plateau is that it runs to both
+        # edges, so the opening is the body less a margin at each side, and
+        # the margin is the number you would actually reach for. It used to be
+        # baked into ``camera_w`` when the phone was built, which left the
+        # field on the form and the flag on the command line changing the
+        # report and nothing else -- you could type any side margin you liked
+        # and get a byte-identical case.
+        cw = self.camera_w
         if self.camera_style == "plateau":
             cx = 0.0
+            cw = max(4.0, self.width - 2 * self.camera_margin_side)
         else:
             cx = self.width / 2 - self.camera_margin_side - self.camera_w / 2
         cy = self.length / 2 - self.camera_margin_top - self.camera_h / 2
         out = [Cutout("camera", "back", cx, cy,
-                      self.camera_w, self.camera_h, self.camera_r)]
+                      cw, self.camera_h, min(self.camera_r, cw / 2))]
 
         # Side holes are centred on the phone body, which starts one back
-        # plate up from z=0. Leave the port open to the rim so a thick cable
-        # end has somewhere to go.
+        # plate up from z=0, and are as tall as the cavity will allow. The
+        # port is not open to the rim -- it stops under the lip, the same as
+        # the buttons do -- so a cable with a moulded boot may foul the top
+        # edge of the opening. Opening it to the rim would take the lip away
+        # across the bottom of the case, which is worse.
         mid = back_thickness + cavity_depth / 2
         port_h = min(self.port_h, cavity_depth)
         out.append(Cutout("port", "bottom", 0.0, mid,
@@ -155,8 +248,14 @@ class Phone:
             # bridge across open air, and an arch halves how much of it is
             # flat. Also cut a little wider than the button itself, so a
             # thumb can reach in.
+            wide = dict(self.button_widths)
             for name, face, offset, length in self.buttons:
                 h = min(cavity_depth - 0.6, 7.0)
+                # A named width is a keepout that has to be cleared, so it
+                # wins over the default -- but not over the cavity, which is
+                # all the wall there is to cut through.
+                if name in wide:
+                    h = min(max(h, wide[name]), cavity_depth - 0.6)
                 out.append(Cutout(name, face, offset, mid,
                                   length + 2 * clearance, h, h / 2))
         return out
@@ -203,6 +302,14 @@ class CaseSpec:
     section_res: float = 0.3
 
     def __post_init__(self) -> None:
+        # A first layer thinner than the ones above it is the one combination
+        # that does not work: it is the layer the whole case is standing on
+        # and the layer the artwork is in. The API lets the layer height go to
+        # 0.32 while this stayed pinned at 0.24, so ask for fine layers and
+        # you got a first layer thinner than the rest of them. Keep it between
+        # one layer and what the nozzle can put down in one pass.
+        self.first_layer_height = min(
+            max(self.first_layer_height, self.layer_height), self.nozzle * 0.75)
         if not self.cutouts:
             self.cutouts = self.phone.cutouts(
                 back_thickness=self.back_thickness,
@@ -396,6 +503,32 @@ def check_case(spec: CaseSpec, *, bed: tuple[float, float, float] | None = None,
                 warnings.append(
                     f"{c.name} cutout leaves only {min(left, below):.1f} mm "
                     "of back plate at the edge; it will be fragile there")
+            if c.name == "camera" and spec.phone.camera_style == "plateau":
+                # A plateau opening runs nearly the full width of the back, so
+                # what is left above it is a rib the length of the phone's
+                # width, joined on at its two ends and nowhere else. The
+                # general check above measures to the outer edge and so counts
+                # the wall, which stands on end and is not what breaks -- the
+                # flat plate beside and above the hole is. Measure that.
+                flange = left - spec.wall
+                rib = below - spec.wall
+                if min(flange, rib) < 2 * lw:
+                    problems.append(
+                        f"the camera bar leaves {min(flange, rib):.1f} mm of "
+                        f"back plate past the wall, under two {lw:.2f} mm "
+                        "lines; there is nothing there to print. Raise the "
+                        "camera side or top margin")
+                elif min(flange, rib) < 4 * lw:
+                    warnings.append(
+                        f"the camera bar leaves a {min(flange, rib):.1f} mm "
+                        "strip of back plate past the wall; it is the first "
+                        "thing that will snap. Raise the camera margins, or "
+                        "the wall, if you have the room")
+                if rib > 0 and c.w / rib > 20:
+                    warnings.append(
+                        f"the strip above the camera bar is {c.w:.0f} mm long "
+                        f"and {rib:.1f} mm deep, and is held at its two ends "
+                        "only; expect it to flex when the case goes on")
         else:
             span = spec.outer_w if c.face in ("top", "bottom") else spec.outer_l
             if abs(c.u) + c.w / 2 > span / 2:
@@ -450,16 +583,26 @@ def check_case(spec: CaseSpec, *, bed: tuple[float, float, float] | None = None,
 # the phones
 # --------------------------------------------------------------------------
 
-def _pro(name, length, width, thickness) -> Phone:
+def _controls(camera_control: bool) -> dict:
+    """Button set and opening widths for a phone with or without the control."""
+    if not camera_control:
+        return {}
+    return {"buttons": BUTTONS_CAMERA_CONTROL,
+            "button_widths": CAMERA_CONTROL_WIDTH}
+
+
+def _pro(name, length, width, thickness, *, camera_control=False) -> Phone:
     """Three-camera square island, action button in place of the mute switch."""
     return Phone(name=name, length=length, width=width, thickness=thickness,
                  corner_radius=11.5, lenses=3,
                  camera_w=39.0, camera_h=39.0, camera_r=11.5,
-                 camera_margin_top=3.0, camera_margin_side=3.0)
+                 camera_margin_top=3.0, camera_margin_side=3.0,
+                 **_controls(camera_control))
 
 
 def _plateau(name, length, width, thickness, *, height=34.0,
-             margin_side=2.0, margin_top=2.5, lenses=3) -> Phone:
+             margin_side=2.0, margin_top=2.5, lenses=3,
+             camera_control=True) -> Phone:
     """The 17-generation bar: full width of the back rather than a corner.
 
     The width is taken from the body rather than given as a number, because
@@ -480,10 +623,12 @@ def _plateau(name, length, width, thickness, *, height=34.0,
                  corner_radius=12.0, camera_style="plateau", lenses=lenses,
                  camera_w=width - 2 * margin_side, camera_h=height,
                  camera_r=min(height / 2, 12.0),
-                 camera_margin_top=margin_top, camera_margin_side=margin_side)
+                 camera_margin_top=margin_top, camera_margin_side=margin_side,
+                 **_controls(camera_control))
 
 
-def _base(name, length, width, thickness, *, pill=True) -> Phone:
+def _base(name, length, width, thickness, *, pill=True,
+          camera_control=False) -> Phone:
     """Two cameras: a vertical pill on the 15/16 generation, diagonal before."""
     if pill:
         cw, ch, cr = 27.0, 47.0, 13.5
@@ -492,11 +637,14 @@ def _base(name, length, width, thickness, *, pill=True) -> Phone:
     return Phone(name=name, length=length, width=width, thickness=thickness,
                  corner_radius=11.0,
                  camera_w=cw, camera_h=ch, camera_r=cr,
-                 camera_margin_top=3.0, camera_margin_side=3.0)
+                 camera_margin_top=3.0, camera_margin_side=3.0,
+                 **_controls(camera_control))
 
 
-#: Body sizes are published specs. Camera and button figures are estimates --
-#: see the module docstring, and print ``--test-fit`` before you trust them.
+#: Body sizes are published specs, and agree with Apple's own drawings.
+#: Camera openings and the offsets down each edge are estimates -- see the
+#: module docstring and the note above :data:`BUTTONS_PRO`, and print
+#: ``--test-fit`` before you trust them.
 PHONES: dict[str, Phone] = {
     "iphone-13":         _base("iPhone 13", 146.7, 71.5, 7.65, pill=False),
     "iphone-13-pro":     _pro("iPhone 13 Pro", 146.7, 71.5, 7.65),
@@ -507,15 +655,20 @@ PHONES: dict[str, Phone] = {
     "iphone-15-plus":    _base("iPhone 15 Plus", 160.9, 77.8, 7.80),
     "iphone-15-pro":     _pro("iPhone 15 Pro", 146.6, 70.6, 8.25),
     "iphone-15-pro-max": _pro("iPhone 15 Pro Max", 159.9, 76.7, 8.25),
-    "iphone-16":         _base("iPhone 16", 147.6, 71.6, 7.80),
-    "iphone-16-plus":    _base("iPhone 16 Plus", 160.9, 77.8, 7.80),
-    "iphone-16-pro":     _pro("iPhone 16 Pro", 149.6, 71.5, 8.25),
-    "iphone-16-pro-max": _pro("iPhone 16 Pro Max", 163.0, 77.6, 8.25),
+    "iphone-16":         _base("iPhone 16", 147.6, 71.6, 7.80,
+                               camera_control=True),
+    "iphone-16-plus":    _base("iPhone 16 Plus", 160.9, 77.8, 7.80,
+                               camera_control=True),
+    "iphone-16-pro":     _pro("iPhone 16 Pro", 149.6, 71.5, 8.25,
+                              camera_control=True),
+    "iphone-16-pro-max": _pro("iPhone 16 Pro Max", 163.0, 77.6, 8.25,
+                              camera_control=True),
     # The 17 Pro moved the cameras into a bar across the whole width of the
     # back. Sizes below are estimates like every other camera figure here,
     # but the *shape* is not a guess: a corner island on one of these covers
     # two of the three lenses.
-    "iphone-17":         _base("iPhone 17", 149.6, 71.5, 7.95),
+    "iphone-17":         _base("iPhone 17", 149.6, 71.5, 7.95,
+                               camera_control=True),
     "iphone-17-pro":     _plateau("iPhone 17 Pro", 150.0, 71.9, 8.75),
     "iphone-17-pro-max": _plateau("iPhone 17 Pro Max", 163.4, 78.0, 8.75),
     # One camera, and the thinnest body Apple has shipped, so the cavity is
@@ -527,7 +680,11 @@ PHONES: dict[str, Phone] = {
                                lenses=1,
                                camera_w=17.0, camera_h=17.0, camera_r=6.0,
                                camera_margin_top=6.0, camera_margin_side=6.0,
-                               buttons=(("power", "right", 6.0, 20.0),
+                               # Same correction as the Pro set: a side
+                               # button is not level with volume-down. On an
+                               # SE it sits high on the right, above the
+                               # volume pair.
+                               buttons=(("power", "right", 24.0, 20.0),
                                         ("volume-up", "left", 20.0, 12.0),
                                         ("volume-down", "left", 4.0, 12.0),
                                         ("mute", "left", 34.0, 8.0))),
