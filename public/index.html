@@ -4,6 +4,21 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fobs, keyrings, stencils, signs</title>
+<script>
+  /* Which of the two themes, decided before the first paint.  The page is no
+     use without JavaScript -- the viewer, every build and every control are
+     script -- so the choice is made here and written onto <html>, which lets
+     the stylesheet below carry one set of dark values under one selector
+     rather than the same set twice, once more under a media query.  An
+     explicit choice lives in localStorage; without one the system's is
+     followed, and the listener at the foot of the page keeps it followed. */
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem("theme") ||
+      (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  } catch (e) {            // localStorage throws rather than empties in some
+    document.documentElement.dataset.theme = "light";   // privacy modes
+  }
+</script>
 <style>
   /* Styled on Figma's Simple Design System: Inter, a near-black brand colour
      on white, 1 px borders, 8 px radii, an 8-based spacing scale.  The tokens
@@ -20,6 +35,28 @@
     --space-100: 4px; --space-200: 8px; --space-300: 12px; --space-400: 16px;
     --space-600: 24px; --space-800: 32px;
     --radius-100: 4px; --radius-200: 8px; --radius-full: 9999px;
+    color-scheme: light;
+  }
+  /* The same tokens after dark.  Not an inversion: the light theme steps
+     *down* from white for a recessed surface -- the viewer is #f5f5f5 against
+     a white panel -- and stepping down again from #1e1e1e gives a hole rather
+     than a recess, so the dark theme steps up instead, and the viewer is the
+     lighter of the two.  The scale is the same either way: the panel, then
+     one step for the surface behind it, then another for a hover.
+
+     `color-scheme` is the half of it the stylesheet cannot do: the colour
+     picker's own swatch, the list a select drops down and the scrollbars are
+     drawn by the browser, and this is the only thing they read. */
+  :root[data-theme=dark] {
+    --bg-default: #1e1e1e; --bg-secondary: #262626; --bg-tertiary: #303030;
+    --text-default: #f5f5f5; --text-secondary: #b3b3b3; --text-tertiary: #8a8a8a;
+    --border-default: #3d3d3d; --border-secondary: #8a8a8a;
+    --brand: #e3e3e3; --brand-hover: #ffffff; --on-brand: #1e1e1e;
+    --neutral: #333333; --neutral-hover: #404040;
+    --positive: #7ee2a8; --positive-bg: #13291d;
+    --warning: #f0c14b; --warning-bg: #332611;
+    --danger: #ff9d96; --danger-bg: #3b1a17;
+    color-scheme: dark;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -34,6 +71,27 @@
   }
   h1 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
   .sub { color: var(--text-secondary); margin: var(--space-100) 0 0; }
+
+  /* The title, and the one control that is not about the part: light or dark,
+     in the corner it is most out of the way.  The icon is the theme you would
+     get by pressing it rather than the one you are in -- a moon to go dark --
+     because the button is a door, not a readout, and the page around it has
+     already said which side of it you are on. */
+  .head { display: flex; align-items: flex-start; gap: var(--space-400); }
+  .head > div { flex: 1; min-width: 0; }
+  .theme {
+    flex: none; display: grid; place-items: center; width: 32px; height: 32px; padding: 0;
+    cursor: pointer; border: 1px solid var(--border-default); border-radius: var(--radius-full);
+    background: var(--bg-default); color: var(--text-secondary);
+  }
+  .theme:hover { background: var(--bg-tertiary); border-color: var(--border-secondary);
+                 color: var(--text-default); }
+  .theme:focus-visible { outline: 2px solid var(--brand); outline-offset: 1px; }
+  .theme svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.6;
+               stroke-linecap: round; stroke-linejoin: round; }
+  .theme .sun { display: none; }
+  :root[data-theme=dark] .theme .sun { display: block; }
+  :root[data-theme=dark] .theme .moon { display: none; }
 
   /* Card: a bordered panel with a subheading */
   section {
@@ -60,6 +118,11 @@
     appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 40px;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%231e1e1e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
     background-repeat: no-repeat; background-position: right 12px center;
+  }
+  /* The arrow is drawn into a data URI, where `currentColor` does not reach,
+     so the dark one is a second copy of the same four-point path. */
+  :root[data-theme=dark] select {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23f5f5f5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
   }
   textarea { resize: vertical; font-size: 14px; line-height: 1.4; }
   .hint { color: var(--text-secondary); font-size: 14px; margin: 0; }
@@ -388,11 +451,17 @@
 </head>
 <body>
 <aside>
-  <div>
-    <h1>Fobs, keyrings, stencils, signs</h1>
-    <p class="sub">Pick a shape, fill it in, take the file away.</p>
-    <p class="sub" style="margin-top:var(--space-200)"><a href="/case"
-       style="color:var(--text-secondary)">Phone cases &rarr;</a></p>
+  <div class="head">
+    <div>
+      <h1>Fobs, keyrings, stencils, signs</h1>
+      <p class="sub">Pick a shape, fill it in, take the file away.</p>
+      <p class="sub" style="margin-top:var(--space-200)"><a href="/case"
+         style="color:var(--text-secondary)">Phone cases &rarr;</a></p>
+    </div>
+    <button type="button" class="theme" id="theme" title="Dark mode" aria-label="Dark mode">
+      <svg class="moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.6 9.7A5.9 5.9 0 0 1 6.3 2.4 5.9 5.9 0 1 0 13.6 9.7z"/></svg>
+      <svg class="sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3.1"/><path d="M8 1v1.7M8 13.3V15M15 8h-1.7M2.7 8H1M12.9 3.1l-1.2 1.2M4.3 11.7l-1.2 1.2M12.9 12.9l-1.2-1.2M4.3 4.3L3.1 3.1"/></svg>
+    </button>
   </div>
 
   <section>
@@ -1035,7 +1104,8 @@ if (!gl) {
   // lettering on the other side of the part shows as dark speckles.  These
   // meshes are small and every solid here is closed, so drawing both sides
   // costs little and the depth buffer still picks the right one.
-  gl.clearColor(0.961, 0.961, 0.961, 1);
+  // The background it clears to is the page's own --bg-secondary, which is a
+  // different colour in each theme; paintBackdrop() below reads it out.
   requestAnimationFrame(frame);
 
   canvas.addEventListener("pointerdown", e => {
@@ -1054,6 +1124,49 @@ if (!gl) {
     distTo = dist = Math.max(30, Math.min(900, dist * (1 + Math.sign(e.deltaY) * 0.12)));
   }, { passive: false });
 }
+
+/* ------------------------------------------------------------ the theme --
+   The two sets of tokens are in the stylesheet and <head> has already picked
+   between them, so what is left here is the button, and the one colour the
+   stylesheet cannot reach: the viewer's background is cleared by WebGL, which
+   has never heard of a custom property and wants three floats. */
+const root = document.documentElement;
+
+function paintBackdrop() {
+  if (!gl) return;
+  // Both themes write that token as six hex digits, which is what this reads.
+  const hex = getComputedStyle(root).getPropertyValue("--bg-secondary").trim();
+  const n = parseInt(hex.slice(1), 16);
+  gl.clearColor((n >> 16 & 255) / 255, (n >> 8 & 255) / 255, (n & 255) / 255, 1);
+}
+
+/* With a theme, sets it and remembers it; without, takes the page as it finds
+   it -- which is what the system's own preference changing under us wants. */
+function setTheme(next) {
+  if (next) {
+    root.dataset.theme = next;
+    try { localStorage.setItem("theme", next); } catch (e) { /* see <head> */ }
+  }
+  const label = root.dataset.theme === "dark" ? "Light mode" : "Dark mode";
+  $("theme").title = label;
+  $("theme").setAttribute("aria-label", label);
+  paintBackdrop();
+}
+
+$("theme").addEventListener("click",
+  () => setTheme(root.dataset.theme === "dark" ? "light" : "dark"));
+
+/* Nobody has pressed it, so the page is still following the system: if that
+   turns over under it -- sunset, on a laptop set to follow the light -- the
+   page turns over with it.  Once the button has been pressed it does not. */
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", e => {
+  let chosen = null;
+  try { chosen = localStorage.getItem("theme"); } catch (err) { /* see <head> */ }
+  if (chosen) return;
+  root.dataset.theme = e.matches ? "dark" : "light";
+  setTheme();
+});
+setTheme();
 
 /* what is on screen in this mode: the tag is not a printed part, so it only
    shows when the halves are open far enough to see it */

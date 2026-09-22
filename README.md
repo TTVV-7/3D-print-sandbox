@@ -123,6 +123,31 @@ without a mouse.  The one line that is not a description -- the byte count under
 the link box, which answers rather than explains -- stays where it is; and with
 the script off every paragraph is simply on the page, unfolded.
 
+**Light or dark.**  The button beside the title turns the page over.  It
+follows the system until you press it and remembers the answer after that, so a
+laptop set to follow the light does and a machine you have made your mind up
+about stays where you put it.  Both pages read the same choice, so crossing to
+the phone cases and back does not change the lights.
+
+The viewer turns over with the page.  Its background is the same token as the
+pane it sits in, read out of the stylesheet and handed to WebGL as three
+floats, because WebGL has never heard of a custom property.  What does *not*
+turn over is anything standing for a filament: the four swatches, the part in
+the viewer, and the phone case preview -- a drawing of a white case with its
+captions written in ink, which is why it stays a white sheet in a dark frame
+rather than going dark and taking the captions with it.  Those are colours you
+are choosing, not colours the page is wearing.
+
+The two themes are one set of tokens and one override.  A three-line script in
+the `<head>` decides which applies and writes it onto `<html>` before anything
+paints -- the page is no use without JavaScript anyway, every control and the
+whole viewer being script -- which is what lets the dark values be written once
+under `:root[data-theme=dark]` instead of twice, the second time under a
+`prefers-color-scheme` query.  The rule also carries `color-scheme`, which is
+the half a stylesheet cannot do: the colour picker's own swatch, the select's
+dropdown and the scrollbars are drawn by the browser, and that property is the
+only thing they read.
+
 The viewer has three views of the same part, because a thing that prints in two
 pieces and arrives as one needs both told: **Glued up** is the finished fob,
 **Pulled apart** opens the joint and puts the tag in the gap, and **On the
