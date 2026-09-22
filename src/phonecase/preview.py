@@ -25,9 +25,34 @@ from .toolpath import CasePath
 
 
 PAD = 12.0
-INK = "#2c2c33"
-MUTED = "#8a8a92"
-FAINT = "#d8d8de"
+
+#: The sheet carries its own colours rather than taking them from whatever is
+#: showing it: they are custom properties with a dark variant, and the media
+#: query below resolves against the reader either way -- inlined into a page,
+#: or saved to a file and opened on its own. Only the greys are in here. The
+#: artwork is stroked in the filament's own colour, which is the one thing
+#: about this picture that must not change with the lights.
+STYLE = (
+    '<style>'
+    'svg{--pc-ink:#2c2c33;--pc-muted:#8a8a92;--pc-faint:#d8d8de;'
+    '--pc-sheet:#fbfbfc;--pc-face:#f1f1f4;--pc-hole:#ffffff;--pc-body:#fafafb;'
+    '--pc-lens:#e6e6ea;--pc-glass:#f2f2f5;--pc-pupil:#c9c9d2}'
+    '@media(prefers-color-scheme:dark){svg{--pc-ink:#e6e6ee;--pc-muted:#8e8e99;'
+    '--pc-faint:#3a3a44;--pc-sheet:#17171b;--pc-face:#24242b;--pc-hole:#0e0e12;'
+    '--pc-body:#202027;--pc-lens:#32323c;--pc-glass:#2a2a33;--pc-pupil:#4a4a58}}'
+    '</style>'
+)
+
+INK = "var(--pc-ink)"
+MUTED = "var(--pc-muted)"
+FAINT = "var(--pc-faint)"
+SHEET = "var(--pc-sheet)"          # the paper the three panels sit on
+FACE = "var(--pc-face)"            # the back plate of the case
+HOLE = "var(--pc-hole)"            # anything cut out of it
+BODY = "var(--pc-body)"            # the phone, and the unrolled side walls
+LENS = "var(--pc-lens)"            # the lens illustration
+GLASS = "var(--pc-glass)"
+PUPIL = "var(--pc-pupil)"
 
 
 def _esc(s: str) -> str:
@@ -56,7 +81,7 @@ def _back(spec: CaseSpec, path: CasePath, plan: PaintPlan) -> str:
     real answer.
     """
     parts = [_rrect(0, 0, spec.outer_w, spec.outer_l, spec.outer_r,
-                    fill="#f1f1f4", stroke="none", id="backface",
+                    fill=FACE, stroke="none", id="backface",
                     data_mm_w=f"{spec.outer_w:.3f}",
                     data_mm_l=f"{spec.outer_l:.3f}")]
     by_slot: dict[int, list[str]] = {}
@@ -78,7 +103,7 @@ def _back(spec: CaseSpec, path: CasePath, plan: PaintPlan) -> str:
     parts.append('</g>')
     for c in spec.cutouts:
         if c.face == "back":
-            parts.append(_rrect(-c.u, -c.v, c.w, c.h, c.r, fill="#ffffff",
+            parts.append(_rrect(-c.u, -c.v, c.w, c.h, c.r, fill=HOLE,
                                 stroke=MUTED, stroke_width="0.4",
                                 stroke_dasharray="1.6 1.2"))
     parts.append(_rrect(0, 0, spec.outer_w, spec.outer_l, spec.outer_r,
@@ -129,7 +154,7 @@ def _plan(spec: CaseSpec) -> str:
     """The case seen from the back, so it matches the panel beside it."""
     parts = [
         _rrect(0, 0, spec.outer_w, spec.outer_l, spec.outer_r,
-               fill="#fafafb", stroke=INK, stroke_width="0.5"),
+               fill=BODY, stroke=INK, stroke_width="0.5"),
         # The phone itself, so the fit is something you can see.
         _rrect(0, 0, spec.phone.width, spec.phone.length,
                spec.phone.corner_radius, fill="none", stroke=FAINT,
@@ -145,18 +170,18 @@ def _plan(spec: CaseSpec) -> str:
         if c.face != "back":
             continue
         # Mirrored, like the panel beside it: both are the back of the case.
-        parts.append(_rrect(-c.u, -c.v, c.w, c.h, c.r, fill="#ffffff",
+        parts.append(_rrect(-c.u, -c.v, c.w, c.h, c.r, fill=HOLE,
                             stroke=INK, stroke_width="0.4"))
         if c.name == "camera":
             for dx, dy, r, is_lens in _lens_layout(spec.phone, c):
                 parts.append(
                     f'<circle cx="{-(c.u + dx):.2f}" cy="{-(c.v + dy):.2f}" '
-                    f'r="{r:.2f}" fill="{"#e6e6ea" if is_lens else "#f2f2f5"}" '
+                    f'r="{r:.2f}" fill="{LENS if is_lens else GLASS}" '
                     f'stroke="{MUTED}" stroke-width="0.3"/>')
                 if is_lens:
                     parts.append(
                         f'<circle cx="{-(c.u + dx):.2f}" cy="{-(c.v + dy):.2f}" '
-                        f'r="{r * 0.45:.2f}" fill="#c9c9d2"/>')
+                        f'r="{r * 0.45:.2f}" fill="{PUPIL}"/>')
         else:
             parts.append(_label(-c.u, -c.v + 1.5, c.name, 3.0, MUTED))
     return "\n".join(parts)
@@ -169,7 +194,7 @@ def _side(spec: CaseSpec, scale: float) -> str:
     for face, span in (("bottom", spec.outer_w), ("left", spec.outer_l)):
         parts.append(
             f'<rect x="{-span / 2:.2f}" y="{y - spec.height:.2f}" '
-            f'width="{span:.2f}" height="{spec.height:.2f}" fill="#fafafb" '
+            f'width="{span:.2f}" height="{spec.height:.2f}" fill="{BODY}" '
             f'stroke="{INK}" stroke-width="0.4"/>')
         parts.append(
             f'<line x1="{-span / 2:.2f}" y1="{y - spec.back_thickness:.2f}" '
@@ -181,7 +206,7 @@ def _side(spec: CaseSpec, scale: float) -> str:
             lo = max(c.v - c.h / 2, spec.back_thickness)
             hi = c.v + c.h / 2
             parts.append(_rrect(c.u, y - (lo + hi) / 2, c.w, hi - lo,
-                                min(c.r, (hi - lo) / 2), fill="#ffffff",
+                                min(c.r, (hi - lo) / 2), fill=HOLE,
                                 stroke=INK, stroke_width="0.35"))
             parts.append(_label(c.u, y - hi - 1.0, c.name, 2.6, MUTED))
         parts.append(_label(-span / 2, y + 3.2, face, 3.0, MUTED, anchor="start"))
@@ -212,7 +237,8 @@ def render(spec: CaseSpec, path: CasePath, plan: PaintPlan, *,
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" width="{total_w:.0f}" '
         f'height="{total_h:.0f}" viewBox="0 0 {total_w:.1f} {total_h:.1f}">',
-        f'<rect width="{total_w:.1f}" height="{total_h:.1f}" fill="#fbfbfc"/>',
+        STYLE,
+        f'<rect width="{total_w:.1f}" height="{total_h:.1f}" fill="{SHEET}"/>',
     ]
     top = PAD + l / 2
 

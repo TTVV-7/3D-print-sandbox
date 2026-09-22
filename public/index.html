@@ -20,6 +20,32 @@
     --space-100: 4px; --space-200: 8px; --space-300: 12px; --space-400: 16px;
     --space-600: 24px; --space-800: 32px;
     --radius-100: 4px; --radius-200: 8px; --radius-full: 9999px;
+    /* So the controls the browser draws itself -- scrollbars, the range
+       thumb, the checkbox, the colour wells -- follow the page instead of
+       staying a light island in a dark one. */
+    color-scheme: light dark;
+    /* A data URI cannot inherit ink, so the one mark on the page that has to
+       be drawn twice is a token as well, and its place in the sheet stops
+       mattering. */
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%231e1e1e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  }
+
+  /* Dark is whatever the device is set to.  There is no switch: a switch is
+     a preference to store, ask about and get wrong, and the operating system
+     has already been asked.  Only the tokens change -- every rule below is
+     written against them, so the components are the same in both. */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-default: #191919; --bg-secondary: #202020; --bg-tertiary: #2b2b2b;
+      --text-default: #ededed; --text-secondary: #a1a1a1; --text-tertiary: #828282;
+      --border-default: #343434; --border-secondary: #8d8d8d;
+      --brand: #ededed; --brand-hover: #ffffff; --on-brand: #191919;
+      --neutral: #303030; --neutral-hover: #3d3d3d;
+      --positive: #6ee7a0; --positive-bg: #10281b;
+      --warning: #f0c250; --warning-bg: #2f2408;
+      --danger: #ff9086; --danger-bg: #351714;
+      --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23ededed' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    }
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -58,7 +84,7 @@
   }
   select {
     appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 40px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%231e1e1e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-image: var(--chevron);
     background-repeat: no-repeat; background-position: right 12px center;
   }
   textarea { resize: vertical; font-size: 14px; line-height: 1.4; }
@@ -978,6 +1004,30 @@ const canvas = $("gl");
    letting the browser scale it down antialiases the edges without ever
    sampling a crack. */
 const SUPERSAMPLE = 1.8;
+/* --bg-secondary as three floats.
+
+   A custom property comes back from getComputedStyle exactly as it was
+   written -- it is not a colour as far as the engine is concerned until
+   something uses it as one -- so this is the hex in the stylesheet above and
+   not the rgb() an ordinary property would answer with.  Both are read
+   anyway, because which one arrives depends on how the token was declared
+   rather than on anything here. */
+function clearToToken() {
+  if (!gl) return;
+  const css = getComputedStyle(document.documentElement)
+    .getPropertyValue("--bg-secondary").trim();
+  let rgb = null;
+  const hex = css.match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
+  if (hex) {
+    const h = hex[1].length === 3 ? hex[1].replace(/./g, c => c + c) : hex[1];
+    rgb = [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16));
+  } else {
+    const n = css.match(/[\d.]+/g);               // rgb() / rgba()
+    if (n && n.length >= 3) rgb = n.slice(0, 3).map(Number);
+  }
+  gl.clearColor(...(rgb ? rgb.map(v => v / 255) : [0.961, 0.961, 0.961]), 1);
+}
+
 const gl = canvas.getContext("webgl", { antialias: false, alpha: false });
 let prog, loc, buf = {};
 let parts = [];                      // { start, count, name, plate, assembled }
@@ -1035,7 +1085,12 @@ if (!gl) {
   // lettering on the other side of the part shows as dark speckles.  These
   // meshes are small and every solid here is closed, so drawing both sides
   // costs little and the depth buffer still picks the right one.
-  gl.clearColor(0.961, 0.961, 0.961, 1);
+  /* The viewer's background is the pane's own token rather than a number
+     written twice, so it follows the page into dark and back without
+     anybody remembering to change it here as well. */
+  clearToToken();
+  // frame() re-schedules itself, so the next one picks this up on its own.
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", clearToToken);
   requestAnimationFrame(frame);
 
   canvas.addEventListener("pointerdown", e => {

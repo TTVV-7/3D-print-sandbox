@@ -172,6 +172,34 @@ nothing fetched from a CDN, and it works with the network off.  It listens on
 the loopback address; it is a tool for the machine it runs on, not a service to
 put on a network.
 
+### Dark
+
+Both pages follow whatever the machine is set to.  There is no switch, because
+a switch is a preference to store, ask about and get wrong, and the operating
+system has already been asked: one `@media (prefers-color-scheme: dark)` block
+redefines the tokens, and every rule in either stylesheet is written against
+those, so the components themselves are the same in both.  `color-scheme` is
+declared as well, so the controls the browser draws itself -- scrollbars, the
+range thumb, the checkbox, the colour wells -- come along rather than staying a
+light island in a dark page.
+
+Two things do not inherit ink and so are written twice.  The select chevron is
+a data URI, so it is a token like everything else rather than a rule that would
+have to sit in the right place in the sheet to win.  The WebGL viewer's
+background is read off `--bg-secondary` at startup and again when the setting
+changes, rather than being the same grey typed a second time in JavaScript --
+and it is read as the hex that is actually in the stylesheet, because a custom
+property comes back from `getComputedStyle` exactly as it was written, not as
+the `rgb()` an ordinary property would answer with.
+
+The case preview carries its own colours: `src/phonecase/preview.py` emits a
+`<style>` block of custom properties with a dark variant, so the sheet is dark
+inlined in a dark page, and still dark if you save it and open it on its own.
+**The filament colours are not in that block.**  The artwork is stroked in the
+colour the AMS will actually lay down, which is the one thing about that
+picture that must not change with the lights -- a white part on a white sheet
+is the truth about a white part.
+
 ### Hosting it
 
 The repo deploys to Vercel as it stands: `api/model.py` hands Vercel the same
@@ -1350,6 +1378,11 @@ knowing why before reading the code.
   its own test suite. `src/phonecase/` is a copy; `PROVENANCE` in
   `src/case_app.py` records which commit it came from. Fix bugs there, then
   copy the package across and update that string.
+  **One file has since been edited here instead:** `preview.py` carries the
+  dark-mode colours described under [Dark](#dark), which are about the page
+  showing the sheet rather than about the generator. It has diverged from
+  `PROVENANCE`, and the next copy across will overwrite it -- port that
+  `<style>` block back upstream, or re-apply it afterwards.
 
 ## The panel folds
 

@@ -24,6 +24,32 @@
     --space-100: 4px; --space-200: 8px; --space-300: 12px; --space-400: 16px;
     --space-600: 24px; --space-800: 32px;
     --radius-100: 4px; --radius-200: 8px; --radius-full: 9999px;
+    /* So the controls the browser draws itself -- scrollbars, the range
+       thumb, the checkbox, the colour wells -- follow the page instead of
+       staying a light island in a dark one. */
+    color-scheme: light dark;
+    /* A data URI cannot inherit ink, so the one mark on the page that has to
+       be drawn twice is a token as well, and its place in the sheet stops
+       mattering. */
+    --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%231e1e1e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+  }
+
+  /* Dark is whatever the device is set to.  There is no switch: a switch is
+     a preference to store, ask about and get wrong, and the operating system
+     has already been asked.  Only the tokens change -- every rule below is
+     written against them, so the components are the same in both. */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg-default: #191919; --bg-secondary: #202020; --bg-tertiary: #2b2b2b;
+      --text-default: #ededed; --text-secondary: #a1a1a1; --text-tertiary: #828282;
+      --border-default: #343434; --border-secondary: #8d8d8d;
+      --brand: #ededed; --brand-hover: #ffffff; --on-brand: #191919;
+      --neutral: #303030; --neutral-hover: #3d3d3d;
+      --positive: #6ee7a0; --positive-bg: #10281b;
+      --warning: #f0c250; --warning-bg: #2f2408;
+      --danger: #ff9086; --danger-bg: #351714;
+      --chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%23ededed' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    }
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -96,7 +122,7 @@
   }
   select {
     appearance: none; -webkit-appearance: none; cursor: pointer; padding-right: 40px;
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='none' stroke='%231e1e1e' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E");
+    background-image: var(--chevron);
     background-repeat: no-repeat; background-position: right 12px center;
   }
   textarea { resize: vertical; font-size: 14px; line-height: 1.4; }
@@ -1411,8 +1437,9 @@ async function thumbnail(svg) {
   cv.width = THUMB_W;
   cv.height = Math.max(1, Math.round(THUMB_W * sh / sw));
   const ctx = cv.getContext("2d");
-  ctx.fillStyle = "#fbfbfc";
-  ctx.fillRect(0, 0, cv.width, cv.height);
+  // No backdrop: the sheet paints its own, in whichever theme the reader is
+  // in, and leaving the rest transparent lets the card behind it show at the
+  // edges rather than a near-white written down a second time over here.
   ctx.drawImage(img, crop ? crop.x * k : 0, crop ? crop.y * k : 0, sw, sh,
                 0, 0, cv.width, cv.height);
   const blob = await new Promise(ok => cv.toBlob(ok, "image/png"));
