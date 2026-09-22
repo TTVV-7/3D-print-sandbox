@@ -58,6 +58,13 @@
     background: var(--bg-default); border-right: 1px solid var(--border-default);
     display: flex; flex-direction: column; gap: var(--space-600);
   }
+  /* Every panel keeps its own height.  This column has a height to fill, so
+     its children shrink to fit it by default rather than letting it scroll --
+     and a folding panel turns off the automatic minimum size that would stop
+     that, because it clips itself with overflow:hidden.  So one open panel
+     squeezed all the shut ones down to a sliver of their own heading, and the
+     more panels there were the worse it got. */
+  aside > * { flex: none; }
   h1 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
   .sub { color: var(--text-secondary); margin: var(--space-100) 0 0; }
 

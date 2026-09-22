@@ -62,6 +62,13 @@
     background: var(--bg-default); border-right: 1px solid var(--border-default);
     display: flex; flex-direction: column; gap: var(--space-600);
   }
+  /* Every panel keeps its own height.  This column has a height to fill, so
+     its children shrink to fit it by default rather than letting it scroll --
+     and a folding panel turns off the automatic minimum size that would stop
+     that, because it clips itself with overflow:hidden.  So one open panel
+     squeezed all the shut ones down to a sliver of their own heading, and the
+     more panels there were the worse it got. */
+  aside > * { flex: none; }
   h1 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
   .sub { color: var(--text-secondary); margin: var(--space-100) 0 0; }
 
@@ -110,7 +117,9 @@
   /* Input field: label above, description below */
   .field { display: flex; flex-direction: column; gap: var(--space-200); }
   .field > span, .field > label { font-weight: 400; }
-  .row { display: flex; gap: var(--space-400); }
+  /* Wraps, because three buttons of plain English do not fit across 350 px
+     and the panel clips what hangs off rather than scrolling it. */
+  .row { display: flex; gap: var(--space-400); flex-wrap: wrap; }
   .row > .field { flex: 1; min-width: 0; }
   input[type=text], select, textarea {
     font: inherit; color: var(--text-default); background: var(--bg-default);
@@ -168,7 +177,10 @@
   /* Slider */
   .slider { display: flex; align-items: center; gap: var(--space-300); }
   .slider output { min-width: 4.5em; text-align: right; color: var(--text-secondary); font-size: 14px; }
-  input[type=range] { flex: 1; accent-color: var(--brand); height: 24px; margin: 0; cursor: pointer; }
+  /* A range input has an intrinsic width of its own, and as a flex item that
+     becomes a floor it will not go under -- two of them side by side then
+     push their row wider than the panel. */
+  input[type=range] { flex: 1; min-width: 0; accent-color: var(--brand); height: 24px; margin: 0; cursor: pointer; }
 
   /* Checkbox field */
   .check { display: flex; align-items: center; gap: var(--space-300); cursor: pointer; }
@@ -385,10 +397,15 @@
   .dropped { border: 1px dashed var(--border-secondary); border-radius: var(--radius-200);
              padding: var(--space-400); text-align: center; color: var(--text-secondary); }
   .dropped.over { border-color: var(--brand); background: var(--bg-secondary); color: var(--text-default); }
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-300); }
+  /* minmax(0, ...) rather than 1fr: a bare 1fr floors each column at its
+     min-content width, and a number input's is wide enough to push the pair
+     past the panel. */
+  .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+           gap: var(--space-300); }
+  .grid2 > * { min-width: 0; }
   .num { display: flex; flex-direction: column; gap: var(--space-100);
          font-size: 13px; color: var(--text-secondary); }
-  .num input { font: inherit; font-size: 15px; color: var(--text-default);
+  .num input { font: inherit; font-size: 15px; color: var(--text-default); min-width: 0;
                background: var(--bg-default); border: 1px solid var(--border-default);
                border-radius: var(--radius-200); padding: var(--space-200) var(--space-300);
                min-height: 36px; width: 100%; }
