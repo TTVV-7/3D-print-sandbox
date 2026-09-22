@@ -26,7 +26,8 @@ mesh.
 - **[Phone cases](#phone-cases)** -- a case for any of seventeen iPhones,
   painted on the back with your own SVG by the AMS.  The odd one out: it is
   g-code rather than a solid, written directly with no slicer, and its
-  generator is vendored from another repository.  Its own page in the app.
+  generator is vendored from another repository.  Its own page in the app,
+  which keeps what you have downloaded and where you left off.
 
 ---
 
@@ -1352,11 +1353,12 @@ knowing why before reading the code.
 
 ## The panel folds
 
-All four sections start shut, because four of them open at once is a metre
-of scrolling before you reach the download buttons. A shut one still says
-what it is set to -- the phone and fit, the artwork file, the palette, the
-printer and layer height -- since a heading on its own tells you nothing and
-the point was to see the whole form at a glance, not to hide it.
+The four steps start shut, and so does the history below them, because five
+panels open at once is a metre of scrolling before you reach the download
+buttons. A shut one still says what it is set to -- the phone and fit, the
+artwork file, the palette, the printer and layer height, how many cases are
+kept -- since a heading on its own tells you nothing and the point was to
+see the whole form at a glance, not to hide it.
 
 A shut panel is `inert`, so tab skips its controls rather than landing
 somewhere invisible. A file dropped anywhere on the page still counts and
@@ -1411,6 +1413,38 @@ megabyte, in a fifth of a second.
 A test fit has neither solid export: leaving the middle of the back plate
 unfilled is a thing g-code can say and a solid cannot, so the buttons turn
 off rather than quietly handing you a different part.
+
+## What it keeps
+
+Downloading a case puts it in the **History** panel: the whole form, the
+artwork, and a picture of the back of that case. **Restore** puts the form
+back the way it was and builds it again. The form you are part-way through
+is remembered separately and comes back when you reload, so a stray refresh
+costs nothing; **Start fresh** forgets it.
+
+A download is what makes an entry, and not a preview. A preview happens
+every time a slider moves, and a list of those is a list of accidents --
+whereas by the time you have pressed a download button you have decided
+something.
+
+**What is kept is the recipe, not the file.** Restoring builds the case
+again rather than handing back the one on your disk, which means it comes
+out of the generator as it is now: a fix to the camera table or the toolpath
+is in the case you restore, and an entry does not quietly become a stale
+copy of a part. It also means an entry is a few hundred kilobytes rather
+than the several megabytes a g-code file is.
+
+Artwork is stored once under a hash of its contents, so ten cases cut from
+the same logo keep one copy of it between them, and it is thrown away only
+when the last entry using it goes. Forty entries are kept; past that the
+oldest fall off the end.
+
+None of this is on a server. There is no account and nothing behind the page
+storing any of it -- `/api/case` builds a case and forgets it -- so the
+history is your browser's, it does not follow you to another machine, and
+clearing site data clears it. The page holds it in IndexedDB rather than
+`localStorage`, which has about five megabytes for a whole origin and would
+be full after one drawing.
 
 ## The camera is per phone, not one generic hole
 
