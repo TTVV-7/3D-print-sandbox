@@ -661,16 +661,87 @@ def layout_corporate(spec, w, h, box, fields, font, logo, logo_h, colours, place
     return face, logo_info
 
 
+# The wordmark layout is set in its own face whatever font the rest of the
+# part uses: a brand name in wide-spaced Roman capitals is the whole look, and
+# the heavy sans the other layouts need does not do it.  Cinzel is drawn from
+# inscriptional capitals, and the SemiBold is the weight whose thinnest strokes
+# still come out wider than a 0.4 mm nozzle's two lines at wordmark size.
+WORDMARK_FONT = str(typefaces.DIR / "Cinzel-SemiBold.ttf")
+WORDMARK_TRACKING = 0.16     # em of extra space between the capitals
+
+
+def layout_wordmark(spec, w, h, box, fields, font, logo, logo_h, colours, placeholder):
+    """One word, in capitals, spaced wide and centred -- a brand wordmark
+    rather than a business card.  The company line is the word (the name, when
+    there is no company), and the title, if there is one, runs small under it
+    as a tagline.  No logo: the word is the logo."""
+    x0, x1, y0, y1 = box
+    # The word sits centred between the open end and the ring hole, with the
+    # same clear margin to the hole as to the edge -- the content box stops
+    # 1.8 mm short of the hole, which is room for small print but crowds a mark.
+    if spec["hole"]:
+        x1 = min(x1, w / 2.0 - spec["hole"]["wall"] - spec["hole"]["d"] - spec["margin"])
+    W, H = x1 - x0, y1 - y0
+    face = Face()
+    key = "company" if fields.get("company") else "name"
+    word = (fields.get(key) or "").upper()
+    if not word:
+        return face, None
+    # As wide as the box allows, and no taller than a third of it: past that
+    # the word stops reading as a mark on a fob and starts reading as a label.
+    mark, mw, mh, cap = text_block(word, WORDMARK_FONT, H * 0.34, W,
+                                   tracking=WORDMARK_TRACKING)
+    # A long name on one line shrinks to a smear; a name of several words
+    # goes one word to a line instead, if that sets it bigger.
+    words, text = word.split(), word
+    if len(words) > 1:
+        n = min(len(words), 3)
+        lines = words[:n - 1] + [" ".join(words[n - 1:])]
+        tall = min(H * 0.34, H * 0.8 / (1.0 + 1.45 * (n - 1)))
+        stacked = text_block("\n".join(lines), WORDMARK_FONT, tall, W,
+                             tracking=WORDMARK_TRACKING)
+        if stacked[3] > cap:
+            mark, mw, mh, cap = stacked
+            text = "\n".join(lines)
+    # Cinzel draws its serifs as contours of their own laid over the stems;
+    # weld them, or every serif measures as a 0.1 mm sliver of its own.
+    mark = flatten([unary_union(mark)])
+    tag, th = [], 0.0
+    if fields.get("role"):
+        tag, _, th, tcap = text_block(fields["role"].upper(), WORDMARK_FONT,
+                                      max(cap * 0.34, 2.8), W * 0.9, tracking=0.24)
+        tag = flatten([unary_union(tag)]) if tag else []
+    gap = cap * 0.55 if tag else 0.0
+    top = (mh + gap + th) / 2.0
+    cx, cy = (x0 + x1) / 2.0, (y0 + y1) / 2.0
+    # text_block() leaves the letter-spacing after the last capital as well as
+    # between them, so the ink sits a touch left of centre: put it back.
+    ink0, _, ink1, _ = extent(mark)
+    dx = -(ink0 + ink1) / 2.0
+    face.add("primary", key, [affinity.translate(p, cx + dx, cy + top - mh / 2.0)
+                              for p in mark])
+    face.note(key, mark, float(cap), text)
+    if tag:
+        t0, _, t1, _ = extent(tag)
+        face.add("secondary", "role",
+                 [affinity.translate(p, cx - (t0 + t1) / 2.0, cy + top - mh - gap - th / 2.0)
+                  for p in tag])
+        face.note("role", tag, float(tcap), fields["role"])
+    return face, None
+
+
 LAYOUTS = {
     "centred": layout_centred,
     "student": layout_student,
     "corporate": layout_corporate,
+    "wordmark": layout_wordmark,
 }
 
 LAYOUT_TITLES = {
     "centred": "Centred -- name, company, title, rule, phone, email",
     "student": "Student -- name top left, logo square top right, address bottom right",
     "corporate": "Corporate -- mark and company top left, person bottom left",
+    "wordmark": "Wordmark -- the company in wide-spaced serif capitals, centred",
 }
 
 # Which fields each layout has somewhere to put.  The app greys out the rest,
@@ -679,6 +750,7 @@ LAYOUT_FIELDS = {
     "centred": ("name", "company", "role", "phone", "email", "logo"),
     "student": ("name", "role", "company", "email", "phone", "logo"),
     "corporate": ("company", "role", "name", "phone", "email", "logo"),
+    "wordmark": ("company", "role"),
 }
 
 

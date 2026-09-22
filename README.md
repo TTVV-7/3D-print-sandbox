@@ -231,7 +231,7 @@ with a filament change or two.
 
 ### The looks
 
-A **preset** is a layout, a pattern and four colours together.  Ten of them
+A **preset** is a layout, a pattern and four colours together.  Eleven of them
 ship, in `src/looks.py`, and picking one sets every control below it; change
 any of them afterwards and the preset box says Custom.
 
@@ -240,6 +240,27 @@ any of them afterwards and the preset box says Custom.
 Left to right, top row: **Print Lab** (the default), **Student**,
 **Corporate**, **Citrus**, **Slate**; bottom row: **Paper**, **Navy**,
 **Forest**, **Ember**, **Plain**.
+
+The eleventh, **Wordmark**, is not in the sheet above because it is a
+different sort of fob: a brand mark rather than a business card.
+
+![the wordmark look](previews/nfc_fob_wordmark.png)
+
+Its layout, `wordmark`, sets the company line alone in wide-spaced Roman
+capitals -- Cinzel SemiBold, whatever font the rest of the part uses, shipped
+in `src/fonts` under the OFL -- as big as the face allows and centred between
+the open end and the ring hole, with the same margin to each.  A name of
+several words goes one word to a line when that sets it bigger, and a title, if
+there is one, runs small underneath as a tagline.  The preset is slate grey
+with the word in near-black, but any four colours work.  Cinzel's serifs come
+to points, so the readout will report strokes under 0.8 mm: a slicer with
+Arachne or thin-wall detection on (the default in Bambu Studio, Orca and
+PrusaSlicer) prints the letters clean at 6 mm on a 0.4 mm nozzle, and the tips
+of the serifs are all it loses.
+
+```
+python3 src/gen_cards.py --company "Enlesce" --look wordmark
+```
 
 The patterns come in two kinds.  The line ones -- `cubes`, `stripes`, `grid`,
 `hexes`, `rings`, `dots` -- are strokes, and `looks.STROKE` is their width:

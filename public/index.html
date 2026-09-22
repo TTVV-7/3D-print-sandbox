@@ -675,6 +675,7 @@ const LAYOUTS = {
   centred: "Centred — name, company, rule, phone, in the middle",
   student: "Student — name top left, logo square top right, address bottom right",
   corporate: "Corporate — mark and company top left, person bottom left",
+  wordmark: "Wordmark — the company in wide-spaced serif capitals, centred",
 };
 const PATTERNS = {
   plain: "Plain — no pattern",
@@ -871,6 +872,7 @@ const PRESETS = {
   forest:    ["Forest — green, cream, hexes", "hexes", "centred", ["#1d3b2a", "#2b5038", "#f4efe2", "#d9a441"]],
   ember:     ["Ember — charcoal, orange, dots", "dots", "centred", ["#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0"]],
   plain:     ["Plain — grey body, gold lettering, no pattern", "plain", "centred", ["#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441"]],
+  wordmark:  ["Wordmark — slate grey, the company in black serif capitals", "plain", "wordmark", ["#5b5c5e", "#5b5c5e", "#181818", "#2e2f31"]],
 };
 for (const g of FACE_GROUPS) {
   const grp = document.createElement("optgroup");
@@ -1678,6 +1680,7 @@ function layoutChosen() {
     centred: "Everything stacked and centred, with a logo to the left of it. The one that copes with a fob.",
     student: "Name top left, a logo square top right, title and company under the name, email along the bottom right. Shows the email where it has one, the phone otherwise.",
     corporate: "A mark and the company across the top, you in the bottom left. Drawn to sit on the badge pattern.",
+    wordmark: "The company as a wordmark: one word in wide-spaced Roman capitals, as big as the face allows, with the title as a small tagline under it if there is one. Set in Cinzel whatever else is chosen.",
   }[lay] || "";
 }
 $("layout").addEventListener("change", layoutChosen);
