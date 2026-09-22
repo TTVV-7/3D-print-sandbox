@@ -125,15 +125,33 @@ def _lens_layout(phone, cam) -> list[tuple[float, float, float, bool]]:
     if phone.camera_style == "plateau":
         # The cluster sits at one end of the bar. That end is the phone's +x
         # in this frame, which is the side the lenses are on when you turn
-        # the phone over.
+        # the phone over; the flash and what sits with it go at the other.
         r = min(h, w) * 0.21
         cx = w / 2 - h * 0.52
-        out = [(cx + r * 0.95, r * 0.62, r, True),
-               (cx - r * 0.95, r * 0.62, r, True),
-               (cx, -r * 1.05, r, True)][:phone.lenses]
         if phone.lenses == 1:
             out = [(cx, 0.0, min(h, w) * 0.27, True)]
-        out.append((-w / 2 + h * 0.42, 0.0, h * 0.11, False))   # flash
+        else:
+            # The same triangle the corner island uses, because it is the
+            # same three cameras: two down one side and one opposite. The
+            # spacing is what it is for a reason -- at 1.05 r apart the
+            # circles clear each other by a tenth of a radius, and the
+            # arrangement here before put them 0.95 r apart across the top,
+            # which is closer than two circles of radius r can sit without
+            # touching. All three overlapped, on every plateau phone.
+            k = r * 1.05
+            out = [(cx - k, k, r, True), (cx - k, -k, r, True),
+                   (cx + k, -k, r, True)][:phone.lenses]
+        ex = -w / 2 + h * 0.42
+        if phone.lenses >= 3:
+            # A Pro's bar is not a flash and then nothing. The lidar scanner
+            # sits under the flash and the microphone between that end and
+            # the cameras, and without them half the bar is empty, which no
+            # phone's is.
+            out.append((ex, h * 0.16, h * 0.11, False))          # flash
+            out.append((ex, -h * 0.16, h * 0.095, False))        # lidar
+            out.append((ex + h * 0.34, 0.0, h * 0.03, False))    # microphone
+        else:
+            out.append((ex, 0.0, h * 0.11, False))               # flash
         return out
 
     if phone.lenses >= 3:

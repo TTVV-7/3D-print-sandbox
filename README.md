@@ -1378,11 +1378,13 @@ knowing why before reading the code.
   its own test suite. `src/phonecase/` is a copy; `PROVENANCE` in
   `src/case_app.py` records which commit it came from. Fix bugs there, then
   copy the package across and update that string.
-  **One file has since been edited here instead:** `preview.py` carries the
-  dark-mode colours described under [Dark](#dark), which are about the page
-  showing the sheet rather than about the generator. It has diverged from
-  `PROVENANCE`, and the next copy across will overwrite it -- port that
-  `<style>` block back upstream, or re-apply it afterwards.
+  **One file has since been edited here instead**, twice. `preview.py`
+  carries the dark-mode colours described under [Dark](#dark), which are
+  about the page showing the sheet rather than about the generator; and a
+  fix to the lens layout for a plateau camera, which is a plain bug and
+  belongs upstream. It has diverged from `PROVENANCE`, and the next copy
+  across will overwrite both -- port the lens fix to weave-trial, and port
+  or re-apply the `<style>` block.
 
 ## The panel folds
 

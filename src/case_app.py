@@ -53,11 +53,18 @@ PAGE = ROOT / "public" / "case.html"
 #: The commit of ttvv-7/weave-trial that src/phonecase was taken from.
 #: Update it with the copy, so a bug here can be traced to a source there.
 #:
-#: phonecase/preview.py has since been edited here rather than there: it
-#: carries the dark-mode colours for the sheet, which are about this page
-#: showing the picture rather than about the generator drawing it. That file
-#: no longer matches this commit, and the next copy across will overwrite it
-#: -- port its <style> block upstream, or re-apply it after copying.
+#: phonecase/preview.py has since been edited here rather than there, twice,
+#: and the two want different things done about them:
+#:
+#: * the dark-mode colours for the sheet, which are about this page showing
+#:   the picture rather than about the generator drawing it;
+#: * the lens layout for a plateau camera, which is a plain bug -- all three
+#:   lenses were drawn overlapping, and the bar had a flash on it and
+#:   nothing else. That one belongs upstream.
+#:
+#: The file no longer matches this commit, and the next copy across will
+#: overwrite both. Port the lens fix to weave-trial; port or re-apply the
+#: <style> block.
 PROVENANCE = "f7bf3c7"
 
 #: Requests bigger than this are not artwork. The SVG reader has its own,
