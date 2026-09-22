@@ -244,7 +244,9 @@ Left to right, top row: **Print Lab** (the default), **Student**,
 The eleventh, **Wordmark**, is not in the sheet above because it is a
 different sort of fob: a brand mark rather than a business card.
 
-![the wordmark look](previews/nfc_fob_wordmark.png)
+| | |
+|---|---|
+| ![the wordmark look, front](previews/nfc_fob_wordmark.png) | ![and back](previews/nfc_fob_wordmark_back.png) |
 
 Its layout, `wordmark`, sets the company line alone in wide-spaced Roman
 capitals -- Cinzel SemiBold, whatever font the rest of the part uses, shipped
@@ -258,8 +260,20 @@ Arachne or thin-wall detection on (the default in Bambu Studio, Orca and
 PrusaSlicer) prints the letters clean at 6 mm on a 0.4 mm nozzle, and the tips
 of the serifs are all it loses.
 
+It is also **the same on both sides**: the preset ticks *Same on both sides*,
+which lays the front out again on the back in place of the tap mark, so the
+fob reads the same whichever way round it hangs.  Turn it over like a card and
+the back reads the right way up, with the ring hole at the other end.  The
+checkbox works with any layout, and with a **Full front design** SVG, which
+then goes on both faces.  The tag still works through it -- NFC does not care
+what is printed over it -- but it needs the tag sealed in (split or embed, not
+the open pocket) and leaves no room for a QR code; ask for either and the
+readout says so.
+
 ```
-python3 src/gen_cards.py --company "Enlesce" --look wordmark
+python3 src/gen_cards.py --company "Enlesce" --look wordmark        # both sides
+python3 src/gen_cards.py --design front.svg --both-sides
+python3 src/gen_cards.py --company "Enlesce" --look wordmark --no-both-sides
 ```
 
 The patterns come in two kinds.  The line ones -- `cubes`, `stripes`, `grid`,

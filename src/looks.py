@@ -238,7 +238,7 @@ PRESETS = {
     "plain":    dict(title="Plain -- grey body, gold lettering, no pattern",
                      pattern="plain", layout="centred", colours=("#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441")),
     "wordmark": dict(title="Wordmark -- slate grey, the company in black serif capitals",
-                     pattern="plain", layout="wordmark",
+                     pattern="plain", layout="wordmark", both_sides=True,
                      colours=("#5b5c5e", "#5b5c5e", "#181818", "#2e2f31")),
 }
 DEFAULT = "printlab"

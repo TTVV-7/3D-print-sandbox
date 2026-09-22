@@ -46,7 +46,7 @@ BUILD = threading.Lock()
 RECENT = {}
 GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "tag_h", "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr",
-            "logo", "batch", "design", "look", "layout", "placeholder",
+            "logo", "batch", "design", "look", "layout", "placeholder", "both_sides",
             "cap", "ring_d", "outline",
             "plate_w", "plate_h", "margin", "bridge", "thick",
             "depth", "wall", "diffuse", "lid", "cable", "mount")
@@ -272,7 +272,8 @@ def model(params):
                 font=typefaces.face(face(params))["path"], logo=logo, design=design,
                 qr=bool(params.get("qr")), link=params.get("link", ""),
                 look=look, colours=colours, layout=layout, placeholder=placeholder,
-                role=params.get("role", ""), email=params.get("email", ""))
+                role=params.get("role", ""), email=params.get("email", ""),
+                both_sides=bool(params.get("both_sides")))
             if params.get("batch"):
                 rows = cards.parse_batch(params["batch"])
                 if not rows:

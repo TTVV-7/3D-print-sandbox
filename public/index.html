@@ -450,6 +450,10 @@
     <label class="field" data-for="fob" data-light="design_file"><span>Full front design (SVG)</span><input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
     <p class="hint" data-for="fob" id="design_note">Replaces the whole front with your own artwork. Draw it on a
        rectangle in the body colour and it comes out at the rectangle's size.</p>
+    <label class="check" data-for="fob" data-light="both_sides"><input type="checkbox" id="both_sides"><span>Same on both sides</span></label>
+    <p class="hint" data-for="fob">Puts the front &mdash; the layout, or the SVG design above &mdash; on the back
+       as well, in place of the tap mark, so the fob reads the same whichever way it hangs. The tag
+       still works through it. Needs the tag sealed in (split or embed) and no QR code.</p>
   </section>
 
   <section>
@@ -872,7 +876,7 @@ const PRESETS = {
   forest:    ["Forest — green, cream, hexes", "hexes", "centred", ["#1d3b2a", "#2b5038", "#f4efe2", "#d9a441"]],
   ember:     ["Ember — charcoal, orange, dots", "dots", "centred", ["#1a1a1a", "#332a2a", "#ff6b35", "#d0d0d0"]],
   plain:     ["Plain — grey body, gold lettering, no pattern", "plain", "centred", ["#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441"]],
-  wordmark:  ["Wordmark — slate grey, the company in black serif capitals", "plain", "wordmark", ["#5b5c5e", "#5b5c5e", "#181818", "#2e2f31"]],
+  wordmark:  ["Wordmark — slate grey, the company in black serif capitals", "plain", "wordmark", ["#5b5c5e", "#5b5c5e", "#181818", "#2e2f31"], true],
 };
 for (const g of FACE_GROUPS) {
   const grp = document.createElement("optgroup");
@@ -1181,6 +1185,7 @@ const LIGHTS = {
   tap:         { el: ["tap", "arcs"], label: "the tap mark" },
   link:        { el: ["qr"], label: "the QR code" },
   qr:          { el: ["qr"], label: "the QR code" },
+  both_sides:  { face: "back", label: "the back" },
   font:        { all: true, label: "the whole word" },
   plate:       { all: true, label: "the plate" },
   margin:      { all: true, label: "the plate" },
@@ -1486,6 +1491,7 @@ function formParams() {
   params.outline = $("outline").checked;
   params.gzip = CAN_INFLATE;
   params.qr = $("qr").checked;
+  params.both_sides = $("both_sides").checked;
   if (!params.qr) params.link = "";               // the link only shapes the part as a code
   params.logo = logoText;
   params.design = ["stencil", "sign"].includes($("kind").value) ? stencilSvg : designText;
@@ -1554,6 +1560,7 @@ aside.addEventListener("pointerleave", () => { hoverKey = null; setLight(focused
 $("link").addEventListener("input", checkLink);
 for (const f of FIELDS) $(f).addEventListener("input", queue);
 $("qr").addEventListener("change", queue);
+$("both_sides").addEventListener("change", () => { $("preset").value = "custom"; queue(); });
 $("placeholder").addEventListener("change", queue);
 $("outline").addEventListener("change", queue);
 $("lid").addEventListener("change", queue);
@@ -1709,6 +1716,7 @@ $("preset").addEventListener("change", () => {
   $("look").value = p[1];
   $("layout").value = p[2];
   p[3].forEach((c, i) => { $(COLOURS[i]).value = c; });
+  $("both_sides").checked = !!p[4];
   layoutChosen();
   queue();
 });

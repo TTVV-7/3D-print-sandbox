@@ -127,8 +127,11 @@ def report(name, info):
           f"{'watertight' if info['watertight'] else 'NOT WATERTIGHT'}")
     for key, line in info["lines"].items():
         print(f"      {key:8s} {line['cap']:4.1f} mm caps, ~{line['stroke']:.2f} mm strokes")
-    print(f"      mark     ~{info['mark_stroke']:.2f} mm strokes"
-          + (f", tap text ~{info['tap_stroke']:.2f} mm" if info["tap_stroke"] else ""))
+    if info.get("both_sides"):
+        print("      back     the front again, in place of the tap mark")
+    else:
+        print(f"      mark     ~{info['mark_stroke']:.2f} mm strokes"
+              + (f", tap text ~{info['tap_stroke']:.2f} mm" if info["tap_stroke"] else ""))
     print(f"      pocket   {info['pocket'][0]:.1f} x {info['pocket'][1]:.1f} x "
           f"{info['pocket'][2]:.1f} mm deep ({info['tag_mode']})")
     if info["tag_mode"] == "split":
@@ -264,6 +267,9 @@ def main():
     ap.add_argument("--link", default="", help="the URL the tag will carry")
     ap.add_argument("--qr", action="store_true",
                     help="also raise a QR code for --link on the back")
+    ap.add_argument("--both-sides", action=argparse.BooleanOptionalAction, default=None,
+                    help="the front -- layout or --design -- on the back too, in place "
+                         "of the tap mark (the wordmark look does this by default)")
     ap.add_argument("--batch", default=None, metavar="FILE",
                     help="one person per line -- name, company, phone, link -- tab or "
                          "comma separated; writes every card onto one plate")
@@ -297,6 +303,8 @@ def main():
     preset = looks.PRESETS.get(args.look)
     look = preset["pattern"] if preset else args.look
     layout = args.layout or (preset["layout"] if preset else "centred")
+    both_sides = (args.both_sides if args.both_sides is not None
+                  else bool(preset and preset.get("both_sides")))
     colours = list(preset["colours"] if preset else cards.COLOURS)
     if args.colours:
         given = [c.strip() for c in args.colours.split(",")]
@@ -474,7 +482,7 @@ def main():
                   border=args.border, rise=rise, chamfer=args.chamfer,
                   logo=args.logo, logo_h=args.logo_height, qr=args.qr,
                   design=args.design, look=look, colours=colours, layout=layout,
-                  placeholder=args.placeholder)
+                  placeholder=args.placeholder, both_sides=both_sides)
 
     if args.batch:
         rows = cards.parse_batch(Path(args.batch).read_text())

@@ -680,7 +680,11 @@ def layout_wordmark(spec, w, h, box, fields, font, logo, logo_h, colours, placeh
     # same clear margin to the hole as to the edge -- the content box stops
     # 1.8 mm short of the hole, which is room for small print but crowds a mark.
     if spec["hole"]:
-        x1 = min(x1, w / 2.0 - spec["hole"]["wall"] - spec["hole"]["d"] - spec["margin"])
+        edge = w / 2.0 - spec["hole"]["wall"] - spec["hole"]["d"] - spec["margin"]
+        if x1 < -x0:                    # the hole is on the right
+            x1 = min(x1, edge)
+        else:
+            x0 = max(x0, -edge)
     W, H = x1 - x0, y1 - y0
     face = Face()
     key = "company" if fields.get("company") else "name"
@@ -755,7 +759,7 @@ LAYOUT_FIELDS = {
 
 
 def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None,
-               colours=None, layout="centred", placeholder=None):
+               colours=None, layout="centred", placeholder=None, mirrored=True):
     """The front of the part: whichever layout was asked for, plus the border.
 
     A `design` -- an SVG, as a path or its text -- replaces all of it: its
@@ -764,9 +768,10 @@ def front_face(spec, w, h, fields, font, logo=None, logo_h=None, design=None,
 
     Returns (face, measured, logo_info), where `face` is a Face: polygons by
     (colour slot, field).  Laid out as read; build() mirrors it, because this
-    face ends up pointing at the build plate.
+    face ends up pointing at the build plate.  `mirrored=False` lays the same
+    thing out for the back, which is read with the ring hole at the other end.
     """
-    box = content_box(spec, w, h, mirrored=True)
+    box = content_box(spec, w, h, mirrored=mirrored)
     x0, x1, y0, y1 = box
     logo_info = None
 
@@ -1156,7 +1161,7 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
           tap_text="TAP HERE", tag_mode="split", lid=0.6, border=False, rise=RISE,
           link="", qr=False, logo=None, logo_h=None, chamfer=CHAMFER, label="",
           design=None, look=None, colours=COLOURS, layout="centred", role="",
-          email="", placeholder=None):
+          email="", placeholder=None, both_sides=False):
     """One card or fob as printable parts, plus the numbers worth knowing.
 
     Returns ([part, ...], info).  Each part is a dict:
@@ -1201,6 +1206,12 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     lettering and all (and takes the place of the pattern).  `link` with
     `qr=True` puts a QR code for it on the back.  All three report the nozzle
     they need in info["nozzle"].
+
+    `both_sides` puts the front -- layout, pattern or design, whatever it is --
+    on the back as well, in place of the tap mark, so the part reads the same
+    whichever way round it hangs.  The tag still works through it: NFC does
+    not care what is printed over it.  It needs a back with nothing open in
+    it, so not with tag_mode="pocket", and it has no room for a QR code.
     """
     spec = {**BODIES[kind]}
     font = font or default_font()
@@ -1208,6 +1219,12 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     if not border:
         spec["border"] = 0.0
     split = tag_mode == "split"
+    if both_sides and tag_mode == "pocket":
+        raise ValueError("both sides needs a closed back -- the pocket is open on it; "
+                         "use split or embed")
+    if both_sides and qr and link:
+        raise ValueError("both sides leaves no room for the QR code on the back -- "
+                         "turn one of them off")
     rise = max(0.0, float(rise))
     rows = qr_matrix(link) if (qr and link) else None
     colours = tuple(colours or COLOURS)
@@ -1244,11 +1261,13 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     fields = dict(name=name, company=company, phone=phone, role=role, email=email)
     face, measured, logo_info = front_face(spec, w, h, fields, font, logo, logo_h,
                                            design, colours, layout, placeholder)
-    pattern = []
-    if look and not design:
-        # The pattern fills the face inside the chamfer -- or inside the
-        # border, when there is one -- and stays a halo away from everything
-        # else on the face, so the lettering reads.
+
+    def add_pattern(face, side):
+        """The pattern, fitted round what is on `face`.  It fills the face
+        inside the chamfer -- or inside the border, when there is one -- and
+        stays a halo away from everything else on it, so the lettering reads.
+        `side` is which end the ring hole is at as the face is read: +1 on the
+        front, which is mirrored, -1 on the back."""
         clip = outline.buffer(-(c_eff + 0.3))
         if spec["border"]:
             inset = spec["border_inset"] + spec["border"] + 1.2
@@ -1256,15 +1275,31 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
                                                   max(spec["corner"] - inset, 0.5)))
         if spec["hole"]:
             d = spec["hole"]["d"]
-            keep = rounded_rect(d, d, d / 2.0, w / 2.0 - spec["hole"]["wall"] - d / 2.0, 0.0)
-            clip = clip.difference(keep.buffer(1.4))    # mirrored side: the front is
+            keep = rounded_rect(d, d, d / 2.0,
+                                side * (w / 2.0 - spec["hole"]["wall"] - d / 2.0), 0.0)
+            clip = clip.difference(keep.buffer(1.4))
         ink = face.ink
         halo = unary_union(ink).buffer(1.25) if ink else None
-        pattern = looks.pattern(look, w, h, clip, halo)
-        face.add("pattern", "pattern", pattern)
-    pocket, marks, qr_info = back_face(spec, w, h, pocket_w, pocket_h, tap_text, font, rows)
-    back = {("primary", "arcs"): marks["arcs"], ("primary", "qr"): marks["code"],
-            ("secondary", "tap"): marks["tap"]}
+        polys = looks.pattern(look, w, h, clip, halo)
+        face.add("pattern", "pattern", polys)
+        return polys
+
+    pattern = add_pattern(face, +1) if look and not design else []
+    pocket, marks, qr_info = back_face(spec, w, h, pocket_w, pocket_h,
+                                       "" if both_sides else tap_text, font, rows)
+    if both_sides:
+        # The front laid out again for the back, which is read with the ring
+        # hole at the other end: turn the fob over like a card and it reads
+        # the right way up.  Laid out afresh rather than copied, because the
+        # layouts keep clear of the hole and it has moved.
+        other, _, _ = front_face(spec, w, h, fields, font, logo, logo_h, design,
+                                 colours, layout, placeholder, mirrored=False)
+        if look and not design:
+            add_pattern(other, -1)
+        back = other.groups
+    else:
+        back = {("primary", "arcs"): marks["arcs"], ("primary", "qr"): marks["code"],
+                ("secondary", "tap"): marks["tap"]}
     # Both faces are laid out the way you read them.  The back ends up facing
     # +Z and needs nothing done to it; the front faces the build plate, so it
     # is mirrored -- which is exactly what turning the card over does to it.
@@ -1308,7 +1343,8 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
     front_solids = {key: union(prisms(polys, z_body if key[0] == "pattern" else 0.0,
                                       (FACE + 0.01) + (0.0 if key[0] == "pattern" else rise)))
                     for key, polys in front.items()}
-    back_solids = {key: union(prisms(polys, z_back - FACE - 0.01, FACE + 0.01 + rise))
+    back_solids = {key: union(prisms(polys, z_back - FACE - 0.01,
+                                     FACE + 0.01 + (0.0 if key[0] == "pattern" else rise)))
                    for key, polys in back.items()}
 
     pins = []
@@ -1337,7 +1373,7 @@ def build(kind, name="", company="", phone="", font=None, tag=None,
         # The front is laid face down, so the side you read points at the
         # build plate.  A viewer has to know which way to look.
         front_up=False,
-        layout=None if design else layout,
+        layout=None if design else layout, both_sides=bool(both_sides),
         slots=used, part_slots={p["name"] or kind: sorted(p["slots"], key=SLOTS.index)
                                 for p in parts},
         parts=[p["name"] or kind for p in parts], pins=len(pins),
