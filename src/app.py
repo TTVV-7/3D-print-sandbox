@@ -2,9 +2,9 @@
 
     python3 src/app.py            # then open http://127.0.0.1:8765
 
-Four shapes: an NFC keyring fob (src/cards.py), a name keyring
-(src/nametag.py), a sign enclosure (src/signbox.py) and a stencil
-(src/stencil.py).  Fill in the boxes, watch the part turn in the viewer,
+Five shapes: an NFC keyring fob (src/cards.py), a name keyring
+(src/nametag.py), a sign enclosure (src/signbox.py), a stencil
+(src/stencil.py) and an iPad mini holder (src/tabletmount.py).  Fill in the boxes, watch the part turn in the viewer,
 download it.  The 3MF carries each colour as a separate part, so the slicer opens it
 set up for four filaments; the STL is one welded solid.  The preview is the
 same solids, sent one after another with a colour and a place for each, so
@@ -34,6 +34,7 @@ import looks
 import nametag
 import signbox
 import stencil
+import tabletmount
 import typefaces
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -49,13 +50,15 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "logo", "batch", "design", "look", "layout", "placeholder",
             "cap", "ring_d", "outline",
             "plate_w", "plate_h", "margin", "bridge", "thick",
-            "depth", "wall", "diffuse", "lid", "cable", "mount")
+            "depth", "wall", "diffuse", "lid", "cable", "mount",
+            "device", "bore", "clamp_depth", "fit", "holder_mount",
+            "camera_hole")
 
 # The shapes the page can ask for.  The business card is not among them any
 # more: it is archived -- the code is still in src/cards.py and
 # `src/gen_cards.py --kind card` still writes one, but the app offers the fob,
 # the name keyring, the stencil and the sign enclosure.
-KINDS = ("fob", "name", "stencil", "sign")
+KINDS = ("fob", "name", "stencil", "sign", "tablet")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -212,6 +215,21 @@ def model(params):
                     del RECENT[next(iter(RECENT))]
                 parts, info = RECENT[key]
                 return _finish(params, parts, info, num)
+            if kind == "tablet":
+                # A holder is one thing, not one per line: there is nothing
+                # to batch.
+                RECENT[key] = tabletmount.build(
+                    params.get("device") or tabletmount.DEFAULT,
+                    clearance=num("fit", tabletmount.CLEARANCE),
+                    mount=params.get("holder_mount") or "clamp",
+                    bore=num("bore", tabletmount.BORE),
+                    clamp_depth=num("clamp_depth", tabletmount.CLAMP_DEPTH),
+                    camera=params.get("camera_hole", True) not in (False, "false", "0"),
+                    colours=colours)
+                while len(RECENT) > 8:
+                    del RECENT[next(iter(RECENT))]
+                parts, info = RECENT[key]
+                return _finish({**params, "batch": ""}, parts, info, num)
             if kind == "sign":
                 # The artwork arrives in the same field the stencil's does, and
                 # is lit the way the lettering is rather than cut away.

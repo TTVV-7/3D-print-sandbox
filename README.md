@@ -1,6 +1,6 @@
 # 3D print sandbox
 
-Seven parametric things live here so far.  All of them are plain Python --
+Eight parametric things live here so far.  All of them are plain Python --
 shapely for the 2-D work, trimesh and manifold for the solids -- and all of
 them re-run in seconds.  The phone case is the exception on every count: it
 needs nothing but the standard library, and it writes g-code rather than a
@@ -30,6 +30,9 @@ mesh.
 - **[iPad cases](#ipad-cases)** -- the phone case, for eight iPads: the same
   generator and the same page, with a table of iPads behind it.  At
   **[/ipad](/ipad)**.
+- **[iPad mini holder](#ipad-mini-holder)** -- not a case: a tray the iPad
+  drops into, a cap screwed on at each end, and a clamp for a pole.  Same app
+  as the fobs, fifth shape.
 
 ---
 
@@ -1595,4 +1598,56 @@ about five times as long. The page starts iPads on the **Fast** grid
 whole 11-inch case takes about 15 seconds at Fast and a 13-inch 20, or 30 at
 the finest allowed -- inside the function's 60 seconds, though it has not
 been timed on Vercel itself. At a 0.42 mm line the grid does not show.
+
+---
+
+# iPad mini holder
+
+A holder for an iPad mini, to bolt to something rather than carry about: a
+stand, a pole, a cart, a wall arm. The fifth shape in the main app;
+`src/tabletmount.py`.
+
+    parts, info = tabletmount.build("mini-2", bore=25)
+
+Three parts and some hardware:
+
+- **The tray.** A back plate, a wall down each long side flush with the
+  glass, and a flat shelf at each end past the iPad. A hole for the rear
+  camera and a notch in the right-hand wall for the volume buttons.
+- **Two caps**, one on each shelf: a bar across the width with a lip that
+  comes 12 mm forward over the bezel, notched for the front camera at the
+  top and the home button at the bottom. The bars have channels through them
+  for the port, the speakers, the headphone jack and the top button. Four
+  **M3 x 10 countersunk** screws come up through the shelves into them. With
+  both caps on, the iPad is held at both ends. Take the bottom one off and it
+  slides out.
+- **A clamp** on the top cap: a block with a bore through it front to back
+  and an **M6 thumbscrew** coming in from the side, threading into a nut that
+  drops into a slot in the back of the block. Set the bore to whatever it is
+  going onto; 20 mm is only a guess from a photo. Or leave the clamp off and
+  screw the tray to something.
+
+The lips are on the caps, not the tray, because that is what makes it
+printable with no supports. A lip over the glass is a ledge in mid-air:
+printed back down, as a tray has to be, a 12 mm ledge 10 mm up droops. A cap
+prints face down, with the lip flat on the plate. So the side walls carry no
+lip at all. With both ends held, they only have to stop the iPad sliding
+sideways.
+
+| | body (mm) | home button |
+|---|---|---|
+| iPad mini (1st gen) | 200.0 x 134.7 x 7.2 | yes |
+| iPad mini 2 / 3 | 200.0 x 134.7 x 7.5 | yes |
+| iPad mini 4 / 5 | 203.2 x 134.8 x 6.1 | yes |
+| iPad mini 6 / 7 | 195.4 x 134.8 x 6.3 | no; the lips are 5 mm, the bezel is narrow |
+
+The body sizes are Apple's. **Everything else was placed from photos**, not
+measured against a real iPad, and is cut wide enough that a few millimetres
+of error still leave it clear. The pocket's corners are tighter than any
+iPad's, so a corner can never be what stops it going in.
+
+All three parts fit a 256 mm bed together: about 232 x 225 mm for a mini
+2/3. As solid plastic it is 140 cm³. Printed at normal infill it is a good
+deal less, but it wants four or more walls: all the load of the iPad goes
+through the top cap's two screws and the clamp's joint to the cap.
 

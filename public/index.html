@@ -415,6 +415,10 @@
         <svg viewBox="0 0 86 34" aria-hidden="true"><rect x="1.5" y="1.5" width="83" height="31" rx="4"/><path d="M20 25V9h6a5 5 0 0 1 0 10h-6M38 25V9m0 0h8m-8 8h6m-6 8h8M58 25V9h6a5 5 0 0 1 0 10h-6m0 0 7 6"/></svg>
         <div><b>Stencil</b><span>a plate with the word cut through it</span></div>
       </button>
+      <button type="button" class="tile" data-kind="tablet" aria-pressed="false">
+        <svg viewBox="0 0 86 34" aria-hidden="true"><rect x="24" y="5" width="38" height="27" rx="3"/><rect x="30" y="9" width="26" height="19" rx="1"/><path d="M24 9h38M24 28h38M36 5V1h14v4"/><circle cx="43" cy="3" r="1.5"/></svg>
+        <div><b>iPad mini holder</b><span>a tray, two caps and a clamp</span></div>
+      </button>
     </div>
     <input type="hidden" id="kind" value="fob">
     <p class="hint" id="shape_note">The fob is the one that lives on a keyring, with an NFC tag
@@ -423,7 +427,40 @@
 
   <section>
     <h2 id="who">2 &middot; Who you are</h2>
-    <label class="field" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
+    <label class="field" data-for="tablet" data-light="device"><span>iPad</span>
+      <select id="device">
+        <option value="mini-1">iPad mini (1st gen)</option>
+        <option value="mini-2" selected>iPad mini 2 / 3</option>
+        <option value="mini-4">iPad mini 4 / 5</option>
+        <option value="mini-6">iPad mini 6 / 7 (no home button)</option>
+      </select>
+    </label>
+    <p class="hint" data-for="tablet">The body sizes are Apple's. The home button, the camera, the
+       port, the speakers and the buttons are placed from photos and cut generously; nothing here
+       has been measured against a real iPad. The mini 2 and 3 are the same shape.</p>
+    <label class="field" data-for="tablet" data-light="holder_mount"><span>Mount</span>
+      <select id="holder_mount">
+        <option value="clamp">Clamp on the top cap</option>
+        <option value="none">None &mdash; screw the tray to something</option>
+      </select>
+    </label>
+    <div class="field" data-for="tablet" data-light="bore"><span>Bore</span>
+      <div class="slider"><input type="range" id="bore" min="8" max="40" step="0.5" value="20"><output id="bore_v">20 mm</output></div>
+    </div>
+    <p class="hint" data-for="tablet">The diameter of whatever the clamp goes onto &mdash; measure the
+       pole or post with calipers. 0.4 mm is added so it slides on. The bore runs front to back,
+       and an M6 thumbscrew comes in from the side against it; its nut drops into a slot in the
+       back of the block.</p>
+    <div class="field" data-for="tablet" data-light="clamp_depth"><span>Clamp depth</span>
+      <div class="slider"><input type="range" id="clamp_depth" min="12" max="40" step="1" value="22"><output id="clamp_depth_v">22 mm</output></div>
+    </div>
+    <p class="hint" data-for="tablet">How long the bore is, front to back. Longer grips better and
+       stands further off the back of the tray.</p>
+    <div class="field" data-for="tablet" data-light="fit"><span>Gap round the iPad</span>
+      <div class="slider"><input type="range" id="fit" min="0.2" max="1" step="0.05" value="0.4"><output id="fit_v">0.4 mm</output></div>
+    </div>
+    <label class="check" data-for="tablet" data-light="camera_hole"><input type="checkbox" id="camera_hole" checked><span>Hole for the rear camera</span></label>
+    <label class="field" data-light="name" id="name_row"><span id="name_label">Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
     <label class="field" data-for="fob" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
@@ -566,13 +603,15 @@
        secondary the quieter lines and the tap wording.</p>
     <p class="hint" data-for="name">Body is the outline and Primary the letters on top of it. The other
        two are not used by a keyring.</p>
+    <p class="hint" data-for="tablet">Body is all three parts. A holder prints in one colour &mdash;
+       the other three are not used. PETG if it lives in a car or in the sun.</p>
     <p class="hint" data-for="stencil">Body is the plate. A stencil prints in one colour &mdash; the
        other three are not used.</p>
     <p class="hint" data-for="sign">Body is the case and the lid, in something opaque. Primary is the
        lettering <i>and</i> the diffuser behind it, and it wants a translucent or a white filament
        &mdash; they are one piece, and they are the only thing the light comes through. The other two
        are not used.</p>
-    <div class="field" data-light="rise"><span>Relief</span>
+    <div class="field" data-for="fob name stencil sign" data-light="rise"><span>Relief</span>
       <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
     </div>
     <p class="hint" data-for="fob">How far the lettering stands off the face. Flush is a smooth fob with every
@@ -611,7 +650,7 @@
        code, and a coarser code prints on a bigger nozzle.</p>
   </section>
 
-  <section>
+  <section data-for="fob name stencil sign">
     <h2 data-for="fob">5 &middot; A batch of them</h2>
     <h2 data-for="name stencil sign">4 &middot; A batch of them</h2>
     <label class="field"><span>One person per line</span>
@@ -664,7 +703,8 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
                 "look", "layout", "cap", "ring_d", "font",
                 "plate_w", "plate_h", "margin", "bridge", "thick",
-                "depth", "wall", "diffuse", "cable", "mount"];
+                "depth", "wall", "diffuse", "cable", "mount",
+                "device", "fit", "holder_mount", "bore", "clamp_depth"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "", stencilSvg = "";
@@ -1068,7 +1108,8 @@ const shown = part => mode !== "plate" || !part.tag;
 function place(part, gap) {
   if (mode === "plate") return M.translate(...part.plate);
   const m = part.assembled;
-  if (part.name === "back" || part.name === "lid") return M.mul(M.translate(0, 0, gap), m);
+  if (part.name === "back" || part.name === "lid" || part.name.startsWith("cap-"))
+    return M.mul(M.translate(0, 0, gap), m);
   if (part.tag) return M.mul(M.translate(0, 0, gap / 2), m);
   return m;
 }
@@ -1194,6 +1235,12 @@ const LIGHTS = {
   cable:       { el: ["body"], label: "the case the notch is in" },
   lid:         { el: ["lid"], label: "the back lid" },
   mount:       { el: ["body"], label: "the case the mounts are part of" },
+  device:      { all: true, label: "the whole holder" },
+  fit:         { el: ["body"], label: "the tray" },
+  holder_mount:{ el: ["cap-top"], label: "the top cap and its clamp" },
+  bore:        { el: ["cap-top"], label: "the clamp" },
+  clamp_depth: { el: ["cap-top"], label: "the clamp" },
+  camera_hole: { el: ["body"], label: "the tray" },
   tag_mode:    { el: ["tag"], mode: "apart", label: "the tag in the joint" },
   tag_w:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
   tag_h:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
@@ -1356,6 +1403,7 @@ function readout() {
   if (info.kind === "name") return wordReadout(line);
   if (info.kind === "stencil") return cutReadout(line);
   if (info.kind === "sign") return signReadout(line);
+  if (info.kind === "tablet") return holderReadout(line);
   const split = info.parts.length > 1;
   const needs = (info.logo || info.qr)
     ? (info.nozzle
@@ -1440,6 +1488,23 @@ function cutReadout(line) {
 /* A sign has no cavity and no counters to lose -- what it has is a lit area, a
    sandwich of a face, and however much clear air is left inside for the light
    to spread in before it gets there. */
+/* A holder has no lettering and one colour: what it has is a size, a fit, and
+   a list of hardware to buy. */
+function holderReadout(line) {
+  specs.innerHTML = [
+    line("for", info.device_name),
+    line("size", `${mm(info.w)} &times; ${mm(info.h)} mm, ${mm(info.thick)} mm deep` +
+                 (info.clamp_depth ? ` (${mm(info.clamp_depth)} at the clamp)` : "")),
+    line("pocket", `${mm(info.pocket[0])} &times; ${mm(info.pocket[1])} &times; ${mm(info.pocket[2])} mm`),
+    line("lips", `${mm(info.over)} mm over the bezel at each end`),
+    info.bore ? line("bore", `${mm(info.bore)} mm, M6 thumbscrew`) : line("mount", "none"),
+    line("screws", info.screws),
+    line("on the plate", `${mm(info.plate_size[0])} &times; ${mm(info.plate_size[1])} mm, three parts`),
+    line("uses", `${info.volume.toFixed(0)} cm&sup3; solid &mdash; about ${info.grams} g before infill`),
+    info.watertight ? "" : `<span class="err">a part did not come out watertight</span>`,
+  ].join("");
+}
+
 function signReadout(line) {
   const layers = Math.round(info.front / 0.2);
   specs.innerHTML = [
@@ -1481,6 +1546,7 @@ async function body(res) {
 function formParams() {
   const params = Object.fromEntries(FIELDS.map(f => [f, $(f).value]));
   params.lid = $("lid").checked;
+  params.camera_hole = $("camera_hole").checked;
   params.placeholder = $("placeholder").checked ? "box" : "";
   params.outline = $("outline").checked;
   params.gzip = CAN_INFLATE;
@@ -1556,6 +1622,7 @@ $("qr").addEventListener("change", queue);
 $("placeholder").addEventListener("change", queue);
 $("outline").addEventListener("change", queue);
 $("lid").addEventListener("change", queue);
+$("camera_hole").addEventListener("change", queue);
 $("logo_file").addEventListener("change", async () => {
   const f = $("logo_file").files[0];
   logoText = f ? await f.text() : "";
@@ -1581,7 +1648,8 @@ $("stencil_svg").addEventListener("change", async () => {
 });
 for (const [id, unit] of [["plate_w", "mm"], ["plate_h", "mm"], ["margin", "mm"],
                           ["thick", "mm"], ["bridge", "mm"], ["depth", "mm"],
-                          ["wall", "mm"], ["diffuse", "mm"], ["cable", "mm"]])
+                          ["wall", "mm"], ["diffuse", "mm"], ["cable", "mm"],
+                          ["bore", "mm"], ["clamp_depth", "mm"], ["fit", "mm"]])
   $(id).addEventListener("input", () => {
     $(`${id}_v`).textContent = (["bridge", "cable"].includes(id) && +$(id).value === 0)
       ? "none" : `${$(id).value} ${unit}`;
@@ -1644,17 +1712,21 @@ function shapeChosen() {
     fob: "The one that lives on a keyring, with an NFC tag sealed inside it. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.",
     name: "No plate and no tag: the name itself is the object. It comes out as wide as the word is long, so a short one is a keyring and a long one is a luggage tag.",
     stencil: "A plate with the words \u2014 or an SVG \u2014 cut clean through it, to paint or spray through. Every counter is an island once the cut goes through, so each one gets a bridge holding it to the plate.",
+    tablet: "A holder rather than a case: the iPad drops into a tray, and a cap screwed on at each end holds it in by the bezel. Take the bottom cap off and it slides out. The clamp on the top cap goes onto a pole or a post.",
     sign: "A shallow box with the word lit through its own face: an opaque layer with the letters taken out of it, the letters filled back in in something translucent, and a diffuser sheet behind the lot. Put an LED strip inside and run the lead out of the notch.",
   }[kind];
   // The one text box is the name on a fob, the word on a keyring, and the
   // words to cut or to light on a stencil or a sign.
   $("name_label").textContent = { stencil: "Words", sign: "Words", name: "Name" }[kind] || "Name";
   $("who").innerHTML = "2 \u00b7 " + ({ stencil: "What it says", sign: "What it says",
-                                      name: "The word" }[kind] || "Who you are");
+                                      name: "The word", tablet: "Which iPad" }[kind] || "Who you are");
+  // A holder has no words on it.
+  $("name_row").hidden = kind === "tablet";
   // The stencil's two plate sliders are the sign's face.
   $("plate_label").textContent = kind === "sign" ? "Face" : "Plate";
   // A sign is not glued and has no halves: it has a lid that comes off.
   const labels = kind === "sign" ? ["Put together", "Lid off", "On the plate"]
+               : kind === "tablet" ? ["Put together", "Caps off", "On the plate"]
                                  : ["Glued up", "Pulled apart", "On the plate"];
   $("modes").querySelectorAll("button").forEach((b, i) => { b.textContent = labels[i]; });
   // A keyring wants its letters proud; a fob is flush by default.
@@ -1755,6 +1827,7 @@ for (const b of $("modes").querySelectorAll("button"))
   b.addEventListener("click", () => setMode(b.dataset.mode, false));
 
 function stem() {
+  if ($("kind").value === "tablet") return `ipad_${$("device").value.replace("-", "")}_holder`;
   if ($("batch").value.trim()) return `batch_${$("kind").value}`;
   for (const kind of ["stencil", "sign"])
     if ($("kind").value === kind) {
