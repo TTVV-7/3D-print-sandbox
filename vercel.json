@@ -1,9 +1,11 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
-    { "source": "/case", "destination": "/case.html" }
+    { "source": "/case", "destination": "/case.html" },
+    { "source": "/ipad", "destination": "/case.html" }
   ],
   "functions": {
-    "api/case.py": { "maxDuration": 60 }
+    "api/case.py": { "maxDuration": 60 },
+    "api/ipad.py": { "maxDuration": 60 }
   }
 }

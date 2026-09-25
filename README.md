@@ -1,6 +1,6 @@
 # 3D print sandbox
 
-Six parametric things live here so far.  All of them are plain Python --
+Seven parametric things live here so far.  All of them are plain Python --
 shapely for the 2-D work, trimesh and manifold for the solids -- and all of
 them re-run in seconds.  The phone case is the exception on every count: it
 needs nothing but the standard library, and it writes g-code rather than a
@@ -27,6 +27,9 @@ mesh.
   painted on the back with your own SVG by the AMS.  The odd one out: it is
   g-code rather than a solid, written directly with no slicer, and its
   generator is vendored from another repository.  Its own page in the app.
+- **[iPad cases](#ipad-cases)** -- the phone case, for eight iPads: the same
+  generator and the same page, with a table of iPads behind it.  At
+  **[/ipad](/ipad)**.
 
 ---
 
@@ -1515,4 +1518,81 @@ python3 src/case_app.py        # the same page, on 127.0.0.1:8766
 The full command line generator, with the phone and camera overrides, the
 palette syntax and the printability report, lives in the weave-trial
 repository as `case.py`.
+
+---
+
+# iPad cases
+
+The phone case, for an iPad. At **[/ipad](/ipad)**, or `/ipad` on the local
+server `python3 src/case_app.py` starts.
+
+There is no second generator. An iPad case is the same part as a phone case,
+only bigger: a back plate, a wall, a lip over the glass, holes where the
+hardware is. So `src/ipadcase.py` is a table of iPads written in
+`src/phonecase/`'s terms, and `/ipad` is `public/case.html` talking to
+`/api/ipad` instead of `/api/case`. The page takes its title, its device list
+and its default grid from the server, so neither family has its own copy.
+The table is out here rather than in `src/phonecase/spec.py` because that
+package is vendored and the next copy across would overwrite it.
+
+| | body (mm) | camera | volume |
+|---|---|---|---|
+| iPad (A16), iPad (10th gen) | 248.6 x 179.5 x 7.0 | one lens | top edge |
+| iPad mini (A17 Pro), mini (6th gen) | 195.4 x 134.8 x 6.3 | one lens | top edge |
+| iPad Air 11" (M2/M3) | 247.6 x 178.5 x 6.1 | one lens | right edge |
+| iPad Air 13" (M2/M3) | 280.6 x 214.9 x 6.1 | one lens | right edge |
+| iPad Pro 11" (M4/M5) | 249.7 x 177.5 x 5.3 | lens, LiDAR, flash | right edge |
+| iPad Pro 13" (M4/M5) | 281.6 x 215.5 x 5.1 | lens, LiDAR, flash | right edge |
+
+Three things a phone does not have, which is why `Tablet` extends `Phone`:
+
+- **Speakers at both ends**, because iPads play stereo in landscape.
+- **Buttons on the top edge**: the top button always, and on the iPad and
+  the mini the volume buttons as well.
+- **The Pencil.** Every one but the plain iPad charges or parks a Pencil on
+  magnets in the right-hand edge. Plastic between the two stops it
+  charging, so the wall is cut down over that stretch, open to the rim, with
+  a 1.5 mm ledge left along the bottom so the iPad is still held in there.
+  A switch on the page turns it off.
+
+**Everything but the body size is an estimate**, more so than on the phones:
+corner radius, camera opening, buttons, grilles and the Pencil stretch are
+all from product photos, and none of it has been measured against a real
+iPad. The corner radii are guessed small on purpose, since a case corner
+tighter than the iPad's leaves an unnoticeable gap and a looser one stops it
+going in. The camera fields on the page can correct the opening. Print the
+test fit first, which matters more here: an iPad case is 80 to 110 g
+of filament.
+
+The fits are thicker than the phone ones, because the thing weighs four
+phones and lands flat. `snug` is a 2 mm wall on a 1.6 mm back.
+
+## Will it fit the bed
+
+This is the main question for an iPad, and it has two answers:
+
+| | case (snug) | 256 mm bed, 3MF / STL | 256 mm bed, g-code |
+|---|---|---|---|
+| mini | 140 x 200 mm | yes | yes |
+| 11-inch | 183 x 254 mm | yes | **no** |
+| 13-inch | 220 x 286 mm | no | no |
+
+The g-code prints its own purge tower beside the case, with a margin round
+both, and an 11-inch case leaves no room for that on a Bambu. A 3MF goes
+through a slicer that places its own tower, so only the case has to fit. The
+page keeps the two apart: on an 11-inch iPad and a 256 mm bed the G-code
+button turns off, 3MF and STL stay on, and a note says why. A 13-inch needs
+the 350 mm Voron profile or something that size.
+
+A big flat back is also the part most likely to warp at the corners in
+PLA. Use a brim, a clean bed, and PETG if it does.
+
+## Speed
+
+An iPad back is five times the area of a phone back, and building it takes
+about five times as long. The page starts iPads on the **Fast** grid
+(0.7 mm), and a request cannot go finer than 0.45 mm. On this machine a
+whole 11-inch case takes about 15 seconds at Fast and a 13-inch 20, or 30 at
+the finest allowed -- inside the function's 60 seconds, though it has not
+been timed on Vercel itself. At a 0.42 mm line the grid does not show.
 

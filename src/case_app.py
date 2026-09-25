@@ -10,6 +10,11 @@ path whether it is running on your laptop or hosted.
 The generator itself is src/phonecase/, vendored from the Weave-Trial repo,
 which is where it is developed and tested. See PROVENANCE below.
 
+It serves two families off the one generator: phones at /case and
+/api/case, iPads at /ipad and /api/ipad. They are the same page and the same
+code path; a family is only which table of devices, which fit presets, and
+what the page calls the thing. See FAMILIES.
+
 Two things this file exists to do that the library does not:
 
 **Keep a web request from becoming a compute bill.** Every number off the
@@ -47,6 +52,8 @@ from phonecase.threemf import (colour_parts, parts_to_3mf,
                                stats as threemf_stats)
 from phonecase.toolpath import build, stats
 
+import ipadcase
+
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "public" / "case.html"
 
@@ -60,6 +67,31 @@ MAX_BODY = 6 << 20
 
 #: Finer than this is invisible under a 0.42 mm line and costs seconds.
 MIN_RES = 0.3
+
+
+#: What there is to make a case for. ``res`` is the default section grid and
+#: ``min_res`` the finest a request may ask for: an iPad back is five times
+#: the area of a phone's, and at the phone's grid a 13-inch case takes long
+#: enough to worry a hosted function's time limit.
+FAMILIES = {
+    "case": dict(devices=PHONES, cases=CASES, default="iphone-15-pro",
+                 res=0.45, min_res=MIN_RES, title="Phone cases", noun="phone", Noun="Phone",
+                 sub="Pick a phone, paint the back with an SVG, print it "
+                     "face down.",
+                 other={"href": "/ipad", "label": "iPad cases"}),
+    "ipad": dict(devices=ipadcase.IPADS, cases=ipadcase.CASES,
+                 default="ipad-11th-gen", res=0.7, min_res=0.45,
+                 title="iPad cases",
+                 noun="iPad", Noun="iPad",
+                 sub="Pick an iPad, paint the back with an SVG, print it "
+                     "face down.",
+                 other={"href": "/case", "label": "Phone cases"}),
+}
+
+
+def family_of(path):
+    """The family a request path is for: /ipad and /api/ipad, or phones."""
+    return FAMILIES["ipad" if "ipad" in path else "case"]
 
 
 def _num(params, key, default, lo, hi):
@@ -109,9 +141,10 @@ def palette_from(params):
     return Palette.parse(entries)
 
 
-def resolve(params):
+def resolve(params, fam=FAMILIES["case"]):
     """Everything the generator needs, from a request body it does not trust."""
-    phone = PHONES[_one_of(params, "phone", PHONES, "iphone-15-pro")]
+    devices = fam["devices"]
+    phone = devices[_one_of(params, "phone", devices, fam["default"])]
 
     # The camera opening is the least certain number in the whole generator
     # -- body sizes are published, this one is not -- so it is the one the
@@ -131,7 +164,7 @@ def resolve(params):
                               cam.get("camera_w", phone.camera_w) / 2,
                               cam.get("camera_h", phone.camera_h) / 2)
         phone = replace(phone, **cam)
-    preset = dict(CASES[_one_of(params, "fit", CASES, "snug")])
+    preset = dict(fam["cases"][_one_of(params, "fit", fam["cases"], "snug")])
 
     for key, attr, lo, hi in (("clearance", "clearance", 0.1, 1.0),
                               ("wall", "wall", 0.8, 4.0),
@@ -142,13 +175,15 @@ def resolve(params):
             preset[attr] = _num(params, key, preset.get(attr, 1.0), lo, hi)
     preset["layer_height"] = _num(params, "layerHeight", 0.2, 0.1, 0.32)
     preset["art_layers"] = int(_num(params, "artLayers", 2, 1, 6))
-    preset["section_res"] = _num(params, "res", 0.45, MIN_RES, 1.2)
+    preset["section_res"] = _num(params, "res", fam["res"], fam["min_res"], 1.2)
 
     spec = CaseSpec(phone, **preset)
-    spec.cutouts = phone.cutouts(back_thickness=spec.back_thickness,
-                                 cavity_depth=spec.cavity_depth,
-                                 clearance=spec.clearance,
-                                 buttons=not _flag(params, "noButtons"))
+    holes = dict(back_thickness=spec.back_thickness,
+                 cavity_depth=spec.cavity_depth, clearance=spec.clearance,
+                 buttons=not _flag(params, "noButtons"))
+    if getattr(phone, "pencil", None) is not None:
+        holes["pencil"] = not _flag(params, "noPencil")
+    spec.cutouts = phone.cutouts(**holes)
 
     printer = PRINTERS[_one_of(params, "printer", PRINTERS, "generic-mmu")]
     filament = FILAMENTS[_one_of(params, "filament", FILAMENTS, "pla")]
@@ -227,18 +262,60 @@ def _camera_report(spec):
     }
 
 
+def _bed_fit(spec, printer):
+    """(solid fits, g-code fits): the two answers to "is the bed big enough".
+
+    They differ, and for an iPad the difference is the whole question. The
+    g-code carries its own purge tower beside the case and a margin round the
+    pair, which is what ``check_case`` measures; a 3MF or an STL goes through
+    a slicer that places its own tower, so it needs only the case itself to
+    fit. An 11-inch iPad case is 253 mm long: no room for this writer's tower
+    on a 256 mm bed, and plenty for Bambu Studio's.
+    """
+    bx, by, bz = printer.bed_x, printer.bed_y, printer.max_z
+    w, l, h = spec.outer_w, spec.outer_l, spec.height
+    solid = h <= bz and ((w <= bx and l <= by) or (l <= bx and w <= by))
+    # Asked with nothing wrong but the bed in play; the rest of the check is
+    # report()'s, with the bed left out.
+    gcode = not any("bed" in p or "z limit" in p for p in
+                    check_case(spec, bed=(bx, by, bz)).problems)
+    return solid, gcode and solid
+
+
+def _is_pencil_noise(msg):
+    """check_case's warnings that are about the Pencil cut doing its job.
+
+    The Pencil stretch is open to the rim on purpose, and being open it
+    bridges nothing, whatever its length says to a check written for windows.
+    """
+    return msg.startswith("pencil ") and ("open at the rim" in msg
+                                          or "unsupported" in msg)
+
+
 def report(r, path, st, tower_cost):
     """The numbers the page prints under the preview."""
-    spec, palette = r["spec"], r["palette"]
-    check = check_case(spec,
-                       bed=(r["printer"].bed_x, r["printer"].bed_y,
-                            r["printer"].max_z),
-                       slots=r["printer"].tools,
+    spec, palette, printer = r["spec"], r["palette"], r["printer"]
+    check = check_case(spec, slots=printer.tools,
                        used_slots=len(r["paint"].raster.used_slots()))
+    problems = list(check.problems)
+    warnings = [w for w in check.warnings if not _is_pencil_noise(w)]
+    solid_fits, gcode_fits = _bed_fit(spec, printer)
+    size = f"{spec.outer_w:.0f} x {spec.outer_l:.0f} mm"
+    bed = f"{printer.bed_x:.0f} x {printer.bed_y:.0f} mm"
+    if not solid_fits:
+        problems.append(f"the case is {size} x {spec.height:.0f} mm tall and "
+                        f"does not fit the {bed} bed of the {printer.name}")
+    elif not gcode_fits:
+        warnings.append(
+            f"the case is {size}: it fits the {bed} bed, but not with the "
+            "purge tower the g-code prints beside it. Take the 3MF and let "
+            "the slicer place its own tower, or pick a bigger printer")
+    ok = not problems
     return {
-        "ok": check.ok,
-        "problems": check.problems,
-        "warnings": list(r["paint"].warnings) + check.warnings,
+        "ok": ok,
+        "gcodeOk": ok and gcode_fits,
+        "problems": problems,
+        "warnings": list(r["paint"].warnings) + warnings,
         "phone": spec.phone.name,
         "size": [round(spec.outer_w, 1), round(spec.outer_l, 1),
                  round(spec.height, 1)],
@@ -273,14 +350,14 @@ def report(r, path, st, tower_cost):
     }
 
 
-def preview(params):
+def preview(params, fam=FAMILIES["case"]):
     """(svg, report): what the back will look like, in about a second.
 
     Only the artwork layers are built. They are the ones that decide what the
     finished back looks like, and the other fifty are five to fifteen seconds
     the page would spend on something nobody can see.
     """
-    r = resolve(params)
+    r = resolve(params, fam)
     path = build(r["spec"], r["paint"], wrap=r["wrap"], skirt=0,
                  test_fit=r["test_fit"],
                  max_layers=r["spec"].art_layers)
@@ -288,9 +365,9 @@ def preview(params):
     return svg, report(r, path, None, None)
 
 
-def gcode(params):
+def gcode(params, fam=FAMILIES["case"]):
     """(bytes, report, content type): the whole case, which is the slow one."""
-    r = resolve(params)
+    r = resolve(params, fam)
     path = build(r["spec"], r["paint"], wrap=r["wrap"], brim=r["brim"],
                  test_fit=r["test_fit"])
     st = stats(r["spec"], path, density=r["filament"].density,
@@ -302,14 +379,14 @@ def gcode(params):
     return text.encode(), report(r, path, st, cost), "text/plain; charset=utf-8"
 
 
-def stl(params):
+def stl(params, fam=FAMILIES["case"]):
     """(bytes, report, content type): the case as a solid.
 
     Geometry only -- an STL has no idea which filament lays down which line,
     so the artwork is not in it. It is here for slicing the case yourself, or
     painting it in your slicer's own colour tool.
     """
-    r = resolve(params)
+    r = resolve(params, fam)
     try:
         solid = build_solid(r["spec"], test_fit=bool(r["test_fit"]))
     except MeshUnavailable as exc:              # not installed on this host
@@ -326,14 +403,14 @@ def stl(params):
     return data, info, "model/stl"
 
 
-def threemf(params):
+def threemf(params, fam=FAMILIES["case"]):
     """(bytes, report, content type): the case as a 3MF, colours and all.
 
     The one export that keeps the artwork: the back plate is cut into inlays,
     one solid per filament, so a slicer opens a single object with a part per
     colour instead of a shape it has to be told about.
     """
-    r = resolve(params)
+    r = resolve(params, fam)
     if r["test_fit"]:
         raise ValueError(
             "a test fit leaves the middle of the back plate unfilled, which "
@@ -358,26 +435,30 @@ def threemf(params):
     return data, info, "model/3mf"
 
 
-def catalogue():
+def catalogue(fam=FAMILIES["case"]):
     """Everything the form's menus are made of, from the generator itself.
 
     The page does not carry its own copy of the phone list. Adding a phone to
-    src/phonecase/spec.py puts it in the menu.
+    src/phonecase/spec.py, or an iPad to src/ipadcase.py, puts it in the menu.
     """
     return {
         "ok": True,
         "provenance": PROVENANCE,
+        # What the page calls itself, so /case and /ipad can be one page.
+        "family": {k: fam[k] for k in ("title", "noun", "Noun", "sub",
+                                       "default", "other", "res")},
         # Each phone ships its camera defaults so the form can start from
         # them and put them back when you change phone.
         "phones": [{"id": k, "name": v.name,
                     "size": [v.length, v.width, v.thickness],
+                    "pencil": getattr(v, "pencil", None) is not None,
                     "camera": {"style": v.camera_style, "lenses": v.lenses,
                                "w": v.camera_w, "h": v.camera_h,
                                "r": v.camera_r,
                                "marginTop": v.camera_margin_top,
                                "marginSide": v.camera_margin_side}}
-                   for k, v in PHONES.items()],
-        "cases": [{"id": k, **v} for k, v in CASES.items()],
+                   for k, v in fam["devices"].items()],
+        "cases": [{"id": k, **v} for k, v in fam["cases"].items()],
         "printers": [{"id": k, "name": v.name, "tools": v.tools,
                       "bed": [v.bed_x, v.bed_y]} for k, v in PRINTERS.items()],
         "filaments": [{"id": k, "purge": v.purge_mm3, "nozzle": v.nozzle_temp}
@@ -407,11 +488,11 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?")[0]
-        if path in ("/", "/case", "/case.html"):
+        if path in ("/", "/case", "/case.html", "/ipad"):
             return self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
-        if path in ("/api/case", "/case.json"):
+        if path in ("/api/case", "/case.json", "/api/ipad"):
             try:
-                return self._json(200, catalogue())
+                return self._json(200, catalogue(family_of(path)))
             except Exception as exc:             # say what broke, not just 500
                 return self._json(500, {"ok": False, "error": repr(exc)})
         if path == "/example-art.svg":
@@ -420,8 +501,10 @@ class Handler(BaseHTTPRequestHandler):
         self._send(404, b"not found", "text/plain")
 
     def do_POST(self):
-        if self.path.split("?")[0] not in ("/api/case", "/case.json"):
+        path = self.path.split("?")[0]
+        if path not in ("/api/case", "/case.json", "/api/ipad"):
             return self._send(404, b"not found", "text/plain")
+        fam = family_of(path)
         length = int(self.headers.get("Content-Length") or 0)
         if length > MAX_BODY:
             return self._json(413, {"error": f"request is {length / 1e6:.1f} MB; "
@@ -434,13 +517,13 @@ class Handler(BaseHTTPRequestHandler):
             want = params.get("want")
             want_file = want in ("gcode", "stl", "3mf")
             if want == "gcode":
-                data, info, ctype = gcode(params)
+                data, info, ctype = gcode(params, fam)
             elif want == "stl":
-                data, info, ctype = stl(params)
+                data, info, ctype = stl(params, fam)
             elif want == "3mf":
-                data, info, ctype = threemf(params)
+                data, info, ctype = threemf(params, fam)
             else:
-                svg, info = preview(params)
+                svg, info = preview(params, fam)
                 data, ctype = json.dumps({"svg": svg, "report": info}).encode(), \
                     "application/json"
         except ValueError as exc:                # a bad SVG or a bad number
@@ -463,7 +546,8 @@ class Handler(BaseHTTPRequestHandler):
 def serve(host="127.0.0.1", port=8766, open_browser=True):
     httpd = ThreadingHTTPServer((host, port), Handler)
     url = f"http://{host}:{port}"
-    print(f"phone case generator on {url}  (ctrl-c to stop)")
+    print(f"phone case generator on {url}, iPads on {url}/ipad  "
+          "(ctrl-c to stop)")
     if open_browser:
         threading.Timer(0.5, webbrowser.open, [url]).start()
     try:

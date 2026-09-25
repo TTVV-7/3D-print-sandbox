@@ -375,14 +375,15 @@
 <body>
 <aside>
   <div>
-    <div class="nav"><a href="/">&larr; The other generator</a></div>
-    <h1>Phone cases</h1>
-    <p class="sub">Pick a phone, paint the back with an SVG, print it face down.</p>
+    <div class="nav"><a href="/">&larr; The other generator</a>
+      &middot; <a id="otherfam" href="/ipad">iPad cases</a></div>
+    <h1 id="famtitle">Phone cases</h1>
+    <p class="sub" id="famsub">Pick a phone, paint the back with an SVG, print it face down.</p>
   </div>
 
   <section class="fold" data-fold="phone">
     <button type="button" class="foldhead" aria-expanded="false">
-      <span class="foldtitle">1 &middot; Phone</span>
+      <span class="foldtitle">1 &middot; <span class="Noun">Phone</span></span>
       <span class="foldsum" id="sum-phone"></span>
       <svg class="chev" viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg>
     </button>
@@ -396,9 +397,11 @@
         </button>
         <div><p class="hint">Body sizes are published specs. <b>The camera openings
           and the button positions are estimates</b> and have not been measured
-          against a real phone. Print the test fit below before you trust them.</p></div>
+          against a real <span class="noun">phone</span>. Print the test fit below before you trust them.</p></div>
       </div>
     </div>
+    <label class="check" id="pencilrow" hidden><input type="checkbox" id="pencil" checked><span>Open the
+      wall where the Pencil charges</span></label>
     <div class="field">
       <span>Fit</span>
       <div class="tiles" id="fits"></div>
@@ -428,7 +431,7 @@
         </button>
         <div><p class="hint">This is the least certain number in the
           generator. Body sizes are published specs; camera openings are not,
-          and nothing here has been measured against a real phone. Put a
+          and nothing here has been measured against a real <span class="noun">phone</span>. Put a
           ruler on yours and type it in &mdash; the preview redraws, and the
           line above is the command line that reproduces it. A plateau is
           centred, so only the top margin places it.</p></div>
@@ -626,7 +629,7 @@
 <main>
   <div id="view">
     <div id="preview"></div>
-    <div id="empty">Pick a phone and drop in an SVG. The preview is the real
+    <div id="empty">Pick <span class="noun-a">a phone</span> and drop in an SVG. The preview is the real
       first-layer toolpath, shown the way you will hold the finished case.</div>
     <div id="building" hidden>
       <div class="loader">
@@ -644,7 +647,9 @@
 
 <script>
 "use strict";
-/* The page talks to /api/case, which is src/case_app.py whether that is a
+/* The page talks to /api/case -- or /api/ipad, when it is served as /ipad:
+   the same page, with a different table of devices behind it -- which is
+   src/case_app.py whether that is a
    Vercel function or `python3 src/case_app.py` on this machine.  Two calls:
    a preview, which builds only the artwork layers and comes back in about a
    second, and a download, which builds the whole case and takes five to
@@ -652,6 +657,7 @@
    so adding a phone to src/phonecase/spec.py puts it in the list here. */
 
 const $ = id => document.getElementById(id);
+const API = /\/ipad\/?$/.test(location.pathname) ? "/api/ipad" : "/api/case";
 const MAX_ART = 4 << 20;                       // the reader's own limit, mirrored
 
 let catalogue = null;
@@ -673,7 +679,7 @@ function fitTiles(cases) {
     snug: "The default",
     slim: "Faster, thinner, protects less",
     rugged: "Thicker wall, taller lip",
-    test: "Loose, for an unfamiliar phone",
+    test: "Loose, for one you have not measured",
   };
   $("fits").innerHTML = cases.map((c, i) => `
     <button type="button" class="tile" data-fit="${c.id}" aria-pressed="${i === 0}">
@@ -746,6 +752,7 @@ function params(extra) {
     wrap: $("wrap").checked,
     noMirror: $("noMirror").checked,
     testFit: $("testFit").checked,
+    noPencil: !$("pencil").checked,
   }, extra || {});
 }
 
@@ -761,7 +768,7 @@ async function rebuild() {
   const mine = ++seq;
   $("building").hidden = false;
   try {
-    const res = await fetch("/api/case", {
+    const res = await fetch(API, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params()),
     });
@@ -836,11 +843,22 @@ function readout(r) {
   if (r.testFit) notes.push(`<p class="warn">Test fit: back plate reduced to a
     ${r.testFit} mm rim, artwork off.</p>`);
   $("notes").innerHTML = notes.join("");
-  $("save").disabled = !r.ok;
-  $("savestl").disabled = $("save3mf").disabled = !r.ok || !!r.testFit;
+  const gcodeOk = saveState(r);
   $("savenote").textContent = !r.ok ? "Fix what is in red first."
+    : r.testFit && !gcodeOk ? "A test fit is g-code only, and the g-code does not fit this bed."
     : r.testFit ? "A test fit is g-code only — see the note below."
+    : !gcodeOk ? "Too big for g-code with its purge tower here; the 3MF fits."
     : "G-code prints as is; 3MF keeps the colours; STL is the shape alone.";
+}
+
+/* Which downloads this report allows.  G-code has a purge tower to fit on
+   the bed beside the case and a solid does not, so on a big iPad they can
+   disagree.  Returns whether the g-code can be had. */
+function saveState(r) {
+  const gcodeOk = r.gcodeOk === undefined ? r.ok : r.gcodeOk;
+  $("save").disabled = !gcodeOk;
+  $("savestl").disabled = $("save3mf").disabled = !r.ok || !!r.testFit;
+  return gcodeOk;
 }
 
 /* ---- the download ----------------------------------------------------- */
@@ -852,7 +870,7 @@ async function download(want) {
     ? "Building the whole case…" : "Building the solid…";
   $("building").hidden = false;
   try {
-    const res = await fetch("/api/case", {
+    const res = await fetch(API, {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(params({ want, gzip: true })),
     });
@@ -885,10 +903,8 @@ async function download(want) {
     $("savenote").textContent = String(exc.message || exc);
   } finally {
     $("building").hidden = true;
-    buttons.forEach(b => b.disabled = false);
-    if ($("testFit").checked) {
-      $("savestl").disabled = $("save3mf").disabled = true;
-    }
+    if (lastReport) saveState(lastReport);      // put back what the report allows
+    else buttons.forEach(b => b.disabled = false);
   }
 }
 
@@ -1152,17 +1168,47 @@ document.querySelectorAll('input[type=range]').forEach(r => {
   show();
 });
 
-$("phone").addEventListener("change", () => { cameraDefaults(); refresh(); });
+$("phone").addEventListener("change", () => { cameraDefaults(); pencilRow(); refresh(); });
 ["printer", "filament", "layerHeight", "artLayers", "artFit", "base"]
   .forEach(id => $(id).addEventListener("change", refresh));
-["wrap", "noMirror", "testFit"].forEach(id => $(id).addEventListener("change", refresh));
+["wrap", "noMirror", "testFit", "pencil"].forEach(id => $(id).addEventListener("change", refresh));
 $("palette").addEventListener("change", () => { setPalette($("palette").value); refresh(); });
 
+/* Only iPads with Pencil magnets in the edge get the switch. */
+function pencilRow() {
+  const dev = (catalogue.phones || []).find(p => p.id === $("phone").value);
+  $("pencilrow").hidden = !(dev && dev.pencil);
+}
+
+/* One page, two families: what it calls itself comes from the server. */
+function family(f) {
+  if (!f) return;
+  document.title = f.title;
+  $("famtitle").textContent = f.title;
+  $("famsub").textContent = f.sub;
+  $("otherfam").href = f.other.href;
+  $("otherfam").textContent = f.other.label;
+  document.querySelectorAll(".noun").forEach(e => e.textContent = f.noun);
+  document.querySelectorAll(".Noun").forEach(e => e.textContent = f.Noun);
+  document.querySelectorAll(".noun-a").forEach(e =>
+    e.textContent = (/^[aeiou]/i.test(f.noun) ? "an " : "a ") + f.noun);
+  // A tablet's back is five times a phone's, and so is the time to build
+  // it: start an iPad on the coarser grid.
+  if (f.res) {
+    const btns = [...$("res").querySelectorAll("button")];
+    const near = btns.reduce((a, b) =>
+      Math.abs(b.dataset.res - f.res) < Math.abs(a.dataset.res - f.res) ? b : a);
+    btns.forEach(b => b.setAttribute("aria-pressed", String(b === near)));
+  }
+}
+
 (async function start() {
-  const res = await fetch("/api/case");
+  const res = await fetch(API);
   catalogue = await res.json();
+  family(catalogue.family);
   fillSelect($("phone"), catalogue.phones.map(p => ({ id: p.id, label: p.name })),
-             "iphone-15-pro");
+             catalogue.family ? catalogue.family.default : "iphone-15-pro");
+  pencilRow();
   fillSelect($("printer"), catalogue.printers.map(p =>
     ({ id: p.id, label: `${p.name} (${p.tools} slots)` })), "bambu-p1s-ams");
   fillSelect($("filament"), catalogue.filaments.map(f => ({ id: f.id, label: f.id })), "pla");
