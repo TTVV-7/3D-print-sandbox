@@ -896,11 +896,39 @@ inlaid, because it prints face down and raised letters there would need
 supports.  So the colour changes are all in the first three layers (the back)
 and the last three (the front), with plain body in between.
 
-**Material.**  PETG for a hanging tag: stiff, and it does not soften in a hot
-car the way PLA does.  TPU for a slide-on: it bends with the collar and cannot
-shatter.  Soft TPU on a hanging tag is easy for a dog to chew pieces off, so
-keep it to the slide-on.  None of this has been printed and tested on a real
+**Material, per colour.**  Each colour picks its own material, so TPU and
+PETG can share one print.  A hanging tag starts all PETG: stiff, and it does not
+soften in a hot car the way PLA does.  A slide-on starts with a TPU body, which
+bends with the collar and cannot shatter, and PETG lettering, which holds a
+crisper edge.  Soft TPU on a hanging tag is easy for a dog to chew pieces off,
+so keep it to the slide-on.  TPU and PETG bond to each other less well than
+either bonds to itself; the letters sit in pockets, so they are held in by the
+shape as well as the bond.  None of this has been printed and tested on a real
 collar yet.  Print one, clip it on and pull on the tab before selling any.
+
+**Supports: none, on purpose.**  The tag prints flat on its back with nothing
+overhanging.  The back lettering is inlaid, not raised, for exactly this reason.
+Supports would only leave marks on the face they touch, so the 3MF turns them
+off.
+
+**The 3MF is ready to print.**  Each tag is one object, and each colour is a
+part of it already assigned to its own filament.  Every distinct spool is one
+filament, numbered in slot order, so two colours from the same spool share one.
+The filaments' colours, materials (`TPU`, `PETG`) and names (`"Blue TPU 95A"`)
+are in the file's project settings, and supports are off.  Tested in PrusaSlicer
+2.7: it opens as one object with the parts on the right filaments, and slices
+with the tool changes only in the first and last layers.  It is written the way
+PrusaSlicer writes its own 3MFs (`Metadata/Slic3r_PE_model.config`), which the
+Orca family, Snapmaker's slicer included, also reads when it opens one.
+**That last step has not been tried here.**  Open one in the Snapmaker slicer
+and check each part's filament before the first print.  If they have all landed
+on filament 1, right-click each part to set it; the parts are named after their
+spools.  The purge, a prime tower or none on a toolchanger, is left to the
+printer profile.
+
+The other shapes' 3MFs still put each colour in as a separate *component*.
+PrusaSlicer reads those as separate objects and drops the lettering on the bed
+beside the part.
 
 **Batches.**  One pet per line in the batch box: `name, phone, extra line,
 link`.  Only the name is needed; anything a line leaves out comes from the
@@ -911,10 +939,10 @@ boxes above, so a litter with one owner is just the names.
 `public/filaments.json` is the list of filament you actually have: a name, a
 hex colour for the preview, a material and whether it is in stock.  The app
 reads it and shows, for every shape, one row of chips per colour the part
-uses, drawn from the spools of the chosen material -- so a design can only be
-made in colours you can print, and the readout names which spool goes in
-which slot.  Change material and each colour moves to the nearest spool in
-the new one.  The exact colour pickers are still underneath, for anything the
+uses: a material for that colour, then a chip for each spool of it.  So a
+design can only be made in colours you can print, and the readout names which
+spool goes in which slot.  *Every colour in* sets all the rows to one material.
+Changing a row's material moves its colour to the nearest spool in the new one.  The exact colour pickers are still underneath, for anything the
 shelf does not have.
 
 ```json

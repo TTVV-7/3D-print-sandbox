@@ -1070,6 +1070,118 @@ def export_3mf(parts, colours=COLOURS, gap=6.0, row_w=None):
     return buf.getvalue()
 
 
+def export_3mf_tools(parts, filaments, gap=6.0, row_w=None):
+    """The parts as a 3MF a slicer opens ready to print: one object per part,
+    one volume per colour slot, and each volume already on its own filament.
+
+    `filaments` is one dict per slot in SLOTS order -- hex, material, name --
+    and every distinct (material, colour) the parts use becomes one extruder,
+    numbered in slot order.  So a TPU tag with PETG lettering comes out as two
+    filaments, and two slots that use the same spool share one.
+
+    export_3mf() above writes each slot as a *component*, which a slicer is
+    free to read as separate objects -- PrusaSlicer does, and drops the
+    lettering on the bed beside the tag.  This writes what PrusaSlicer writes
+    itself: each part is one mesh, the slots are ranges of its triangles, and
+    Metadata/Slic3r_PE_model.config names each range's extruder.  The
+    filaments' colours and materials go in Metadata/Slic3r_PE.config, the
+    project settings, which is also where the slicer learns there is more
+    than one of them.  The Orca family of slicers -- Snapmaker's among them --
+    reads both files when it opens a PrusaSlicer 3MF.
+    """
+    import io
+    import zipfile
+    from xml.sax.saxutils import quoteattr
+
+    used = [s for s in SLOTS if any(s in part["slots"] for part in parts)]
+    tools, extruder = [], {}
+    for slot in used:
+        f = filaments[SLOTS.index(slot)]
+        key = (f["material"], f["hex"].lower())
+        if key not in [(t["material"], t["hex"].lower()) for t in tools]:
+            tools.append(f)
+        extruder[slot] = 1 + [(t["material"], t["hex"].lower()) for t in tools].index(key)
+
+    objects, items, configs = [], [], []
+    for oid, (part, (dx, dy, dz)) in enumerate(layout(parts, gap, row_w), start=1):
+        label = " ".join(x for x in (part.get("label", ""), part["name"]) if x) or "part"
+        verts, tris, volumes, nv, nt = [], [], [], 0, 0
+        for slot in SLOTS:
+            mesh = part["slots"].get(slot)
+            if mesh is None:
+                continue
+            verts.append("".join(f'<vertex x="{x:.4f}" y="{y:.4f}" z="{z:.4f}"/>'
+                                 for x, y, z in mesh.vertices))
+            tris.append("".join(f'<triangle v1="{a + nv}" v2="{b + nv}" v3="{c + nv}"/>'
+                                for a, b, c in mesh.faces))
+            f = filaments[SLOTS.index(slot)]
+            name = f"{slot} - {f.get('name') or f['hex']} {f['material']}"
+            volumes.append(
+                f' <volume firstid="{nt}" lastid="{nt + len(mesh.faces) - 1}">\n'
+                f'  <metadata type="volume" key="name" value={quoteattr(name)}/>\n'
+                f'  <metadata type="volume" key="volume_type" value="ModelPart"/>\n'
+                f'  <metadata type="volume" key="extruder" value="{extruder[slot]}"/>\n'
+                f' </volume>\n')
+            nv += len(mesh.vertices)
+            nt += len(mesh.faces)
+        objects.append(f'<object id="{oid}" type="model" name={quoteattr(label)}>'
+                       f'<mesh><vertices>{"".join(verts)}</vertices>'
+                       f'<triangles>{"".join(tris)}</triangles></mesh></object>')
+        items.append(f'<item objectid="{oid}" '
+                     f'transform="1 0 0 0 1 0 0 0 1 {dx:.4f} {dy:.4f} {dz:.4f}"/>')
+        configs.append(f'<object id="{oid}" instances_count="1">\n'
+                       f' <metadata type="object" key="name" value={quoteattr(label)}/>\n'
+                       f' <metadata type="object" key="extruder" value="1"/>\n'
+                       + "".join(volumes) + '</object>\n')
+
+    model = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<model unit="millimeter" xml:lang="en-US" '
+        'xmlns="http://schemas.microsoft.com/3dmanufacturing/core/2015/02" '
+        'xmlns:slic3rpe="http://schemas.slic3r.org/3mf/2017/06">'
+        '<metadata name="slic3rpe:Version3mf">1</metadata>'
+        f'<resources>{"".join(objects)}</resources>'
+        f'<build>{"".join(items)}</build></model>')
+    model_config = ('<?xml version="1.0" encoding="UTF-8"?>\n<config>\n'
+                    + "".join(configs) + '</config>\n')
+    colours = ";".join(t["hex"].upper() for t in tools)
+    project = "".join(f"; {k} = {v}\n" for k, v in (
+        ("extruder_colour", colours),
+        ("filament_colour", colours),
+        ("filament_type", ";".join(t["material"].split()[0].upper() for t in tools)),
+        ("filament_settings_id", ";".join(
+            f'"{t.get("name") or t["hex"]} {t["material"]}"' for t in tools)),
+        # Flat, face down, nothing overhanging: supports would only scar the
+        # face they touch.
+        # The purge -- a prime tower, or none on a toolchanger -- is the
+        # printer profile's business, and forcing one clashes with profiles
+        # that address the extruder absolutely.
+        ("support_material", 0),
+    ))
+    types = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
+        '<Default Extension="model" ContentType="application/vnd.ms-package.3dmanufacturing-3dmodel+xml"/>'
+        '<Default Extension="config" ContentType="text/plain"/>'
+        '</Types>')
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        '<Relationship Target="/3D/3dmodel.model" Id="rel0" '
+        'Type="http://schemas.microsoft.com/3dmanufacturing/2013/01/3dmodel"/>'
+        '</Relationships>')
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        z.writestr("[Content_Types].xml", types)
+        z.writestr("_rels/.rels", rels)
+        z.writestr("3D/3dmodel.model", model)
+        z.writestr("Metadata/Slic3r_PE_model.config", model_config)
+        z.writestr("Metadata/Slic3r_PE.config", project)
+    return buf.getvalue()
+
+
 def flatten(polys):
     out = []
     for p in polys:

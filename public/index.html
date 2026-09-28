@@ -136,6 +136,12 @@
   .spool-row { display: flex; flex-direction: column; gap: var(--space-100); }
   .spool-row > span { font-size: 13px; color: var(--text-secondary); }
   .spool-row > span b { font-weight: 600; color: var(--text-default); }
+  .spool-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-200); }
+  .spool-head > span { font-size: 13px; color: var(--text-secondary); }
+  .spool-head > span b { font-weight: 600; color: var(--text-default); }
+  .spool-head select { width: auto; min-height: 0; padding: 2px 28px 2px 8px; font-size: 13px; }
+  .warn-note { margin: 0; font-size: 13px; line-height: 1.4; color: var(--text-secondary);
+    border-left: 3px solid var(--brand); padding-left: var(--space-300); }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; }
   .chip { width: 28px; height: 28px; padding: 0; border-radius: var(--radius-full); cursor: pointer;
     border: 1px solid var(--border-secondary); box-shadow: inset 0 0 0 2px var(--bg-default); }
@@ -628,12 +634,17 @@
       <select id="look"></select>
     </label>
     <div class="field" id="spool_field" hidden><span>Colours from the shelf</span>
-      <label class="field"><select id="material"></select></label>
+      <label class="field spool-all"><span>Every colour in</span><select id="material"></select></label>
       <div class="spools" id="spools"></div>
     </div>
+    <p class="warn-note" id="mix_note" hidden>Two materials in one print: each goes on its own
+       head, and the 3MF says which. TPU and PETG bond to each other, but not as well as
+       either bonds to itself &mdash; the letters are locked into pockets, so they hold anyway.</p>
     <p class="hint" id="spool_note">These are the spools in <code>public/filaments.json</code> &mdash; the
-       colours that can actually be printed. Pick a material, then a spool for each colour the part
-       uses. Edit that file when a spool arrives or runs out.</p>
+       colours that can actually be printed. Each colour picks its own material and then its spool,
+       so a TPU tag can carry PETG lettering; <em>Every colour in</em> sets them all at once. The 3MF
+       puts each colour on its own filament, with the colour and material named, so the slicer opens
+       it ready to print. Edit the file when a spool arrives or runs out.</p>
     <div class="field"><span id="exact_label">Colours</span>
       <div class="swatches">
         <label data-light="c0"><input type="color" id="c0" value="#141414">Body</label>
@@ -1519,7 +1530,7 @@ function wordReadout(line) {
 /* A pet tag is read by a stranger at arm's length, so what matters is how big
    the phone number came out -- and what it weighs, which is what it costs. */
 function petReadout(line) {
-  const grams = info.volume * (spoolMaterial().startsWith("TPU") ? 1.21 : 1.27);
+  const grams = info.volume * (spoolMaterial("c0").startsWith("TPU") ? 1.21 : 1.27);
   const faces = info.colour_bands.length;
   specs.innerHTML = [
     info.batch ? line("batch", `${info.batch} tags`) : "",
@@ -1537,8 +1548,7 @@ function petReadout(line) {
                     (info.rise ? ` and the ${mm(info.rise)} mm of raised letters` : "")),
     info.nozzle ? line("finest stroke", `${mm(info.stroke)} mm`) : "",
     SPOOLS.length ? line("load", slotRows().map(([id, l]) =>
-      `${l.toLowerCase()} ${spoolName($(id).value) || $(id).value}`).join(", ") +
-      ` (${spoolMaterial()})`) : "",
+      `${l.toLowerCase()} ${spoolName(id) || $(id).value} ${slotMat[id]}`).join(", ")) : "",
     info.thin.includes("phone number")
       ? `<span class="warn">phone number under 3.5 mm &mdash; hard to read on a moving dog. A bigger
          tag, a shorter extra line, or split the number yourself with a |.</span>` : "",
@@ -1630,6 +1640,7 @@ function formParams() {
   params.logo = logoText;
   params.design = ["stencil", "sign"].includes($("kind").value) ? stencilSvg : designText;
   params.colours = COLOURS.map(id => $(id).value);
+  params.filaments = filamentParams();
   return params;
 }
 
@@ -1778,9 +1789,12 @@ document.querySelectorAll("p.hint").forEach((hint, i) => {
 /* ------------------------------------------------------------ the spools --
    public/filaments.json is the shelf: every spool, its material and whether
    it is in stock.  The chips set the same four colour inputs the exact
-   pickers do, so the preview, the 3MF and everything else carry on as they
-   were; the chips only narrow what is offered to what can be printed. */
+   pickers do, so the preview and everything else carry on as they were; the
+   chips narrow what is offered to what can be printed, and each colour
+   carries its own material -- a TPU tag with PETG lettering is one print on a
+   multi-material machine, and the 3MF says which filament is which. */
 let SPOOLS = [];
+const slotMat = { c0: "", c1: "", c2: "", c3: "" };
 const SLOT_LABELS = {
   fob:     [["c0", "Body"], ["c1", "Pattern"], ["c2", "Primary"], ["c3", "Secondary"]],
   name:    [["c0", "Outline"], ["c2", "Letters"]],
@@ -1788,12 +1802,12 @@ const SLOT_LABELS = {
   stencil: [["c0", "Plate"]],
   sign:    [["c0", "Case"], ["c2", "Letters and diffuser"]],
 };
-const spoolMaterial = () => $("material").value || "";
+const spoolMaterial = (id = "c0") => slotMat[id] || "";
 const hexDist = (a, b) => rgb(a).reduce((t, v, i) => t + (v - rgb(b)[i]) ** 2, 0);
-const spoolName = hex => {
-  const s = SPOOLS.find(x => x.material === spoolMaterial() && x.hex.toLowerCase() === hex.toLowerCase());
-  return s ? s.name : null;
-};
+const spoolOf = id => SPOOLS.find(x => x.material === slotMat[id] &&
+                                       x.hex.toLowerCase() === $(id).value.toLowerCase());
+const spoolName = id => (spoolOf(id) || {}).name || null;
+const materials = () => [...new Set(SPOOLS.map(x => x.material))];
 
 function slotRows() {
   const kind = $("kind").value;
@@ -1808,27 +1822,45 @@ function slotRows() {
   return rows;
 }
 
-/* Draw one row of chips per colour the part uses.  Changing material moves
-   each colour to the nearest spool in the new material, so a navy tag in
-   PETG stays as navy as the TPU shelf allows. */
+/* What the 3MF is told about each slot: colour, material, spool name. */
+const filamentParams = () => COLOURS.map(id => ({
+  hex: $(id).value, material: slotMat[id] || "PETG", name: spoolName(id) || "" }));
+
+/* Move a colour to the nearest spool of its material, so switching a navy
+   tag from PETG to TPU keeps it as navy as the TPU shelf allows. */
+function snapTo(id) {
+  const have = SPOOLS.filter(x => x.material === slotMat[id]);
+  if (!have.length || spoolOf(id)) return;
+  $(id).value = have.reduce((a, b) =>
+    hexDist(a.hex, $(id).value) <= hexDist(b.hex, $(id).value) ? a : b).hex;
+}
+
+/* One row per colour the part uses: its own material, then a chip per spool
+   of that material. */
 function spoolsChosen(snap) {
   if (!SPOOLS.length) return;
-  const have = SPOOLS.filter(x => x.material === spoolMaterial());
   const box = $("spools");
   box.replaceChildren();
   for (const [id, label] of slotRows()) {
-    if (snap && have.length && !spoolName($(id).value)) {
-      const near = have.reduce((a, b) => hexDist(a.hex, $(id).value) <= hexDist(b.hex, $(id).value) ? a : b);
-      $(id).value = near.hex;
-    }
+    if (snap) snapTo(id);
     const row = document.createElement("div");
     row.className = "spool-row";
     row.dataset.light = id;
-    const name = spoolName($(id).value);
-    row.innerHTML = `<span>${label}: <b>${name || "not a spool on the shelf"}</b></span>`;
+    const head = document.createElement("div");
+    head.className = "spool-head";
+    head.innerHTML = `<span>${label}: <b>${spoolName(id) || "not a spool on the shelf"}</b></span>`;
+    const mat = document.createElement("select");
+    mat.setAttribute("aria-label", `${label} material`);
+    mat.innerHTML = materials().map(m => `<option${m === slotMat[id] ? " selected" : ""}>${m}</option>`).join("");
+    mat.addEventListener("change", () => {
+      slotMat[id] = mat.value;
+      $("material").value = "";
+      spoolsChosen(true);
+    });
+    head.append(mat);
     const chips = document.createElement("div");
     chips.className = "chips";
-    for (const sp of have) {
+    for (const sp of SPOOLS.filter(x => x.material === slotMat[id])) {
       const b = document.createElement("button");
       b.type = "button";
       b.className = "chip";
@@ -1843,9 +1875,11 @@ function spoolsChosen(snap) {
       });
       chips.append(b);
     }
-    row.append(chips);
+    row.append(head, chips);
     box.append(row);
   }
+  const mixed = new Set(slotRows().map(([id]) => slotMat[id])).size > 1;
+  $("mix_note").hidden = !mixed;
   if (snap) recolour();
   if (info && info.kind === "pet") readout();       // it names the spools to load
 }
@@ -1854,26 +1888,37 @@ fetch("/filaments.json").then(r => r.ok ? r.json() : null).then(shelf => {
   if (!shelf || !Array.isArray(shelf.spools)) return;
   SPOOLS = shelf.spools.filter(x => x.stock !== false && /^#[0-9a-f]{6}$/i.test(x.hex || ""));
   if (!SPOOLS.length) return;
-  const materials = [...new Set(SPOOLS.map(x => x.material))];
-  $("material").innerHTML = materials.map(m => `<option>${m}</option>`).join("");
+  $("material").innerHTML = `<option value="">Mixed</option>` +
+    materials().map(m => `<option>${m}</option>`).join("");
   $("spool_field").hidden = false;
   $("exact_label").textContent = "Exact colours";
   materialFor();
 }).catch(() => {});
 
-/* The material a shape wants by default: PETG for a hanging tag, TPU for a
-   slide-on one, PLA for everything else -- whichever of those is on the shelf. */
-function materialFor() {
-  if (!SPOOLS.length) return;
-  const kind = $("kind").value;
-  const want = kind !== "pet" ? ["PLA"] : $("pet_style").value === "slide"
-    ? ["TPU 95A", "TPU", "PETG"] : ["PETG", "PLA"];
-  const opts = [...$("material").options].map(o => o.value);
-  const pick = want.find(m => opts.includes(m));
-  if (pick) $("material").value = pick;
+/* Every colour in one material. */
+function allIn(m) {
+  for (const id of COLOURS) slotMat[id] = m;
+  $("material").value = m;
   spoolsChosen(true);
 }
-$("material").addEventListener("change", () => spoolsChosen(true));
+
+/* The material a shape starts in: PETG for a hanging tag, a TPU body with
+   PETG lettering for a slide-on one -- the TPU bends with the collar, and
+   PETG holds a crisper edge in the letters -- PLA for everything else. */
+function materialFor() {
+  if (!SPOOLS.length) return;
+  const have = materials();
+  const first = (...want) => want.find(m => have.includes(m)) || have[0];
+  const kind = $("kind").value;
+  if (kind === "pet" && $("pet_style").value === "slide") {
+    const tpu = first("TPU 95A", "TPU", "PETG"), petg = first("PETG", "PLA");
+    for (const id of COLOURS) slotMat[id] = petg;
+    slotMat.c0 = tpu;
+    $("material").value = tpu === petg ? tpu : "";
+    spoolsChosen(true);
+  } else allIn(kind === "pet" ? first("PETG", "PLA") : first("PLA"));
+}
+$("material").addEventListener("change", () => { if ($("material").value) allIn($("material").value); });
 for (const id of COLOURS) $(id).addEventListener("input", () => spoolsChosen());
 
 /* ------------------------------------------------------------- pet tags -- */

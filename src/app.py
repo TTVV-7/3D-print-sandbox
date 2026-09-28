@@ -87,6 +87,26 @@ def palette(params):
                  for c, d in zip(list(given) + [None] * 4, cards.COLOURS))
 
 
+MATERIAL = re.compile(r"[A-Za-z0-9][A-Za-z0-9 +._-]{0,23}$")
+
+
+def filaments(params, colours):
+    """One filament per colour slot -- its colour, material and spool name --
+    from the page's spool pickers.  The colour is the palette's, so it is
+    always a real hex; a material or a name that is not plain short text falls
+    back rather than going into the 3MF's XML and config as given."""
+    given = params.get("filaments") or []
+    out = []
+    for i, hexc in enumerate(colours):
+        f = given[i] if i < len(given) and isinstance(given[i], dict) else {}
+        material = f.get("material") if isinstance(f.get("material"), str) else ""
+        name = f.get("name") if isinstance(f.get("name"), str) else ""
+        out.append(dict(hex=hexc,
+                        material=material if MATERIAL.match(material) else "PETG",
+                        name=name if MATERIAL.match(name) else ""))
+    return out
+
+
 def preview(parts, info, row_w):
     """(bytes, description): every slot of every part, one after another in
     a binary STL, each in its own coordinates, plus where each goes -- its
@@ -349,6 +369,11 @@ def _finish(params, parts, info, num):
     colours = palette(params)
     row_w = num("bed", 220.0) if params.get("batch") else None
     if params.get("format") == "3mf":
+        if params.get("kind") == "pet":
+            # Each slot on its own filament, colours and materials named, so
+            # a TPU tag with PETG lettering opens ready to slice as one print.
+            return (cards.export_3mf_tools(parts, filaments(params, colours), row_w=row_w),
+                    info, "model/3mf")
         return cards.export_3mf(parts, colours, row_w=row_w), info, "model/3mf"
     if params.get("format") == "stl":
         return cards.plate(parts, row_w=row_w).export(file_type="stl"), info, "model/stl"
