@@ -1,0 +1,23 @@
+{
+  "about": "The spools you have. The colour pickers on the page offer these and nothing else, so a customer can only design in colours you can print. Edit this file when a spool arrives or runs out: set \"stock\" to false to hide a colour without losing its entry. \"hex\" is what the preview paints it; match it to the real spool by eye, not to the name on the box. These entries are a starting list, not your shelf -- replace them.",
+  "spools": [
+    { "name": "Black",        "hex": "#1b1b1d", "material": "PETG",    "stock": true },
+    { "name": "White",        "hex": "#f4f4f1", "material": "PETG",    "stock": true },
+    { "name": "Navy",         "hex": "#1f3a5f", "material": "PETG",    "stock": true },
+    { "name": "Red",          "hex": "#c8252c", "material": "PETG",    "stock": true },
+    { "name": "Orange",       "hex": "#f07c1b", "material": "PETG",    "stock": true },
+    { "name": "Yellow",       "hex": "#f2c14e", "material": "PETG",    "stock": true },
+    { "name": "Green",        "hex": "#2e8b57", "material": "PETG",    "stock": true },
+    { "name": "Sky blue",     "hex": "#5aa9e6", "material": "PETG",    "stock": true },
+    { "name": "Pink",         "hex": "#ef8fb4", "material": "PETG",    "stock": true },
+    { "name": "Purple",       "hex": "#6c4ab6", "material": "PETG",    "stock": true },
+    { "name": "Black",        "hex": "#1e1e20", "material": "TPU 95A", "stock": true },
+    { "name": "White",        "hex": "#efefea", "material": "TPU 95A", "stock": true },
+    { "name": "Red",          "hex": "#c42a30", "material": "TPU 95A", "stock": true },
+    { "name": "Blue",         "hex": "#2856a3", "material": "TPU 95A", "stock": true },
+    { "name": "Black",        "hex": "#141414", "material": "PLA",     "stock": true },
+    { "name": "White",        "hex": "#f2f2f2", "material": "PLA",     "stock": true },
+    { "name": "Grey",         "hex": "#9a9a9a", "material": "PLA",     "stock": true },
+    { "name": "Charcoal",     "hex": "#2e2e2e", "material": "PLA",     "stock": true }
+  ]
+}

@@ -2,9 +2,9 @@
 
     python3 src/app.py            # then open http://127.0.0.1:8765
 
-Four shapes: an NFC keyring fob (src/cards.py), a name keyring
-(src/nametag.py), a sign enclosure (src/signbox.py) and a stencil
-(src/stencil.py).  Fill in the boxes, watch the part turn in the viewer,
+Five shapes: an NFC keyring fob (src/cards.py), a name keyring
+(src/nametag.py), a pet collar tag (src/pettag.py), a sign enclosure
+(src/signbox.py) and a stencil (src/stencil.py).  Fill in the boxes, watch the part turn in the viewer,
 download it.  The 3MF carries each colour as a separate part, so the slicer opens it
 set up for four filaments; the STL is one welded solid.  The preview is the
 same solids, sent one after another with a colour and a place for each, so
@@ -32,12 +32,16 @@ import trimesh
 import cards
 import looks
 import nametag
+import pettag
 import signbox
 import stencil
 import typefaces
 
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "public" / "index.html"
+# The spools on the shelf: what the colour pickers offer.  A static file, so
+# Vercel serves it from public/ and this serves the same one locally.
+SPOOLS = ROOT / "public" / "filaments.json"
 
 # manifold is fast but there is no reason to have four keystrokes' worth of
 # booleans running at once.  The last few builds are kept, so asking for the
@@ -49,13 +53,15 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "logo", "batch", "design", "look", "layout", "placeholder",
             "cap", "ring_d", "outline",
             "plate_w", "plate_h", "margin", "bridge", "thick",
-            "depth", "wall", "diffuse", "lid", "cable", "mount")
+            "depth", "wall", "diffuse", "lid", "cable", "mount",
+            "pet_shape", "pet_style", "pet_size", "pet_sides", "pet_note",
+            "pet_link", "pet_border", "pet_collar", "pet_slot")
 
 # The shapes the page can ask for.  The business card is not among them any
 # more: it is archived -- the code is still in src/cards.py and
 # `src/gen_cards.py --kind card` still writes one, but the app offers the fob,
 # the name keyring, the stencil and the sign enclosure.
-KINDS = ("fob", "name", "stencil", "sign")
+KINDS = ("fob", "name", "pet", "stencil", "sign")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -175,6 +181,44 @@ def model(params):
                     RECENT[key] = parts, info
                 else:
                     RECENT[key] = nametag.build(params.get("name", ""), **keyring)
+                while len(RECENT) > 8:
+                    del RECENT[next(iter(RECENT))]
+                parts, info = RECENT[key]
+                return _finish(params, parts, info, num)
+            if kind == "pet":
+                # A pet tag: the name on the front, the way home on the back.
+                # The phone, the note and the QR link are shared by a batch
+                # unless a row carries its own.
+                shape = params.get("pet_shape") or "circle"
+                if shape not in pettag.SHAPES:
+                    raise ValueError(f"no such tag shape: {shape}")
+                tag = dict(phone=params.get("phone", ""),
+                           note=params.get("pet_note", ""),
+                           link=params.get("pet_link", ""),
+                           shape=shape, style=params.get("pet_style") or "hanging",
+                           size=num("pet_size", 0.0) or None,
+                           sides=params.get("pet_sides") or "two",
+                           font=face(params), rise=num("rise", 0.0),
+                           border=bool(params.get("pet_border")),
+                           ring_d=num("ring_d", pettag.RING_D),
+                           collar=num("pet_collar", pettag.COLLAR),
+                           slot=num("pet_slot", pettag.SLOT), colours=colours)
+                if params.get("batch"):
+                    rows = pettag.parse_batch(params["batch"])
+                    if not rows:
+                        raise ValueError("the batch box is empty")
+                    parts, infos = pettag.build_batch(rows, **tag)
+                    info = {**infos[0], "batch": len(rows), "label": "",
+                            "w": max(i["w"] for i in infos),
+                            "h": max(i["h"] for i in infos),
+                            "phone_cap": min((i["phone_cap"] for i in infos
+                                              if i["phone_cap"]), default=None),
+                            "volume": round(sum(i["volume"] for i in infos), 2),
+                            "watertight": all(i["watertight"] for i in infos),
+                            "thin": sorted({t for i in infos for t in i["thin"]})}
+                    RECENT[key] = parts, info
+                else:
+                    RECENT[key] = pettag.build(params.get("name", ""), **tag)
                 while len(RECENT) > 8:
                     del RECENT[next(iter(RECENT))]
                 parts, info = RECENT[key]
@@ -348,6 +392,8 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
         if path in ("/", "/index.html"):
             self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
+        elif path == "/filaments.json":
+            self._send(200, SPOOLS.read_bytes(), "application/json")
         elif path in ("/api/model", "/model"):
             try:
                 self._send(200, json.dumps(health()).encode(), "application/json")

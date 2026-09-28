@@ -1,6 +1,6 @@
 # 3D print sandbox
 
-Six parametric things live here so far.  All of them are plain Python --
+Seven parametric things live here so far.  All of them are plain Python --
 shapely for the 2-D work, trimesh and manifold for the solids -- and all of
 them re-run in seconds.  The phone case is the exception on every count: it
 needs nothing but the standard library, and it writes g-code rather than a
@@ -14,6 +14,9 @@ mesh.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
   printable piece, with a tab for the ring, in one of forty-eight faces.  Same
   app, second shape.
+- **[Pet tags](#pet-tags)** -- a collar tag with the pet's name on the front and
+  the phone number, and a QR code if you want one, on the back; or a slide-on
+  plate the collar threads through.  Every letter inlaid flush.  Same app.
 - **[Sign enclosures](#sign-enclosures)** -- a shallow light box with the word
   lit through its own face: an opaque layer with the letters taken out, the
   letters filled back in in something translucent, and a diffuser behind the
@@ -849,6 +852,79 @@ for the face, `--cap 20` for bigger letters, `--ring 0` for no tab, `--flat`
 for the single-colour version, `--rise` for how proud the letters sit,
 `--colours "#2fbf3f,,#ffffff"` for the two colours, and `--batch names.txt`
 for a plate of them -- the whole plate in one face.
+
+---
+
+# Pet tags
+
+A collar tag: the pet's name on the front, the way home on the back.  The
+**Pet tag** tile in the app, `src/pettag.py` underneath.
+
+![four pet tags, front above back](previews/pet_tags.png)
+
+| | |
+|---|---|
+| Shapes | round, bone, heart, tag -- or a slide-on plate |
+| Hanging | a ring tab on top, 5 mm hole with 2.6 mm of plastic round it |
+| Slide-on | two slots the collar threads through; 10 to 38 mm collars |
+| Body | 3 mm, lettering inlaid 0.6 mm into both faces |
+| A 32 mm round tag | about 3 g of PETG |
+
+**What goes where.**  A hanging tag has two faces, so the name is alone on the
+front at whatever size the tag will take, and the phone number, an extra line
+and the optional QR code go on the back -- the side a stranger turns it over
+to read.  *Everything on the front* is there for a tag that hangs flat against
+a harness.  A slide-on tag's back is against the dog, so everything goes on
+its front and the QR code is not offered.
+
+**The phone number is the line that matters.**  It is set in the plain bold
+sans whatever face the name is in, and the fit is greedy the right way round:
+every line starts at the size it wants, and each pass shrinks whichever has the
+most room above its floor -- so the name gives way long before the number
+does.  A number is also tried split over two lines at its middle separator,
+`(555)` over `214-8890`, and whichever setting gives the bigger number wins;
+that is what gets a full number onto a 28 mm disc at 3.9 mm.  Under 3.5 mm the
+readout warns.  Each shape starts at the width where a full number still
+clears that: 32 mm round, 34 tag, 42 heart, 45 bone -- a bone's number only has
+the bar between its lobes, and a heart narrows to its point.
+
+**Flush, because a tag wears.**  The lettering is a pocket 0.6 mm deep filled
+with the lettering colour, not letters standing on the surface: a tag spends
+its life rubbing on a collar, and there is nothing proud to wear off.  The
+Relief slider raises the front instead, for the look; the back is always
+inlaid, because it prints face down and raised letters there would need
+supports.  So the colour changes are all in the first three layers (the back)
+and the last three (the front), with plain body in between.
+
+**Material.**  PETG for a hanging tag: stiff, and it does not soften in a hot
+car the way PLA does.  TPU for a slide-on: it bends with the collar and cannot
+shatter.  Soft TPU on a hanging tag is easy for a dog to chew pieces off, so
+keep it to the slide-on.  None of this has been printed and tested on a real
+collar yet.  Print one, clip it on and pull on the tab before selling any.
+
+**Batches.**  One pet per line in the batch box: `name, phone, extra line,
+link`.  Only the name is needed; anything a line leaves out comes from the
+boxes above, so a litter with one owner is just the names.
+
+## The spools on the shelf
+
+`public/filaments.json` is the list of filament you actually have: a name, a
+hex colour for the preview, a material and whether it is in stock.  The app
+reads it and shows, for every shape, one row of chips per colour the part
+uses, drawn from the spools of the chosen material -- so a design can only be
+made in colours you can print, and the readout names which spool goes in
+which slot.  Change material and each colour moves to the nearest spool in
+the new one.  The exact colour pickers are still underneath, for anything the
+shelf does not have.
+
+```json
+{ "name": "Navy", "hex": "#1f3a5f", "material": "PETG", "stock": true }
+```
+
+Set `"stock": false` to hide a colour while its spool is empty without losing
+the entry.  Match `hex` to the real spool by eye, next to the screen -- the
+colour on the box is marketing.  **The list that ships is a starting point,
+not your shelf**: replace it with what you have.
 
 ---
 
