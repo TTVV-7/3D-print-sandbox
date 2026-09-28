@@ -422,6 +422,18 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
         elif path == "/filaments.json":
             self._send(200, SPOOLS.read_bytes(), "application/json")
+        elif path.startswith("/assets/"):
+            # Static files under public/assets -- the tile icons.  Resolved and
+            # checked, so a path with .. in it cannot walk out of the folder.
+            base = (ROOT / "public" / "assets").resolve()
+            f = (ROOT / "public" / path.lstrip("/")).resolve()
+            kinds = {".webp": "image/webp", ".png": "image/png", ".glb": "model/gltf-binary",
+                     ".json": "application/json"}
+            if base in f.parents and f.is_file() and f.suffix in kinds:
+                self._send(200, f.read_bytes(), kinds[f.suffix],
+                           [("Cache-Control", "public, max-age=3600")])
+            else:
+                self._send(404, b"not found", "text/plain")
         elif path in ("/api/model", "/model"):
             try:
                 self._send(200, json.dumps(health()).encode(), "application/json")

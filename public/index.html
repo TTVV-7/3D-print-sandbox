@@ -125,6 +125,15 @@
   .tile[aria-pressed=true] { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
   .tile b { font-weight: 600; }
   .tile span { font-size: 13px; line-height: 1.3; color: var(--text-secondary); }
+  /* The icons are the products themselves, rendered by src/gen_tile_icons.py
+     as a strip of 24 frames swaying either side of straight on: the first
+     frame is the icon, and hovering steps through the rest.  No 3D engine
+     runs for these -- five small images. */
+  .icon3d { display: block; width: 60px; height: 48px;
+    background: var(--sprite) 0 0 / 1440px 48px no-repeat; }
+  .tile:hover .icon3d, .tile:focus-visible .icon3d { animation: sway 1.8s steps(24) infinite; }
+  @keyframes sway { to { background-position: -1440px 0; } }
+  @media (prefers-reduced-motion: reduce) { .tile:hover .icon3d, .tile:focus-visible .icon3d { animation: none; } }
   .tile svg { width: 100%; height: 34px; fill: none; stroke: var(--text-secondary);
               stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
   .tile[aria-pressed=true] svg { stroke: var(--text-default); }
@@ -424,23 +433,23 @@
     <h2>1 &middot; Shape</h2>
     <div class="tiles" data-light="kind">
       <button type="button" class="tile" data-kind="fob" aria-pressed="true">
-        <svg viewBox="0 0 62 34" aria-hidden="true"><rect x="1.5" y="1.5" width="59" height="31" rx="4"/><circle cx="9" cy="17" r="3"/><path d="M20 12h30M20 19h22"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/fob.webp)"></span>
         <div><b>Keyring fob</b><span>62 &times; 34 mm, tag inside</span></div>
       </button>
       <button type="button" class="tile" data-kind="name" aria-pressed="false">
-        <svg viewBox="0 0 86 34" aria-hidden="true"><circle cx="9" cy="17" r="6"/><path d="M15 17h6"/><path d="M23 27V9c6 0 9 3 9 9s-3 9-9 9zM38 27V13m0 0c5 0 7 2 7 6v8M53 27V13m0 0c5 0 7 2 7 6v8M68 9v18"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/name.webp)"></span>
         <div><b>Name keyring</b><span>the letters are the whole thing</span></div>
       </button>
       <button type="button" class="tile" data-kind="pet" aria-pressed="false">
-        <svg viewBox="0 0 86 34" aria-hidden="true"><circle cx="43" cy="5" r="3"/><path d="M38.5 7.5a13 13 0 1 0 9 0"/><path d="M36 20h14M38 25h10"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/pet.webp)"></span>
         <div><b>Pet tag</b><span>name on the front, the way home on the back</span></div>
       </button>
       <button type="button" class="tile" data-kind="sign" aria-pressed="false">
-        <svg viewBox="0 0 86 34" aria-hidden="true"><rect x="1.5" y="4.5" width="83" height="25" rx="4"/><rect x="8" y="10" width="70" height="14" rx="2"/><path d="M18 20v-6h4M18 17h3M30 20v-6l5 6v-6M43 20v-6h5M43 17h4M43 20h5M56 14v6h5"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/sign.webp)"></span>
         <div><b>Sign enclosure</b><span>a light box with the name lit through it</span></div>
       </button>
       <button type="button" class="tile" data-kind="stencil" aria-pressed="false">
-        <svg viewBox="0 0 86 34" aria-hidden="true"><rect x="1.5" y="1.5" width="83" height="31" rx="4"/><path d="M20 25V9h6a5 5 0 0 1 0 10h-6M38 25V9m0 0h8m-8 8h6m-6 8h8M58 25V9h6a5 5 0 0 1 0 10h-6m0 0 7 6"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/stencil.webp)"></span>
         <div><b>Stencil</b><span>a plate with the word cut through it</span></div>
       </button>
     </div>

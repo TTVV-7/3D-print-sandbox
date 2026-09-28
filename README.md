@@ -174,6 +174,22 @@ nothing fetched from a CDN, and it works with the network off.  It listens on
 the loopback address; it is a tool for the machine it runs on, not a service to
 put on a network.
 
+### The shape icons
+
+The five tiles at the top of the form show the products themselves: a fob,
+a name keyring, the pet tag on its split ring, a lit sign and a stencil.  Each
+is built by its own generator, rendered with the pet tag product shot's
+three.js lighting, and saved as a strip of 24 frames swaying either side of
+straight on (`public/assets/tiles/*.webp`, 23 to 48 kB each).  The first frame
+is the icon; hovering a tile plays the rest with a CSS animation, and not with
+reduced motion.  No 3D engine runs for them.
+
+```
+python3 src/gen_tile_icons.py      # needs Node and Playwright; the images are committed
+```
+
+Change a product's look or colours in `ICONS` in that script and re-run it.
+
 ### Hosting it
 
 The repo deploys to Vercel as it stands: `api/model.py` hands Vercel the same
