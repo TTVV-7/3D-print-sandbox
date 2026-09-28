@@ -51,7 +51,8 @@ INK, INK_LIGHT, PAPER, FLAME = "#0c1a2e", "#1f3a5f", "#f5f2ec", "#ff5b1f"
 
 ICONS = {
     # The sample logo on its ink body, with a hole in its corner.
-    "card":    dict(build=lambda: logocard.build(None, ring="hole", ring_at="top-right"),
+    "card":    dict(build=lambda: logocard.build(None, ring="hole", ring_at="top-right",
+                                                         fit="sealed"),
                     colours=(INK, INK_LIGHT, FLAME, PAPER)),
     "fob":     dict(build=lambda: cards.build("fob", name="Dino",
                                               company="Bluewater Realty",

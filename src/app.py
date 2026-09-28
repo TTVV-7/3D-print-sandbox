@@ -262,7 +262,7 @@ def model(params):
                     back=params.get("card_back") or "arcs",
                     link=params.get("card_link", ""),
                     both=bool(params.get("card_both")),
-                    fit=params.get("card_fit") or "sealed",
+                    fit=params.get("card_fit") or "halves",
                     # {slot: mm}, only when each colour has its own height
                     rises={k: float(v) for k, v in params["card_rises"].items()
                            if isinstance(v, (int, float, str)) and str(v).strip()}

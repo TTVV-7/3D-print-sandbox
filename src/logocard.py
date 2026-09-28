@@ -30,9 +30,11 @@ kept clear of the artwork.  If there is no room for a hole clear of the logo
 it becomes a tab rather than a hole through the logo.
 
 **The chip.**  A round NTAG sticker in a pocket in the middle of the
-thickness, at the roomiest point of the card, printed over: the print pauses
-once, you drop the sticker in, and it is sealed for good (pettag's pocket,
-exactly).  The back carries the contactless arcs right over it, so whoever
+thickness, at the roomiest point of the card.  By default the card prints as
+two halves, split through the middle with half the pocket in each and pins to
+line them up, and the sticker is glued in between; or it prints as one part
+that pauses once over the pocket for the sticker to be dropped in and sealed
+(pettag's pocket, exactly).  The back carries the contactless arcs right over it, so whoever
 is holding the card knows where to put their phone -- or a QR code for the
 same link, for phones that do not tap.
 
@@ -316,7 +318,7 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
           fill_holes=True, ring="tab", ring_at="top-left", ring_d=RING_D,
           colours=cards.COLOURS, max_colours=INLAYS, keep_background=False,
           rise=0.0, nfc=True, chip_d=None, chip_t=pettag.CHIP_T,
-          back="arcs", link="", both=False, rises=None, fit="sealed", label=""):
+          back="arcs", link="", both=False, rises=None, fit="halves", label=""):
     """One logo card, as printable parts plus the numbers worth knowing.
 
     Returns ([part], info) in cards.build()'s shape.  info["art"] lists the
@@ -666,13 +668,15 @@ if __name__ == "__main__":
     ap.add_argument("--back", choices=("arcs", "qr", "none"), default="arcs")
     ap.add_argument("--no-nfc", action="store_true")
     ap.add_argument("--both", action="store_true", help="the logo on the back too")
+    ap.add_argument("--fit", choices=FITS, default="halves",
+                    help="the sticker glued between two halves, or sealed in by a pause")
     ap.add_argument("--rises", default="", help="each logo colour's height, largest colour "
                     "first, in mm: 0,1.2 steps the second colour up 1.2 mm")
     a = ap.parse_args()
     body = (a.body,) + tuple(cards.COLOURS[1:])
     parts, info = build(a.logo, size=a.size, border=a.border, backing=a.backing,
                         ring=a.ring, ring_at=a.ring_at, colours=body, link=a.link,
-                        back=a.back, nfc=not a.no_nfc, both=a.both,
+                        back=a.back, nfc=not a.no_nfc, both=a.both, fit=a.fit,
                         rises=dict(zip(INLAY_SLOTS, map(float, filter(None,
                                                             a.rises.split(",")))))
                         if a.rises else None)

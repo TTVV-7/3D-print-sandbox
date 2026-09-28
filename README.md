@@ -63,8 +63,8 @@ Two options change what the card is rather than how it is cut:
   front one, in the same filaments -- so it costs no extra head.  Turned over,
   the card shows the logo's mirror image, filling exactly the same outline.
   The back's tap mark and QR code give way to it.
-- **Two halves.**  Under *How it goes in*, the sticker can be glued between
-  two halves instead of sealed in by a pause.  The card is split through the
+- **Two halves** -- the default.  Under *How it goes in*, the sticker is
+  glued between two halves, or sealed in by a pause instead.  The card is split through the
   middle of its thickness with half the cavity in each, and three pins on the
   glue line key them so they only go together one way.  Neither half is
   turned over to print: the back half lies back face down with its pins
@@ -160,9 +160,11 @@ rather than a hole through the logo, and the readout says so.
 
 A round NTAG sticker -- the biggest of 25, 20, 15 and 12 mm that fits, or the
 one you choose -- sits in a pocket at the roomiest point of the card, in the
-middle of the 3 mm thickness.  It is the pet tag's pocket exactly: the print
-pauses once, just above it, you drop the sticker in and resume, and it is
-sealed.  The 3MF carries the pause (M601) and every colour on its own
+middle of the 3 mm thickness.  By default the card is two halves with half
+the pocket in each, glued together with the sticker between them (above).
+*Sealed in* is the pet tag's pocket exactly: one part, the print pauses once
+just above the pocket, you drop the sticker in and resume, and it is sealed;
+the 3MF carries that pause (M601).  Either way every colour is on its own
 filament, so the slicer opens it ready to print.
 
 The back carries the contactless arcs right over the sticker, in the logo's
