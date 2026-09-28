@@ -111,7 +111,14 @@ def describe(model):
             f"    {label} -- {'OK for the shop' if commercial else 'NOT for commercial use'}"
             f"{', credit the author' if commercial and credit else ''}"
             + (f", {size / 1e6:.1f} MB" if size else "")
-            + f"\n    {model.get('viewerUrl', '')}")
+            + f"\n    {link(model)}")
+
+
+def link(model):
+    """The model's page.  Search results come back with a viewerUrl whose
+    slug is 'none', so those get the plain by-uid address instead."""
+    url = model.get("viewerUrl") or ""
+    return url if url and "/none-" not in url else f"https://sketchfab.com/models/{model.get('uid')}"
 
 
 def search(query, count=12):
@@ -182,7 +189,7 @@ def record(model, path, label, commercial, credit):
                  file=str(path.relative_to(ROOT / "public")),
                  author=user.get("displayName") or user.get("username"),
                  author_url=user.get("profileUrl"),
-                 model_url=model.get("viewerUrl"),
+                 model_url=link(model),
                  licence=label, licence_url=lic.get("url") if isinstance(lic, dict) else None,
                  commercial=commercial, credit_required=credit,
                  credit=credit_line(model, label) if credit else None)
