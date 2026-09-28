@@ -949,6 +949,15 @@ shelf does not have.
 { "name": "Navy", "hex": "#1f3a5f", "material": "PETG", "stock": true }
 ```
 
+**Four heads, four filaments.**  `"heads": 4` at the top of the file is how
+many filaments the printer holds at once.  No design can use more than four
+anyway, because every shape has four colour slots, and two slots on the same
+spool share a head.  A pet tag's readout lists the heads in the order the 3MF
+numbers them, so you know which spool to load where:
+`heads 3 of 4 -- 1 Navy PETG (tag), 2 Yellow PETG (border, phone), 3 White
+PETG (name)`.  The 3MF writer refuses a design that needs more filaments than
+there are heads.
+
 Set `"stock": false` to hide a colour while its spool is empty without losing
 the entry.  Match `hex` to the real spool by eye, next to the screen -- the
 colour on the box is marketing.  **The list that ships is a starting point,

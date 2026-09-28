@@ -1547,8 +1547,7 @@ function petReadout(line) {
                     (faces > 1 ? "first and last 3 layers" : "last 3 layers") +
                     (info.rise ? ` and the ${mm(info.rise)} mm of raised letters` : "")),
     info.nozzle ? line("finest stroke", `${mm(info.stroke)} mm`) : "",
-    SPOOLS.length ? line("load", slotRows().map(([id, l]) =>
-      `${l.toLowerCase()} ${spoolName(id) || $(id).value} ${slotMat[id]}`).join(", ")) : "",
+    headsLine(line),
     info.thin.includes("phone number")
       ? `<span class="warn">phone number under 3.5 mm &mdash; hard to read on a moving dog. A bigger
          tag, a shorter extra line, or split the number yourself with a |.</span>` : "",
@@ -1559,6 +1558,34 @@ function petReadout(line) {
       ? `<span class="warn">QR modules under 0.8 mm scan poorly off a print &mdash; a bigger tag,
          a shorter link, or leave the code off.</span>` : "",
   ].join("");
+}
+
+/* Which spool goes on which head.  Numbered the way the 3MF numbers its
+   filaments: the colours the part uses, in slot order, one head per distinct
+   spool -- so two colours from the same spool share a head, and the count is
+   what the printer has to hold, never more than the slots there are. */
+const SLOT_IDS = { body: "c0", pattern: "c1", primary: "c2", secondary: "c3" };
+function headPlan() {
+  const labels = Object.fromEntries(slotRows());
+  const heads = [];
+  for (const slot of info.slots) {
+    const id = SLOT_IDS[slot];
+    const key = `${slotMat[id]}|${$(id).value.toLowerCase()}`;
+    let h = heads.find(x => x.key === key);
+    if (!h) heads.push(h = { key, name: spoolName(id) || $(id).value, material: slotMat[id], uses: [] });
+    h.uses.push((labels[id] || slot).toLowerCase());
+  }
+  return heads;
+}
+
+function headsLine(line) {
+  if (!SPOOLS.length) return "";
+  const heads = headPlan();
+  const plan = line(`heads ${heads.length} of ${HEADS}`, heads.map((h, i) =>
+    `${i + 1} ${h.name} ${h.material} (${h.uses.join(", ")})`).join(" &middot; "));
+  return heads.length > HEADS
+    ? plan + `<span class="err">${heads.length} filaments, and the printer holds ${HEADS} &mdash;
+       use the same spool for two of the colours</span>` : plan;
 }
 
 /* A stencil has no colours, no cavity and no counters -- what it has is a cut,
@@ -1793,7 +1820,7 @@ document.querySelectorAll("p.hint").forEach((hint, i) => {
    chips narrow what is offered to what can be printed, and each colour
    carries its own material -- a TPU tag with PETG lettering is one print on a
    multi-material machine, and the 3MF says which filament is which. */
-let SPOOLS = [];
+let SPOOLS = [], HEADS = 4;
 const slotMat = { c0: "", c1: "", c2: "", c3: "" };
 const SLOT_LABELS = {
   fob:     [["c0", "Body"], ["c1", "Pattern"], ["c2", "Primary"], ["c3", "Secondary"]],
@@ -1887,6 +1914,7 @@ function spoolsChosen(snap) {
 fetch("/filaments.json").then(r => r.ok ? r.json() : null).then(shelf => {
   if (!shelf || !Array.isArray(shelf.spools)) return;
   SPOOLS = shelf.spools.filter(x => x.stock !== false && /^#[0-9a-f]{6}$/i.test(x.hex || ""));
+  if (Number.isInteger(shelf.heads) && shelf.heads > 0) HEADS = shelf.heads;
   if (!SPOOLS.length) return;
   $("material").innerHTML = `<option value="">Mixed</option>` +
     materials().map(m => `<option>${m}</option>`).join("");

@@ -1070,7 +1070,10 @@ def export_3mf(parts, colours=COLOURS, gap=6.0, row_w=None):
     return buf.getvalue()
 
 
-def export_3mf_tools(parts, filaments, gap=6.0, row_w=None):
+HEADS = 4       # filaments the printer holds at once: the Snapmaker U1's four heads
+
+
+def export_3mf_tools(parts, filaments, gap=6.0, row_w=None, heads=HEADS):
     """The parts as a 3MF a slicer opens ready to print: one object per part,
     one volume per colour slot, and each volume already on its own filament.
 
@@ -1101,6 +1104,9 @@ def export_3mf_tools(parts, filaments, gap=6.0, row_w=None):
         if key not in [(t["material"], t["hex"].lower()) for t in tools]:
             tools.append(f)
         extruder[slot] = 1 + [(t["material"], t["hex"].lower()) for t in tools].index(key)
+    if len(tools) > heads:
+        raise ValueError(f"this design needs {len(tools)} filaments and the printer holds "
+                         f"{heads} -- use the same spool for two of the colours")
 
     objects, items, configs = [], [], []
     for oid, (part, (dx, dy, dz)) in enumerate(layout(parts, gap, row_w), start=1):

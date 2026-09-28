@@ -1,5 +1,6 @@
 {
-  "about": "The spools you have. The colour pickers on the page offer these and nothing else, so a customer can only design in colours you can print. Edit this file when a spool arrives or runs out: set \"stock\" to false to hide a colour without losing its entry. \"hex\" is what the preview paints it; match it to the real spool by eye, not to the name on the box. These entries are a starting list, not your shelf -- replace them.",
+  "about": "The spools you have. The colour pickers on the page offer these and nothing else, so a customer can only design in colours you can print. Edit this file when a spool arrives or runs out: set \"stock\" to false to hide a colour without losing its entry. \"heads\" is how many filaments the printer holds at once -- 4 on the Snapmaker U1 -- and no design may use more. \"hex\" is what the preview paints it; match it to the real spool by eye, not to the name on the box. These entries are a starting list, not your shelf -- replace them.",
+  "heads": 4,
   "spools": [
     { "name": "Black",        "hex": "#1b1b1d", "material": "PETG",    "stock": true },
     { "name": "White",        "hex": "#f4f4f1", "material": "PETG",    "stock": true },
