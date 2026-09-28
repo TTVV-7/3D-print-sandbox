@@ -64,6 +64,15 @@ Two options change what the card is rather than how it is cut:
   no extra head.  An asymmetric logo does not fit its own mirror image, so the
   outline is cut round both; a wordmark comes out a little wider, and the
   readout says when.  The back's tap mark and QR code give way to it.
+- **Two halves.**  Under *How it goes in*, the sticker can be glued between
+  two halves instead of sealed in by a pause.  The card is split through the
+  middle of its thickness with half the cavity in each, and three pins on the
+  glue line key them so they only go together one way.  Neither half is
+  turned over to print: the back half lies back face down with its pins
+  standing up, the front half front face up with the pins' holes underneath,
+  so raised colours still print on top.  The preview's *Glued up*, *Pulled
+  apart* and *On the plate* show it, and the 3MF has both halves on one plate
+  with no pause in it.
 - **A different height for each colour.**  Each colour of the logo stands at
   its own height off the card, so a logo reads as a stepped badge: black
   lettering and frame at 1.2 mm above an orange field at 0.4 mm, say.  One

@@ -91,6 +91,11 @@ INLAY_SLOTS = ("primary", "secondary", "pattern")     # by area, largest first
 # A logo colour this close to the body colour (RGB, 0-255) is the body.
 FOLD = 40.0
 
+# How the sticker goes in: sealed by a pause mid-print, or glued between two
+# halves.  The halves are keyed by pins on the glue line, cards.PIN's size.
+FITS = ("sealed", "halves")
+PIN = cards.PIN
+
 # Chips tried, largest first, when none is named.  A bigger coil reads from
 # further off, so the card gets the biggest one it has room for.
 CHIPS = (25.0, 20.0, 15.0, 12.0)
@@ -310,7 +315,7 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
           fill_holes=True, ring="tab", ring_at="top-left", ring_d=RING_D,
           colours=cards.COLOURS, max_colours=INLAYS, keep_background=False,
           rise=0.0, nfc=True, chip_d=None, chip_t=pettag.CHIP_T,
-          back="arcs", link="", both=False, rises=None, label=""):
+          back="arcs", link="", both=False, rises=None, fit="sealed", label=""):
     """One logo card, as printable parts plus the numbers worth knowing.
 
     Returns ([part], info) in cards.build()'s shape.  info["art"] lists the
@@ -325,6 +330,12 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
     {"primary": 1.2, "secondary": 0.4} -- so a logo can be stepped: the
     lettering standing above its field, the field above the card.  A slot
     it leaves out stands at `rise`.
+
+    `fit` is how the NFC sticker goes in.  "sealed": one part, and the print
+    pauses once over the sticker's pocket to drop it in.  "halves": two
+    parts, the card split through the middle of its thickness with half the
+    cavity in each and three pins on the glue line so they go together one
+    way; the sticker is glued in between, and nothing pauses.
     """
     if backing not in BACKINGS:
         raise ValueError(f"no such backing: {backing} -- {', '.join(BACKINGS)}")
@@ -332,6 +343,8 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
         raise ValueError(f"no such keyring fitting: {ring} -- {', '.join(RINGS)}")
     if ring_at not in CORNERS:
         raise ValueError(f"no such corner: {ring_at} -- {', '.join(CORNERS)}")
+    if fit not in FITS:
+        raise ValueError(f"no such sticker fitting: {fit} -- {', '.join(FITS)}")
     if back not in ("arcs", "qr", "none"):
         raise ValueError(f"no such back: {back} -- arcs, qr or none")
     size = min(SIZE_MAX, max(SIZE_MIN, float(size)))
@@ -416,12 +429,18 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
                     hint = ("" if backing != "outline" else
                             " -- or put a rounded rectangle or a disc behind the logo")
                     raise ValueError(str(exc).replace("tag", "card") + hint) from None
+        if fit == "halves":
+            # Straddling the glue line, half the depth in each half.
+            depth = z1 - z0
+            z0, z1 = thick / 2.0 - depth / 2.0, thick / 2.0 + depth / 2.0
         cutters.append(cards.prisms([pocket], z0, z1 - z0)[0])
         uri = link
-        chip = dict(d=float(chip_d), t=float(chip_t),
+        sealed = fit == "sealed"
+        chip = dict(d=float(chip_d), t=float(chip_t), fit=fit,
                     pocket=round(2 * (float(chip_d) / 2 + pettag.CHIP_SLACK), 2),
                     z0=round(z0, 2), z1=round(z1, 2),
-                    pause_z=round(z1, 2), resume_z=round(z1 + LAYER, 2),
+                    pause_z=round(z1, 2) if sealed else None,
+                    resume_z=round(z1 + LAYER, 2) if sealed else None,
                     centre=[round(pocket.centroid.x, 2), round(pocket.centroid.y, 2)],
                     uri=uri, bytes=cards_ndef(uri) if uri else None,
                     fits=bool(uri) and cards_ndef(uri) <= pettag.NTAG213)
@@ -462,12 +481,19 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
 
     if cutters:
         body = cards.boolean("difference", [body, *cutters])
-    groups_.insert(0, dict(slot="body", element="body", face="body", mesh=body))
 
-    part = dict(name="", label=label, card=0, groups=groups_, assembled=np.eye(4))
-    part["slots"] = cards.slot_meshes(part)
-    solids = [part["slots"][s] for s in cards.SLOTS if s in part["slots"]]
-    part["mesh"] = solids[0] if len(solids) == 1 else cards.boolean("union", solids)
+    halves = fit == "halves"
+    pins = []
+    if halves:
+        blocked = [hole.buffer(RING_WALL)] if hole is not None else []
+        if chip:
+            blocked.append(Point(*chip["centre"]).buffer(chip["pocket"] / 2.0))
+        pins = pin_spots(body_2d, unary_union(blocked) if blocked else Polygon())
+        parts = split(body, groups_, thick / 2.0, pins, thick, label)
+    else:
+        groups_.insert(0, dict(slot="body", element="body", face="body", mesh=body))
+        part = dict(name="", label=label, card=0, groups=groups_, assembled=np.eye(4))
+        parts = [finish(part)]
 
     x0, y0, x1, y1 = body_2d.bounds
     detail = min((r["detail"] for r in report), default=0.0)
@@ -476,12 +502,12 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
         thin.append("logo detail")
     if back == "qr" and link and not qr:
         thin.append("qr")
-    colour_slots = sorted({g["slot"] for g in groups_}, key=cards.SLOTS.index)
-    total = float(part["mesh"].bounds[1][2])
+    colour_slots = sorted({g["slot"] for g in groups_} | {"body"}, key=cards.SLOTS.index)
+    total = thick + max([r["rise"] for r in report] or [0.0])
     bands = [[0.0, round(FACE, 2)]] if back_polys or back_logo else []
     bands.append([round(thick - FACE, 2), round(total, 2)])
     info = dict(
-        kind="card", label=label, front_up=True,
+        kind="card", label=label, front_up=not halves,
         w=round(x1 - x0, 2), h=round(y1 - y0, 2), thick=round(thick, 2),
         rise=round(max([r["rise"] for r in report] or [0.0]), 2),
         stepped=len({r["rise"] for r in report}) > 1,
@@ -499,16 +525,101 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
         if hole is not None else None,
         back="logo" if back_logo else back if back_polys else "none", qr=qr, link=link,
         stroke=round(float(detail), 2), nozzle=cards.nozzle_for(detail) if report else None,
-        slots=colour_slots, part_slots={"card": colour_slots}, parts=["card"], pins=0,
-        part_thick=round(total, 2), assembled=round(total, 2),
-        pocket=[0.0, 0.0, 0.0], tag_mode="none", joint=None, tag=[0, 0, 0],
+        slots=colour_slots,
+        part_slots={(p["name"] or "card"): sorted(p["slots"], key=cards.SLOTS.index)
+                    for p in parts},
+        parts=[p["name"] or "card" for p in parts], pins=len(pins),
+        part_thick=round(max(float(p["mesh"].bounds[1][2]) for p in parts), 2),
+        assembled=round(total, 2),
+        pocket=[chip["pocket"], chip["pocket"], round(chip["z1"] - chip["z0"], 2)]
+        if chip else [0.0, 0.0, 0.0],
+        tag_mode="split" if halves else ("embed" if chip else "none"),
+        # where the preview draws the sticker: in the front half's own
+        # coordinates, on its glue face
+        joint=[chip["centre"][0], chip["centre"][1], 0.0] if halves and chip else None,
+        tag=[chip["d"], chip["d"], chip["t"]] if chip else [0, 0, 0],
         colour_bands=bands, colour_z=round(FACE, 2),
-        volume=round(part["mesh"].volume / 1000.0, 2),
-        watertight=part["mesh"].is_watertight and part["mesh"].is_winding_consistent,
+        volume=round(sum(p["mesh"].volume for p in parts) / 1000.0, 2),
+        watertight=all(p["mesh"].is_watertight and p["mesh"].is_winding_consistent
+                       for p in parts),
         thin=thin, face=FACE, chamfer=0.0, layout=None, look=None,
         nfc=chip, pause_z=chip["pause_z"] if chip else None,
     )
-    return [part], info
+    return parts, info
+
+
+def finish(part):
+    """A part's colour slots gathered and welded: what the 3MF and the STL
+    take."""
+    part["slots"] = cards.slot_meshes(part)
+    solids = [part["slots"][s] for s in cards.SLOTS if s in part["slots"]]
+    part["mesh"] = solids[0] if len(solids) == 1 else cards.boolean("union", solids)
+    return part
+
+
+def pin_spots(body_2d, blocked):
+    """Three pin positions on the glue line, spread as far apart as the card
+    allows and clear of the edge, the sticker and the keyring hole.  Three
+    rather than four so they only fit one way; fewer if the card has no room,
+    which glues up flat no worse."""
+    r = PIN["d"] / 2.0
+    room = body_2d.buffer(-(r + 1.4), quad_segs=8).difference(blocked.buffer(r + 1.2))
+    pts = [c for g in _flat(room) for ring in [g.exterior] for c in ring.coords[:-1]]
+    if not pts:
+        return []
+    pts = np.array(pts)
+    centre = np.array(body_2d.centroid.coords[0])
+    chosen = [pts[np.argmax(np.linalg.norm(pts - centre, axis=1))]]
+    while len(chosen) < 3:
+        d = np.min([np.linalg.norm(pts - c, axis=1) for c in chosen], axis=0)
+        if d.max() < 4 * r:
+            break
+        chosen.append(pts[np.argmax(d)])
+    return [tuple(map(float, c)) for c in chosen]
+
+
+def split(body, groups_, z_mid, pins, thick, label):
+    """The card cut in two at `z_mid`: [front half, back half].
+
+    Neither half is turned over.  The back half prints as it lies, back face
+    on the bed and glue face up with the pins standing on it; the front half
+    drops onto its glue face, front up, with the pins' holes in its underside
+    -- so relief on the front prints on top, where it needs no support, and
+    each half's colours are in its own few layers against the bed or at the
+    top.  Each part's `assembled` puts it back into the card as the viewer
+    shows a split body: face down, the back half on top, the way the fob's
+    halves go together.
+    """
+    big = cards.rounded_rect(1e3, 1e3, 0.0)
+    lo = cards.prisms([big], -1.0, z_mid + 1.0)[0]
+    hi = cards.prisms([big], z_mid, thick + 10.0)[0]
+    studs = [Point(c).buffer(PIN["d"] / 2.0, quad_segs=16) for c in pins]
+    bores = [Point(c).buffer(PIN["d"] / 2.0 + PIN["clearance"], quad_segs=16) for c in pins]
+
+    back = cards.boolean("intersection", [body, lo])
+    if studs:
+        back = cards.boolean("union", [back, *cards.prisms(studs, z_mid - 0.3,
+                                                             PIN["height"] + 0.3)])
+    front = cards.boolean("intersection", [body, hi])
+    if bores:
+        front = cards.boolean("difference", [front, *cards.prisms(
+            bores, z_mid - 0.01, PIN["height"] + 0.16)])
+
+    import trimesh
+    down = trimesh.transformations.translation_matrix((0.0, 0.0, -z_mid))
+    # The card as the viewer holds a split body: turned face down, sitting on z=0.
+    view = trimesh.transformations.translation_matrix((0.0, 0.0, thick)) @ \
+        trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0])
+    parts = []
+    for name, slab, face in (("front", front, "front"), ("back", back, "back")):
+        gs = [dict(slot="body", element="body", face="body", mesh=slab)]
+        gs += [dict(g, mesh=g["mesh"].copy()) for g in groups_ if g["face"] == face]
+        move = down if name == "front" else np.eye(4)
+        for g in gs:
+            g["mesh"].apply_transform(move)
+        parts.append(finish(dict(name=name, label=label, card=0, groups=gs,
+                                 assembled=view @ np.linalg.inv(move))))
+    return parts
 
 
 PREFIXES = ("https://www.", "http://www.", "https://", "http://", "tel:", "mailto:")

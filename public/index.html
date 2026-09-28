@@ -472,6 +472,11 @@
     <p class="hint" data-for="card">Off, the rectangle or white page a logo is so often exported on is taken
        away and the card follows the logo itself. On, the background is part of the logo &mdash; for
        an app icon or a badge whose square is the point.</p>
+    <label class="check" data-for="card" data-light="card_both"><input type="checkbox" id="card_both"><span>Logo on both sides</span></label>
+    <p class="hint" data-for="card">The logo on the back as well, reading the right way round when the card is
+       turned over, in the same filaments &mdash; no extra head. A logo that is not symmetric does not
+       fit its own mirror image, so the card's outline is cut round both: a wordmark comes out a little
+       wider, and the readout says when. The back then has no room for the tap mark or a QR code.</p>
     <label class="field" data-for="fob pet" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="email"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
     <p class="hint" data-for="fob">Name, company, title, phone and email are the five every guide to business
@@ -540,11 +545,6 @@
        logo with more colours has its closest ones merged. A logo colour that matches the card's own
        &mdash; white lettering on a white card &mdash; is simply the card showing through, and costs no
        head at all.</p>
-    <label class="check" data-for="card" data-light="card_both"><input type="checkbox" id="card_both"><span>Logo on both sides</span></label>
-    <p class="hint" data-for="card">The logo on the back as well, reading the right way round when the card is
-       turned over, in the same filaments &mdash; no extra head. A logo that is not symmetric does not
-       fit its own mirror image, so the card's outline is cut round both: a wordmark comes out a little
-       wider, and the readout says when. The back then has no room for the tap mark or a QR code.</p>
     <label class="field" data-for="card" data-light="card_ring"><span>Keyring</span>
       <select id="card_ring">
         <option value="tab">Tab with a hole, off the edge</option>
@@ -835,7 +835,15 @@
 
   <section data-for="card">
     <h2>4 &middot; The tap side</h2>
-    <label class="check" data-light="card_nfc"><input type="checkbox" id="card_nfc" checked><span>NFC sticker sealed inside</span></label>
+    <label class="check" data-light="card_nfc"><input type="checkbox" id="card_nfc" checked><span>NFC sticker inside</span></label>
+    <label class="field" data-light="card_fit" id="card_fit_field"><span>How it goes in</span>
+      <select id="card_fit">
+        <option value="sealed">Sealed in &mdash; pause the print, drop it in</option>
+        <option value="halves">Two halves &mdash; sticker glued between them</option>
+      </select>
+    </label>
+    <p class="hint" id="card_fit_note">One part. The print stops once, just above the sticker's pocket:
+       drop the sticker in and resume, and it is sealed inside for good. The 3MF carries the pause.</p>
     <label class="field" data-light="card_chip" id="card_chip_field"><span>Sticker</span>
       <select id="card_chip">
         <option value="0">The biggest that fits</option>
@@ -961,7 +969,7 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "pet_style", "pet_shape", "pet_size", "pet_sides", "pet_note",
                 "pet_collar", "pet_slot", "pet_link", "pet_chip",
                 "card_size", "card_border", "card_backing", "card_colours", "card_ring",
-                "card_at", "card_chip", "card_back", "card_link"];
+                "card_at", "card_chip", "card_back", "card_link", "card_fit"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "", stencilSvg = "";
@@ -1479,6 +1487,7 @@ const LIGHTS = {
   card_chip:   { face: "back", label: "the back, over the sticker" },
   card_link:   { el: ["qr"], label: "the QR code" },
   card_back:   { face: "back", label: "the back" },
+  card_fit:    { el: ["tag"], mode: "apart", label: "the sticker between the halves" },
   card_both:   { face: "back", label: "the logo on the back" },
   card_stepped:{ el: ["logo"], label: "the logo" },
   name:        { el: ["name"], label: "the name" },
@@ -1809,8 +1818,11 @@ function cardReadout(line) {
                            (info.rise ? ` and through the ${mm(info.rise)} mm of relief` : "")),
     info.nozzle ? line("finest detail", `${mm(info.stroke)} mm &mdash; ${info.nozzle} mm nozzle or finer`) : "",
     headsLine(line),
-    n ? line("nfc sticker", `${n.d} mm round, sealed ${mm(n.z0)}&ndash;${mm(n.z1)} mm up`) : "",
-    n ? line("pause", `after the layer at ${mm(n.pause_z)} mm, drop the sticker in, resume at ${mm(n.resume_z)} (0.2 mm layers; the 3MF has it)`) : "",
+    info.parts.length > 1 ? line("two halves", `front ${mm(info.thick / 2 + info.rise)} mm and back ${mm(info.thick / 2)} mm, ` +
+                                 `${info.pins} pin${info.pins === 1 ? "" : "s"}, ${mm(info.assembled)} mm glued up`) : "",
+    n && n.fit === "halves" ? line("nfc sticker", `${n.d} mm round, in a ${mm(n.pocket)} mm cavity split across the glue line &mdash; no pause`) : "",
+    n && n.fit !== "halves" ? line("nfc sticker", `${n.d} mm round, sealed ${mm(n.z0)}&ndash;${mm(n.z1)} mm up`) : "",
+    n && n.pause_z ? line("pause", `after the layer at ${mm(n.pause_z)} mm, drop the sticker in, resume at ${mm(n.resume_z)} (0.2 mm layers; the 3MF has it)`) : "",
     n && n.uri ? line("write to the sticker", `<code>${n.uri}</code> &mdash; ${n.bytes} bytes, ` +
       (n.fits ? "fits an NTAG213" : `<span class="err">too long for an NTAG213 &mdash; use an NTAG215 or a shorter link</span>`)) : "",
     n && !n.uri ? `<span class="warn">no link yet &mdash; fill in the link box to see what the sticker needs</span>` : "",
@@ -2097,7 +2109,18 @@ function stepsShown() {
     $(`card_rise_${slot}_l`).textContent = `${names[SLOT_IDS[slot]] || slot} height`;
   }
 }
-$("card_nfc").addEventListener("change", () => { $("card_chip_field").hidden = !$("card_nfc").checked; });
+$("card_nfc").addEventListener("change", () => {
+  $("card_chip_field").hidden = $("card_fit_field").hidden = !$("card_nfc").checked;
+});
+const CARD_FIT_NOTES = {
+  sealed: "One part. The print stops once, just above the sticker's pocket: drop the sticker in " +
+          "and resume, and it is sealed inside for good. The 3MF carries the pause.",
+  halves: "Two parts on one plate, the card split through the middle of its thickness with half " +
+          "the sticker's cavity in each, and three pins on the glue line so they only go together " +
+          "one way. No pause: print both, put the sticker in the cavity, glue the flat round it and " +
+          "clamp. Use Pulled apart above the preview to see the sticker between them.",
+};
+$("card_fit").addEventListener("change", () => { $("card_fit_note").textContent = CARD_FIT_NOTES[$("card_fit").value]; });
 $("art_file").addEventListener("change", async () => {
   const f = $("art_file").files[0];
   if (!f) return;
@@ -2568,7 +2591,7 @@ function stem() {
   if ($("kind").value === "card") {
     const what = (artName || "logo").toLowerCase()
       .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "logo";
-    return `${what}_nfc_card`;
+    return `${what}_nfc_card` + ($("card_fit").value === "halves" && $("card_nfc").checked ? "_halves" : "");
   }
   if ($("batch").value.trim()) return `batch_${$("kind").value}`;
   for (const kind of ["stencil", "sign"])

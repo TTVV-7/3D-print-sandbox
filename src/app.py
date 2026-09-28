@@ -61,7 +61,7 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "sign_shape", "cable_side", "pet_nfc", "pet_chip",
             "art", "card_size", "card_border", "card_backing", "card_holes",
             "card_colours", "card_bg", "card_ring", "card_at", "card_nfc",
-            "card_chip", "card_back", "card_link", "card_both", "card_rises")
+            "card_chip", "card_back", "card_link", "card_both", "card_rises", "card_fit")
 
 # The shapes the page can ask for.  "card" is the NFC business card, remade
 # as src/logocard.py: the company's logo is the card's shape and colours.
@@ -142,7 +142,10 @@ def preview(parts, info, row_w):
                               assembled=[round(float(v), 6)
                                          for v in assembled[id(part)].ravel()]))
         if part["name"] == "front" and info.get("joint"):
-            slab = trimesh.creation.box(info["tag"])
+            # the fob's tags are rectangles; a logo card's sticker is round
+            slab = (trimesh.creation.cylinder(radius=info["tag"][0] / 2.0,
+                                              height=info["tag"][2], sections=64)
+                    if info.get("kind") == "card" else trimesh.creation.box(info["tag"]))
             meshes.append(slab)
             place = assembled[id(part)] @ trimesh.transformations.translation_matrix(
                 info["joint"])
@@ -208,6 +211,7 @@ def model(params):
                     back=params.get("card_back") or "arcs",
                     link=params.get("card_link", ""),
                     both=bool(params.get("card_both")),
+                    fit=params.get("card_fit") or "sealed",
                     # {slot: mm}, only when each colour has its own height
                     rises={k: float(v) for k, v in params["card_rises"].items()
                            if isinstance(v, (int, float, str)) and str(v).strip()}
@@ -385,7 +389,7 @@ def _finish(params, parts, info, num):
             # A sealed NFC chip needs the print to stop above its pocket;
             # every tag on a plate has its pocket at the same height.
             pauses = [(info["nfc"]["resume_z"], "Drop the NFC chip into the pocket")] \
-                if info.get("nfc") else []
+                if info.get("nfc") and info["nfc"].get("resume_z") else []
             return (cards.export_3mf_tools(parts, filaments(params, colours), row_w=row_w,
                                            pauses=pauses),
                     info, "model/3mf")
