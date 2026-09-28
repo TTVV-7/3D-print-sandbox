@@ -55,7 +55,7 @@ ICONS = {
     "name":    dict(build=lambda: nametag.build("Dino"),
                     colours=(INK, INK, FLAME, FLAME)),
     "pet":     dict(build=lambda: pettag.build("Dino", phone="(555) 214-8890",
-                                               shape="bone"),
+                                               shape="bone", font="script"),
                     colours=(INK, FLAME, PAPER, FLAME), ring=True),
     "sign":    dict(build=lambda: signbox.build("OPEN", lid=False, shape="letters"),
                     colours=(INK, INK, PAPER, PAPER), glow=("primary",)),

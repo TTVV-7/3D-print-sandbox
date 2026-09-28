@@ -2140,6 +2140,10 @@ function shapeChosen() {
   if (word && +rise.value === 0) { rise.value = 1.2; rise.dispatchEvent(new Event("input")); }
   if (!word && +rise.value === 1.2) { rise.value = 0; rise.dispatchEvent(new Event("input")); }
 }
+/* Each shape's starting face: the script for a pet's name, the plain sans for
+   the rest, whose strokes a stencil's bridges and a sign's light prefer. */
+const KIND_FONT = { fob: "sans", name: "sans", pet: "script", sign: "sans", stencil: "sans" };
+
 /* Each shape's starting colours: body, pattern, primary, secondary. */
 const INK = "#0c1a2e", INK_LIGHT = "#1f3a5f", PAPER = "#f5f2ec", FLAME = "#ff5b1f";
 const KIND_COLOURS = {
@@ -2152,10 +2156,19 @@ const KIND_COLOURS = {
 for (const tile of document.querySelectorAll(".tile"))
   tile.addEventListener("click", () => {
     if ($("kind").value === tile.dataset.kind) return;
+    const prevKind = $("kind").value;
     $("kind").value = tile.dataset.kind;
     for (const t of document.querySelectorAll(".tile"))
       t.setAttribute("aria-pressed", String(t === tile));
     shapeChosen();
+    // Each shape's own starting face -- Pacifico for a pet tag -- unless the
+    // face has been changed from the last shape's own, which is a choice.
+    const was = $("font").value;
+    if (was === KIND_FONT[prevKind] && KIND_FONT[tile.dataset.kind]) {
+      $("font").value = KIND_FONT[tile.dataset.kind];
+      faceChosen(was);
+      $("font").dataset.was = $("font").value;
+    }
     // Every shape starts in printyours.ca's colours -- ink navy, paper white,
     // flame orange -- arranged for that shape: a pet tag's phone number in
     // flame on ink, a keyring's letters in flame on an ink outline, a sign lit
