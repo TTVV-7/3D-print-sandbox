@@ -29,6 +29,7 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import numpy as np
 import trimesh
 
 import cards
@@ -129,6 +130,8 @@ def preview(parts, info, row_w):
     not a printed part and has no place on the plate; it is there so that
     pulling the halves apart on screen shows what goes between them.
     """
+    if info.get("kind") == "card" and (info.get("nfc") or {}).get("pause_z"):
+        return at_the_pause(parts[0], info)
     meshes, described = [], []
     assembled = dict((id(p), m) for p, m in cards.assembly(parts, row_w=row_w))
     for part, shift in cards.layout(parts, row_w=row_w):
@@ -156,6 +159,54 @@ def preview(parts, info, row_w):
                                   assembled=[round(float(v), 6) for v in place.ravel()]))
     mesh = trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]
     return mesh.export(file_type="stl"), described
+
+
+def at_the_pause(part, info):
+    """The preview of a logo card with its sticker sealed in: the one part,
+    cut at the height the print pauses at, so the viewer's "apart" view can
+    show it the way it is at the pause -- the bottom with its pocket open,
+    the sticker going in, the rest of the card lifted off above.  Only the
+    preview is cut; the files are the one part.  The cut pieces keep the
+    card's own coordinates, so glued up and on the plate they are simply the
+    card, sitting where it prints."""
+    z = info["nfc"]["pause_z"]
+    big = cards.rounded_rect(1e3, 1e3, 0.0)
+    below = cards.prisms([big], -10.0, z + 10.0)[0]
+    above = cards.prisms([big], z, 100.0)[0]
+    (_, shift), = cards.layout([part])
+    meshes, described = [], []
+    pieces = {"front": [], "back": []}       # named as the viewer lifts them:
+    for g in part["groups"]:                 # "back" is the one that comes off
+        if g["face"] == "front":
+            pieces["back"].append((g, g["mesh"]))
+        elif g["face"] == "back":
+            pieces["front"].append((g, g["mesh"]))
+        else:
+            pieces["front"].append((g, cards.boolean("intersection", [g["mesh"], below])))
+            pieces["back"].append((g, cards.boolean("intersection", [g["mesh"], above])))
+    ident = [round(float(v), 6) for v in np.eye(4).ravel()]
+    plate = [round(float(v), 4) for v in shift]
+    for name in ("front", "back"):
+        runs = []
+        for g, m in pieces[name]:
+            if not len(m.faces):
+                continue
+            meshes.append(m)
+            runs.append([cards.SLOTS.index(g["slot"]), g["element"], g["face"],
+                         int(len(m.faces))])
+        described.append(dict(name=name, card=0, slots=runs, plate=plate, assembled=ident))
+        if name == "front":
+            n = info["nfc"]
+            disc = trimesh.creation.cylinder(radius=n["d"] / 2.0, height=n["t"], sections=64)
+            meshes.append(disc)
+            place = trimesh.transformations.translation_matrix(
+                (n["centre"][0], n["centre"][1], n["z0"] + n["t"] / 2.0))
+            described.append(dict(name="tag", card=0, tag=True,
+                                  slots=[[len(cards.SLOTS), "tag", "joint",
+                                          int(len(disc.faces))]],
+                                  plate=None,
+                                  assembled=[round(float(v), 6) for v in place.ravel()]))
+    return trimesh.util.concatenate(meshes).export(file_type="stl"), described
 
 
 def model(params):
@@ -395,6 +446,8 @@ def _finish(params, parts, info, num):
                     info, "model/3mf")
         return cards.export_3mf(parts, colours, row_w=row_w), info, "model/3mf"
     if params.get("format") == "stl":
+        if params.get("kind") == "card":
+            parts = logocard.weld(parts)          # one solid a part, only for this
         return cards.plate(parts, row_w=row_w).export(file_type="stl"), info, "model/stl"
     if params.get("format") == "glb" and params.get("kind") == "pet":
         # The product shot: the first tag, hanging on a split ring.

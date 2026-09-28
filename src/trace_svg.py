@@ -23,9 +23,10 @@ from pathlib import Path
 import numpy as np
 from shapely.geometry import Point, Polygon, box
 from shapely.ops import unary_union
-from svgpathtools import parse_path
+from svgpathtools import Line, parse_path
 
 SAMPLES = 220   # points per subpath; the curves are short, this is plenty
+CURVE = 24      # points per curved segment, for painted()
 
 
 def subpath_polygons(d):
@@ -264,8 +265,23 @@ def _raw(el):
     if tag == "path" and el.get("d"):
         polys = []
         for sub in parse_path(el.get("d")).continuous_subpaths():
-            t = np.linspace(0, 1, SAMPLES, endpoint=not sub.isclosed())
-            pts = [(p.real, p.imag) for p in (sub.point(x) for x in t)]
+            # A straight segment is its two ends; a curve is sampled along its
+            # own length, CURVE points each -- rather than every subpath at a
+            # fixed count, which an illustration of a thousand strokes spends
+            # seconds on.
+            zs = []
+            for seg in sub:
+                if isinstance(seg, Line):
+                    zs.append(seg.start)
+                    continue
+                t = np.linspace(0, 1, CURVE, endpoint=False)
+                try:
+                    zs.extend(seg.poly()(t))
+                except (AttributeError, TypeError):     # arcs have no polynomial
+                    zs.extend(seg.point(x) for x in t)
+            if not sub.isclosed():
+                zs.append(sub.end)
+            pts = [(z.real, z.imag) for z in zs]
             if len(pts) > 1:
                 lines.append(LineString(pts + ([pts[0]] if sub.isclosed() else [])))
             if len(pts) > 2:
@@ -377,12 +393,23 @@ def painted(svg, keep_background=True, report=None):
                 report["background"] = order[0][0]
             order = order[1:]
 
-    regions = {}
-    for colour, geom in order:
-        for k in regions:
-            if k != colour:
-                regions[k] = regions[k].difference(geom)
-        regions[colour] = regions[colour].union(geom) if colour in regions else geom
+    # What shows of each shape is the shape less everything of another colour
+    # painted after it.  Each is cut only by the later shapes that actually
+    # overlap it -- a spatial index finds them -- and each colour is merged
+    # once at the end, so an illustration of a thousand strokes takes
+    # seconds rather than a minute.
+    from shapely.strtree import STRtree
+    geoms = [g for _, g in order]
+    tree = STRtree(geoms)
+    pieces = {}
+    for i, (colour, geom) in enumerate(order):
+        later = [geoms[j] for j in tree.query(geom)
+                 if j > i and order[j][0] != colour and geoms[j].intersects(geom)]
+        if later:
+            geom = geom.difference(unary_union(later))
+        if not geom.is_empty:
+            pieces.setdefault(colour, []).append(geom)
+    regions = {k: unary_union(v) for k, v in pieces.items()}
     return [(k, g) for k, g in regions.items() if not g.is_empty and g.area > 0]
 
 

@@ -220,6 +220,13 @@
     background: var(--bg-default); border: 1px solid var(--border-default);
     border-radius: var(--radius-200); color: var(--text-default);
   }
+  #building_note {
+    position: absolute; left: 50%; top: calc(50% + 78px); transform: translateX(-50%);
+    width: 300px; max-width: calc(100% - 32px); margin: 0; text-align: center; pointer-events: none;
+    font-size: 12px; line-height: 1.4; color: var(--text-secondary); box-sizing: border-box;
+    padding: var(--space-200) var(--space-300); background: var(--bg-default);
+    border: 1px solid var(--border-default); border-radius: var(--radius-200);
+  }
   #building p {
     position: absolute; left: 0; right: 0; bottom: var(--space-300); margin: 0; text-align: center;
     font-size: 12px; font-weight: 600; letter-spacing: .1em; color: var(--text-secondary);
@@ -467,16 +474,16 @@
     <p class="hint" data-for="card" id="art_note">An SVG is best &mdash; its shapes come through exactly. A PNG,
        JPEG or WebP works too: it is traced, its background taken away, and its colours boiled down
        to the few flat ones the logo is really drawn in. Until you pick one, the card shows a
-       made-up sample.</p>
+       made-up sample. A simple logo builds in a second; a detailed illustration, with hundreds of
+       shapes, can take up to a minute each time something changes.</p>
     <label class="check" data-for="card" data-light="card_bg"><input type="checkbox" id="card_bg"><span>Keep the background it was drawn on</span></label>
     <p class="hint" data-for="card">Off, the rectangle or white page a logo is so often exported on is taken
        away and the card follows the logo itself. On, the background is part of the logo &mdash; for
        an app icon or a badge whose square is the point.</p>
     <label class="check" data-for="card" data-light="card_both"><input type="checkbox" id="card_both"><span>Logo on both sides</span></label>
-    <p class="hint" data-for="card">The logo on the back as well, reading the right way round when the card is
-       turned over, in the same filaments &mdash; no extra head. A logo that is not symmetric does not
-       fit its own mirror image, so the card's outline is cut round both: a wordmark comes out a little
-       wider, and the readout says when. The back then has no room for the tap mark or a QR code.</p>
+    <p class="hint" data-for="card">The logo on the back as well, right behind the front one and in the same
+       filaments &mdash; no extra head. Turn the card over and you see its mirror image, filling exactly
+       the same outline. The back then has no room for the tap mark or a QR code.</p>
     <label class="field" data-for="fob pet" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="email"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
     <p class="hint" data-for="fob">Name, company, title, phone and email are the five every guide to business
@@ -843,7 +850,8 @@
       </select>
     </label>
     <p class="hint" id="card_fit_note">One part. The print stops once, just above the sticker's pocket:
-       drop the sticker in and resume, and it is sealed inside for good. The 3MF carries the pause.</p>
+       drop the sticker in and resume, and it is sealed inside for good. The 3MF carries the pause. At the
+       pause, above the preview, shows the card cut there with the sticker going in.</p>
     <label class="field" data-light="card_chip" id="card_chip_field"><span>Sticker</span>
       <select id="card_chip">
         <option value="0">The biggest that fits</option>
@@ -949,6 +957,8 @@
       <div class="longfazers"><span></span><span></span><span></span><span></span></div>
       <p>BUILDING</p>
     </div>
+    <p id="building_note" hidden>Complex logos can take more time &mdash; a detailed illustration
+       up to a minute.</p>
     <div id="buttons">
       <button class="button subtle" id="flip"><svg viewBox="0 0 16 16"><path d="M2 8a6 6 0 0 1 10.4-4.1M14 8a6 6 0 0 1-10.4 4.1"/><path d="M12.5 1v3h-3M3.5 15v-3h3"/></svg>Flip</button>
       <button class="button neutral" id="save_stl" disabled>STL</button>
@@ -1462,6 +1472,9 @@ function setMode(next, snap) {
     b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
   liftTo = mode === "apart" ? (parts[0] ? parts[0].lift : 14) : 0;
   [yawTo, pitchTo] = CAMERA[mode];
+  // A sealed logo card comes apart upwards, at the pause: look down into
+  // the open pocket rather than up at the bottom of it.
+  if (mode === "apart" && info && info.kind === "card" && info.front_up) [yawTo, pitchTo] = [0, -0.75];
   if (mode === "glued") yawTo = frontYaw;
   frameView();
   if (snap) { lift = liftTo; yaw = yawTo; pitch = pitchTo; focus = [...focusTo]; dist = distTo; }
@@ -1483,8 +1496,8 @@ const LIGHTS = {
   card_colours:{ el: ["logo"], label: "the logo's colours" },
   card_ring:   { el: ["body"], label: "the card the keyring goes through" },
   card_at:     { el: ["body"], label: "the card the keyring goes through" },
-  card_nfc:    { face: "back", label: "the back, over the sticker" },
-  card_chip:   { face: "back", label: "the back, over the sticker" },
+  card_nfc:    { el: ["tag"], mode: "apart", label: "the NFC sticker" },
+  card_chip:   { el: ["tag"], mode: "apart", label: "the NFC sticker" },
   card_link:   { el: ["qr"], label: "the QR code" },
   card_back:   { face: "back", label: "the back" },
   card_fit:    { el: ["tag"], mode: "apart", label: "the sticker between the halves" },
@@ -1809,8 +1822,7 @@ function cardReadout(line) {
     info.folded.length ? line("same as the card", info.folded.map(h => `${swatch(h)}${h}`).join(" ") + " &mdash; no inlay needed") : "",
     info.bridged ? line("bridged", info.bridged > 50 ? "the pieces were too far apart, so the card is their outline"
                                                      : `pieces up to ${mm(info.bridged)} mm apart joined into one card`) : "",
-    info.both ? line("back", "the logo again, the right way round when turned over" +
-                      (info.widened ? " &mdash; the outline is cut round it and its mirror image, so it is wider than the logo" : "")) : "",
+    info.both ? line("back", "the logo again, mirrored, right behind the front") : "",
     info.stepped ? line("heights", info.art.map(a => `${swatch(a.hex)}${a.rise ? mm(a.rise) + " mm" : "flush"}`).join(" &middot; ")) : "",
     info.ring !== "none" ? line("keyring", `${info.ring}, ${mm(info.ring_d)} mm, ${info.ring_at.replace("-", " ")}`) : "",
     line("weighs", `${grams.toFixed(1)} g (${info.volume.toFixed(2)} cm&sup3;)`),
@@ -2012,6 +2024,7 @@ async function rebuild() {
   const params = formParams();
   const mine = ++seq;
   $("building").hidden = false;
+  $("building_note").hidden = $("kind").value !== "card";
   try {
     const res = await fetch("/api/model", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -2023,10 +2036,18 @@ async function rebuild() {
       $("save").disabled = $("save_stl").disabled = true;
       return;
     }
-    const wasSplit = info && info.parts.length > 1;
+    // Split: more than one part, or a sticker sealed inside one that the
+    // preview can show going in.
+    const splitOf = i => !!i && (i.parts.length > 1 || (i.preview || []).some(p => p.tag));
+    const wasSplit = splitOf(info);
     info = JSON.parse(res.headers.get("X-Card-Info"));
     stl = await body(res);
-    const split = info.parts.length > 1;
+    const split = splitOf(info);
+    if (info.kind === "card")
+      $("modes").querySelectorAll("button").forEach((b, i) => {
+        b.textContent = (info.parts.length > 1 ? ["Glued up", "Pulled apart", "On the plate"]
+                                               : ["Finished", "At the pause", "On the plate"])[i];
+      });
     $("modes").hidden = !split;
     if (!split) mode = "glued";
     if (gl) {
@@ -2042,7 +2063,7 @@ async function rebuild() {
   } catch (e) {
     specs.innerHTML = `<span class="err">${e.message} &mdash; is src/app.py still running?</span>`;
   } finally {
-    if (mine === seq) $("building").hidden = true;
+    if (mine === seq) $("building").hidden = $("building_note").hidden = true;
   }
 }
 
@@ -2114,7 +2135,8 @@ $("card_nfc").addEventListener("change", () => {
 });
 const CARD_FIT_NOTES = {
   sealed: "One part. The print stops once, just above the sticker's pocket: drop the sticker in " +
-          "and resume, and it is sealed inside for good. The 3MF carries the pause.",
+          "and resume, and it is sealed inside for good. The 3MF carries the pause. At the pause, " +
+          "above the preview, shows the card cut there with the sticker going in.",
   halves: "Two parts on one plate, the card split through the middle of its thickness with half " +
           "the sticker's cavity in each, and three pins on the glue line so they only go together " +
           "one way. No pause: print both, put the sticker in the cavity, glue the flat round it and " +

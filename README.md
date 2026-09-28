@@ -59,11 +59,10 @@ black kept, and a tab for the ring.
 
 Two options change what the card is rather than how it is cut:
 
-- **Logo on both sides.**  The back carries the logo too, reading the right
-  way round when the card is turned over, in the same filaments -- so it costs
-  no extra head.  An asymmetric logo does not fit its own mirror image, so the
-  outline is cut round both; a wordmark comes out a little wider, and the
-  readout says when.  The back's tap mark and QR code give way to it.
+- **Logo on both sides.**  The back carries the logo too, right behind the
+  front one, in the same filaments -- so it costs no extra head.  Turned over,
+  the card shows the logo's mirror image, filling exactly the same outline.
+  The back's tap mark and QR code give way to it.
 - **Two halves.**  Under *How it goes in*, the sticker can be glued between
   two halves instead of sealed in by a pause.  The card is split through the
   middle of its thickness with half the cavity in each, and three pins on the
@@ -72,7 +71,10 @@ Two options change what the card is rather than how it is cut:
   standing up, the front half front face up with the pins' holes underneath,
   so raised colours still print on top.  The preview's *Glued up*, *Pulled
   apart* and *On the plate* show it, and the 3MF has both halves on one plate
-  with no pause in it.
+  with no pause in it.  A sealed card gets the same three views as *Finished*,
+  *At the pause* and *On the plate*: at the pause, the card is shown cut at the
+  height the print stops at, the sticker going into its open pocket and the
+  rest of the card lifted off above.  Only the preview is cut.
 - **A different height for each colour.**  Each colour of the logo stands at
   its own height off the card, so a logo reads as a stepped badge: black
   lettering and frame at 1.2 mm above an orange field at 0.4 mm, say.  One
@@ -84,7 +86,7 @@ Two options change what the card is rather than how it is cut:
 python3 src/app.py                                   # first tile: NFC logo card
 python3 src/logocard.py logo.svg -o card.3mf         # or from a terminal
 python3 src/logocard.py logo.png --ring hole --ring-at top-right --link https://example.com
-python3 src/logocard.py logo.png --both --rises 0.4,1.2   # two-sided, stepped
+python3 src/logocard.py logo.png --both --rises 0.4,1.2   # two-sided (mirrored), stepped
 ```
 
 ## What it does with the logo
@@ -106,6 +108,13 @@ into their neighbours so a halo never becomes a colour of its own, and each
 colour's pixels are traced and smoothed into the edge they were sampling.  The
 page sends images at up to 960 pixels; the tracer works at 480, which on a
 70 mm card is about a tenth of a millimetre a pixel.
+
+A simple logo builds in well under a second.  A detailed illustration --
+hundreds of shapes -- takes longer, up to a minute on a very busy one, and the
+page says so while it builds.  Most of that is cutting every colour's pocket
+out of the card; reading the SVG itself only compares each shape with the later
+ones that actually overlap it, and the STL's single welded solid is only made
+when an STL is downloaded.
 
 Either way a **background** the logo was drawn on -- the rectangle behind it,
 the white page -- is taken off, unless *Keep the background* is ticked (for an

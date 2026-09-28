@@ -157,6 +157,14 @@ SLIVER = 0.12
 SPECK = 0.3
 
 
+def solid(polys, z0, t):
+    """Separate polygons extruded side by side.  pettag.solid() merges them
+    first; these come out of tidy() or _flat() already apart, and merging a
+    traced illustration's thousands of pieces again costs seconds."""
+    meshes = cards.prisms(polys, z0, t)
+    return meshes[0] if len(meshes) == 1 else cards.trimesh.util.concatenate(meshes)
+
+
 def tidy(g):
     """An inlay's polygons with the unprintable crumbs taken off it."""
     g = g.buffer(-SLIVER, quad_segs=8).buffer(SLIVER, quad_segs=8)
@@ -229,19 +237,9 @@ def silhouette(art, border, backing, fill_holes=True):
     return fill(base.convex_hull), 99.0
 
 
-def mirror(g):
-    """Turned over left to right about the card's centre line: where a shape
-    drawn to be read from behind lands in the card's own coordinates."""
-    return affinity.scale(g, -1, 1, origin=(0, 0))
-
-
-def fit_art(regions, size, border, backing, fill_holes, both=False):
+def fit_art(regions, size, border, backing, fill_holes):
     """Scale the logo so the finished card's longest side is `size` mm.
-    Returns (regions in mm centred on the origin, outline, bridged).
-
-    With `both`, the outline is cut round the logo *and* its mirror image,
-    so the logo on the back -- the right way round from behind -- fits the
-    card as well as the front one does.  A symmetric logo loses nothing."""
+    Returns (regions in mm centred on the origin, outline, bridged)."""
     every = unary_union([g for _, g in regions])
     x0, y0, x1, y1 = every.bounds
     cx, cy, long = (x0 + x1) / 2, (y0 + y1) / 2, max(x1 - x0, y1 - y0)
@@ -250,14 +248,17 @@ def fit_art(regions, size, border, backing, fill_holes, both=False):
         k = target / long
         place = lambda g: affinity.scale(affinity.translate(g, -cx, -cy), k, k, origin=(0, 0))
         art = place(every)
-        outline, bridged = silhouette(unary_union([art, mirror(art)]) if both else art,
-                                      border, backing, fill_holes)
+        outline, bridged = silhouette(art, border, backing, fill_holes)
         bx0, by0, bx1, by1 = outline.bounds
         got = max(bx1 - bx0, by1 - by0)
         if abs(got - size) < 0.05:
             break
         target *= size / got
-    return [(h, place(g)) for h, g in regions], art, outline, bridged
+    # Points closer than a fiftieth of a millimetre are finer than any
+    # printer resolves; dropping them keeps a traced illustration's meshes,
+    # and every boolean on them, a fraction of the size.
+    return ([(h, place(g).simplify(0.02, preserve_topology=True)) for h, g in regions],
+            art, outline, bridged)
 
 
 def grow_end(outline, towards, by):
@@ -322,9 +323,10 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
     logo's colours and the slot each went to, so a front end can start its
     colour pickers on them.
 
-    `both` puts the logo on the back as well, reading the right way round
-    when the card is turned over, in the same colours; the back then has no
-    room for the tap mark or a QR code, and goes without.
+    `both` puts the logo on the back as well, right behind the front one, in
+    the same colours: turned over, the card shows the logo's mirror image,
+    and the outline stays the logo's own.  The back then has no room for the
+    tap mark or a QR code, and goes without.
 
     `rises` gives each logo colour its own height off the face, by slot --
     {"primary": 1.2, "secondary": 0.4} -- so a logo can be stepped: the
@@ -361,17 +363,11 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
                        report=seen)
     # The sample is drawn to sit on ink, the colour the page starts in.
     suggest = INK if not art else body_for(regions, seen.get("background"))
-    regions, art_2d, outline, bridged = fit_art(regions, size, border, backing, fill_holes,
-                                                both)
-    # How far from symmetric the logo is: past a few percent, a two-sided
-    # card's outline is visibly wider than the logo's own.
-    widened = both and art_2d.symmetric_difference(mirror(art_2d)).area > 0.05 * art_2d.area
+    regions, art_2d, outline, bridged = fit_art(regions, size, border, backing, fill_holes)
     inlays, folded = sort_colours(regions, colours[0], max_colours)
     # The hole keeps clear of what shows: the inlays.  A part of the logo in
     # the card's own colour is the card, and a hole may go through it.
     ink = unary_union([g for _, _, g in inlays]) if inlays else Polygon()
-    if both:
-        ink = unary_union([ink, mirror(ink)])
     outline, hole, ring_got = keyring(outline, ink, ring, ring_at, float(ring_d))
     if ring == "hole" and ring_got != "hole" and backing == "rounded":
         # A rectangle with no room in its corner grows at that end until
@@ -397,21 +393,22 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
             continue
         up = rises.get(slot, rise)
         if up > 0:
-            mesh = pettag.solid(polys, thick - FACE - 0.01, FACE + up + 0.01)
+            mesh = solid(polys, thick - FACE - 0.01, FACE + up + 0.01)
         else:
-            mesh = pettag.solid(polys, thick - FACE - 0.01, FACE + 0.01)
-        cutters.append(pettag.solid(polys, thick - FACE, FACE + 1.0))
+            mesh = solid(polys, thick - FACE - 0.01, FACE + 0.01)
+        cutters.append(solid(polys, thick - FACE, FACE + 1.0))
         groups_.append(dict(slot=slot, element="logo", face="front", mesh=mesh))
         report.append(dict(slot=slot, hex=hexc, area=round(sum(p.area for p in polys), 1),
                            detail=round(float(cards.finest(polys)), 2), rise=round(up, 2)))
         if both:
-            # The same colour on the back, turned over.  Always flush: the
-            # back is the face on the bed, and relief there would need
-            # supports.  Same slots, so a second side costs no extra head.
-            under = [mirror(p) for p in polys]
-            cutters.append(pettag.solid(under, -1.0, FACE + 1.0))
+            # The same colour on the back, right behind the front: from
+            # behind, the logo's mirror image, filling the same outline.
+            # Always flush -- the back is the face on the bed, and relief
+            # there would need supports.  Same slots, so no extra head.
+            under = polys
+            cutters.append(solid(under, -1.0, FACE + 1.0))
             groups_.append(dict(slot=slot, element="logo", face="back",
-                                mesh=pettag.solid(under, 0.0, FACE + 0.01)))
+                                mesh=solid(under, 0.0, FACE + 0.01)))
             back_logo = True
 
     # The chip, at the roomiest point of the card, clear of the ring.
@@ -475,14 +472,16 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
     if back_polys:
         back_polys = _flat(unary_union(back_polys).intersection(body_2d.buffer(-0.8)))
     if back_polys:
-        cutters.append(pettag.solid(back_polys, -1.0, FACE + 1.0))
+        cutters.append(solid(back_polys, -1.0, FACE + 1.0))
         groups_.append(dict(slot=mark_slot, element="qr" if back == "qr" else "arcs",
-                            face="back", mesh=pettag.solid(back_polys, 0.0, FACE + 0.01)))
+                            face="back", mesh=solid(back_polys, 0.0, FACE + 0.01)))
 
     if cutters:
         body = cards.boolean("difference", [body, *cutters])
 
-    halves = fit == "halves"
+    # Two halves are for gluing a sticker between; with no sticker there is
+    # nothing to split the card for.
+    halves = fit == "halves" and chip is not None
     pins = []
     if halves:
         blocked = [hole.buffer(RING_WALL)] if hole is not None else []
@@ -513,7 +512,7 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
         stepped=len({r["rise"] for r in report}) > 1,
         total_z=round(total, 2), size=round(size, 1),
         border=round(border, 2), backing=backing, bridged=bridged,
-        both=back_logo, widened=bool(widened and back_logo),
+        both=back_logo,
         art=report, folded=folded, body=colours[0], suggest_body=suggest,
         source="svg" if (not art or (isinstance(art, str) and (art.lstrip().startswith("<")
                          or art.startswith("data:image/svg") or art.lower().endswith(".svg"))))
@@ -539,9 +538,11 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
         joint=[chip["centre"][0], chip["centre"][1], 0.0] if halves and chip else None,
         tag=[chip["d"], chip["d"], chip["t"]] if chip else [0, 0, 0],
         colour_bands=bands, colour_z=round(FACE, 2),
-        volume=round(sum(p["mesh"].volume for p in parts) / 1000.0, 2),
-        watertight=all(p["mesh"].is_watertight and p["mesh"].is_winding_consistent
-                       for p in parts),
+        # the colours overlap by a hundredth of a millimetre where they meet,
+        # which the sum counts twice and nobody would weigh
+        volume=round(sum(m.volume for p in parts for m in p["slots"].values()) / 1000.0, 2),
+        watertight=all(m.is_watertight and m.is_winding_consistent
+                       for p in parts for m in p["slots"].values()),
         thin=thin, face=FACE, chamfer=0.0, layout=None, look=None,
         nfc=chip, pause_z=chip["pause_z"] if chip else None,
     )
@@ -549,12 +550,26 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
 
 
 def finish(part):
-    """A part's colour slots gathered and welded: what the 3MF and the STL
-    take."""
+    """A part's colour slots gathered: what the 3MF takes, one mesh a colour.
+
+    part["mesh"] is the slots side by side, not welded: enough for the plate
+    layout, the size and the volume, and welding a traced illustration's
+    colours into one solid is the slowest thing in the build.  weld() does
+    it, for the one download that wants a single solid -- the STL."""
     part["slots"] = cards.slot_meshes(part)
     solids = [part["slots"][s] for s in cards.SLOTS if s in part["slots"]]
-    part["mesh"] = solids[0] if len(solids) == 1 else cards.boolean("union", solids)
+    part["mesh"] = solids[0] if len(solids) == 1 else cards.trimesh.util.concatenate(solids)
     return part
+
+
+def weld(parts):
+    """The parts with each one's colours welded into a single solid."""
+    out = []
+    for part in parts:
+        solids = [part["slots"][s] for s in cards.SLOTS if s in part["slots"]]
+        mesh = solids[0] if len(solids) == 1 else cards.boolean("union", solids)
+        out.append({**part, "mesh": mesh})
+    return out
 
 
 def pin_spots(body_2d, blocked):
@@ -665,7 +680,7 @@ if __name__ == "__main__":
     for r in info["art"]:
         palette[cards.SLOTS.index(r["slot"])] = r["hex"]
     if a.out.endswith(".stl"):
-        cards.plate(parts).export(a.out)
+        cards.plate(weld(parts)).export(a.out)
     else:
         Path(a.out).write_bytes(cards.export_3mf(parts, tuple(palette)))
     print(f"{a.out}: {info['w']} x {info['h']} x {info['total_z']} mm, "
