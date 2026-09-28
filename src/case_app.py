@@ -47,6 +47,8 @@ from phonecase.threemf import (colour_parts, parts_to_3mf,
                                stats as threemf_stats)
 from phonecase.toolpath import build, stats
 
+import phone_mockup
+
 ROOT = Path(__file__).resolve().parent.parent
 PAGE = ROOT / "public" / "case.html"
 
@@ -358,6 +360,26 @@ def threemf(params):
     return data, info, "model/3mf"
 
 
+def mockup(params):
+    """(bytes, report, content type): the phone with the case on it, as a
+    GLB for the page's 3D view.  The case is the 3MF's own solids, so the
+    artwork is on it in colour; the phone is drawn from the same table the
+    case was.  About a tenth of a second."""
+    r = resolve(params)
+    if r["test_fit"]:
+        raise ValueError("a test fit has no solid to show -- turn it off to see the case "
+                         "on the phone")
+    phone_id = params.get("phone") or "iphone-15-pro"
+    finishes = dict(phone_mockup.finishes(phone_id))
+    finish = params.get("finish")
+    hexc = finishes.get(finish) or next(iter(finishes.values()))
+    try:
+        data = phone_mockup.glb(r["spec"], r["paint"], hexc)
+    except MeshUnavailable as exc:
+        raise ValueError(str(exc)) from None
+    return data, report(r, None, None, None), "model/gltf-binary"
+
+
 def catalogue():
     """Everything the form's menus are made of, from the generator itself.
 
@@ -375,7 +397,10 @@ def catalogue():
                                "w": v.camera_w, "h": v.camera_h,
                                "r": v.camera_r,
                                "marginTop": v.camera_margin_top,
-                               "marginSide": v.camera_margin_side}}
+                               "marginSide": v.camera_margin_side},
+                    # what the 3D view can paint the phone
+                    "finishes": [{"name": n, "hex": h}
+                                 for n, h in phone_mockup.finishes(k)]}
                    for k, v in PHONES.items()],
         "cases": [{"id": k, **v} for k, v in CASES.items()],
         "printers": [{"id": k, "name": v.name, "tools": v.tools,
@@ -432,13 +457,15 @@ class Handler(BaseHTTPRequestHandler):
             if not isinstance(params, dict):
                 raise ValueError("expected a JSON object")
             want = params.get("want")
-            want_file = want in ("gcode", "stl", "3mf")
+            want_file = want in ("gcode", "stl", "3mf", "mockup")
             if want == "gcode":
                 data, info, ctype = gcode(params)
             elif want == "stl":
                 data, info, ctype = stl(params)
             elif want == "3mf":
                 data, info, ctype = threemf(params)
+            elif want == "mockup":
+                data, info, ctype = mockup(params)
             else:
                 svg, info = preview(params)
                 data, ctype = json.dumps({"svg": svg, "report": info}).encode(), \

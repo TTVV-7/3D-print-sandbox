@@ -7,3 +7,6 @@ stl/*_fob*
 
 # a virtualenv for running the generators locally
 .venv/
+
+# secrets -- API keys live here, never in the code
+.env

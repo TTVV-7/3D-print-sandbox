@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fobs, keyrings, stencils, signs</title>
+<title>Fobs, keyrings, pet tags, signs</title>
 <style>
   /* Styled on Figma's Simple Design System: Inter, a near-black brand colour
      on white, 1 px borders, 8 px radii, an 8-based spacing scale.  The tokens
@@ -130,6 +130,22 @@
   .tile[aria-pressed=true] svg { stroke: var(--text-default); }
 
   /* Colour swatches: four Tags in a row */
+  /* The spools on the shelf, from public/filaments.json: one row per colour
+     the part uses, one chip per spool of the chosen material. */
+  .spools { display: flex; flex-direction: column; gap: var(--space-300); }
+  .spool-row { display: flex; flex-direction: column; gap: var(--space-100); }
+  .spool-row > span { font-size: 13px; color: var(--text-secondary); }
+  .spool-row > span b { font-weight: 600; color: var(--text-default); }
+  .spool-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-200); }
+  .spool-head > span { font-size: 13px; color: var(--text-secondary); }
+  .spool-head > span b { font-weight: 600; color: var(--text-default); }
+  .spool-head select { width: auto; min-height: 0; padding: 2px 28px 2px 8px; font-size: 13px; }
+  .warn-note { margin: 0; font-size: 13px; line-height: 1.4; color: var(--text-secondary);
+    border-left: 3px solid var(--brand); padding-left: var(--space-300); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { width: 28px; height: 28px; padding: 0; border-radius: var(--radius-full); cursor: pointer;
+    border: 1px solid var(--border-secondary); box-shadow: inset 0 0 0 2px var(--bg-default); }
+  .chip[aria-pressed=true] { outline: 2px solid var(--brand); outline-offset: 1px; }
   .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-200); }
   .swatches label { display: flex; flex-direction: column; align-items: center; gap: var(--space-100);
                     font-size: 12px; color: var(--text-secondary); cursor: pointer; }
@@ -174,6 +190,15 @@
   #hud { position: absolute; left: var(--space-600); top: var(--space-400); color: var(--text-secondary);
          font-size: 14px; pointer-events: none; }
   #modes { position: absolute; right: var(--space-600); top: var(--space-400); }
+  /* the pet tag's product shot: the tag on a split ring, in three.js */
+  #shot { position: absolute; left: var(--space-600); bottom: var(--space-600); z-index: 3; }
+  #three { position: absolute; inset: 0; z-index: 2;
+    background: radial-gradient(ellipse at 50% 40%, #ffffff 0%, #ececec 70%, #e2e2e2 100%); }
+  #three canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #three canvas:active { cursor: grabbing; }
+  #three .threefail { position: absolute; inset: 0; display: grid; place-items: center; margin: 0;
+    padding: 32px; color: var(--text-secondary); text-align: center; }
+  #view.product #buttons, #view.product #shot { z-index: 3; }
   #nogl { position: absolute; inset: 0; display: none; place-items: center; padding: 30px;
           text-align: center; color: var(--text-secondary); }
   /* A build in flight.  A ring going round says only that something is
@@ -389,7 +414,7 @@
 <body>
 <aside>
   <div>
-    <h1>Fobs, keyrings, stencils, signs</h1>
+    <h1>Fobs, keyrings, pet tags, signs</h1>
     <p class="sub">Pick a shape, fill it in, take the file away.</p>
     <p class="sub" style="margin-top:var(--space-200)"><a href="/case"
        style="color:var(--text-secondary)">Phone cases &rarr;</a></p>
@@ -405,6 +430,10 @@
       <button type="button" class="tile" data-kind="name" aria-pressed="false">
         <svg viewBox="0 0 86 34" aria-hidden="true"><circle cx="9" cy="17" r="6"/><path d="M15 17h6"/><path d="M23 27V9c6 0 9 3 9 9s-3 9-9 9zM38 27V13m0 0c5 0 7 2 7 6v8M53 27V13m0 0c5 0 7 2 7 6v8M68 9v18"/></svg>
         <div><b>Name keyring</b><span>the letters are the whole thing</span></div>
+      </button>
+      <button type="button" class="tile" data-kind="pet" aria-pressed="false">
+        <svg viewBox="0 0 86 34" aria-hidden="true"><circle cx="43" cy="5" r="3"/><path d="M38.5 7.5a13 13 0 1 0 9 0"/><path d="M36 20h14M38 25h10"/></svg>
+        <div><b>Pet tag</b><span>name on the front, the way home on the back</span></div>
       </button>
       <button type="button" class="tile" data-kind="sign" aria-pressed="false">
         <svg viewBox="0 0 86 34" aria-hidden="true"><rect x="1.5" y="4.5" width="83" height="25" rx="4"/><rect x="8" y="10" width="70" height="14" rx="2"/><path d="M18 20v-6h4M18 17h3M30 20v-6l5 6v-6M43 20v-6h5M43 17h4M43 20h5M56 14v6h5"/></svg>
@@ -425,12 +454,19 @@
     <label class="field" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
-    <label class="field" data-for="fob" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
+    <label class="field" data-for="fob pet" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="email"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
     <p class="hint" data-for="fob">Name, company, title, phone and email are the five every guide to business
        cards agrees on, and five to seven things is where a fob stops being read. Leave any of
        them empty and the line goes away. A long one shrinks to fit; past the point where that
        stops being printable, put a <code>|</code> where it should break instead.</p>
+    <label class="field" data-for="pet" data-light="pet_note"><span>Extra line</span><input type="text" id="pet_note" value="" autocomplete="off" placeholder="I'm microchipped"></label>
+    <p class="hint" data-for="pet">The pet's name goes on the front, as big as the tag takes it. The phone
+       number is always set in the plain bold sans whatever face the name is in, and the fit
+       shrinks the name first and the number last &mdash; a long number is split over two lines
+       when that lets it come out bigger. Put a <code>|</code> in it to choose the break yourself.
+       The extra line is for &ldquo;I'm microchipped&rdquo;, a second number or a street; leave it
+       empty and it goes away.</p>
     <p class="hint" data-for="name">One word is what these are for. It is set tight, welded into a single
        piece and given a tab for the ring; anything the weld leaves loose &mdash; the dot of an
        i &mdash; is bridged on.</p>
@@ -524,19 +560,74 @@
        with the hole countersunk into the face, so it goes up and comes down with the lid on &mdash;
        at the cost of two screw heads showing, out in the plain border. Both need room between the
        wall and the lettering, and say so if the margin is too tight.</p>
-    <label class="field" data-for="name stencil sign" data-light="font"><span>Face</span>
+    <label class="field" data-for="pet" data-light="pet_style"><span>How it goes on</span>
+      <select id="pet_style">
+        <option value="hanging">Hanging &mdash; ring tab for a split ring</option>
+        <option value="slide">Slide-on &mdash; the collar threads through it</option>
+      </select>
+    </label>
+    <p class="hint" data-for="pet">A hanging tag has two faces: the name on the front and the way home on the
+       back. A slide-on tag is a flat plate with a slot at each end; the strap goes in one slot,
+       behind the plate and out of the other. Nothing dangles, so it cannot jingle, snag or fall
+       off when a ring opens &mdash; but its back is against the dog, so everything is on the front.</p>
+    <label class="field" data-for="pet" data-light="pet_shape" id="pet_shape_field" data-style="hanging"><span>Shape</span>
+      <select id="pet_shape">
+        <option value="circle">Round</option>
+        <option value="bone">Bone</option>
+        <option value="heart">Heart</option>
+        <option value="tag">Tag</option>
+      </select>
+    </label>
+    <div class="field" data-for="pet" data-light="pet_size"><span>Width</span>
+      <div class="slider"><input type="range" id="pet_size" min="20" max="60" step="1" value="32"><output id="pet_size_v">32 mm</output></div>
+    </div>
+    <p class="hint" data-for="pet" id="pet_size_note">Round and tag shapes keep a full phone number
+       readable from about 28 mm &mdash; a cat or a toy breed &mdash; with 32 for a medium dog. A bone's
+       number only has the bar between its lobes and a heart's narrows to the point, so both start at
+       42 to 45. Picking a shape puts this back to that shape's starting size; the readout warns when
+       the number drops under 3.5 mm.</p>
+    <label class="field" data-for="pet" data-light="pet_sides" id="pet_sides_field" data-style="hanging"><span>Sides</span>
+      <select id="pet_sides">
+        <option value="two">Name on the front, phone on the back</option>
+        <option value="one">Everything on the front</option>
+      </select>
+    </label>
+    <label class="field" data-for="pet" data-light="pet_collar" id="pet_collar_field" data-style="slide"><span>Collar width</span>
+      <select id="pet_collar">
+        <option value="10">10 mm (3/8&Prime;) &mdash; cat</option>
+        <option value="15">15 mm (5/8&Prime;) &mdash; small dog</option>
+        <option value="20" selected>20 mm (3/4&Prime;) &mdash; medium dog</option>
+        <option value="25">25 mm (1&Prime;) &mdash; large dog</option>
+        <option value="38">38 mm (1&frac12;&Prime;) &mdash; martingale</option>
+      </select>
+    </label>
+    <div class="field" data-for="pet" data-light="pet_slot" id="pet_slot_field" data-style="slide"><span>Slot width</span>
+      <div class="slider"><input type="range" id="pet_slot" min="2" max="6" step="0.5" value="3.5"><output id="pet_slot_v">3.5 mm</output></div>
+    </div>
+    <p class="hint" data-for="pet" id="pet_slot_note" data-style="slide">The slots are the collar's width plus 1.5 mm long,
+       and this wide: the strap's thickness with room to go through at an angle. Measure the
+       collar; nylon webbing is about 2 mm, leather 3 to 4.</p>
+    <label class="check" data-for="pet" data-light="pet_border"><input type="checkbox" id="pet_border"><span>Border round the front</span></label>
+    <label class="field" data-for="pet" data-light="pet_link" id="pet_link_field" data-style="hanging"><span>QR code link</span><input type="text" id="pet_link" value="" autocomplete="off" placeholder="https://..."></label>
+    <p class="hint" data-for="pet" id="pet_link_note" data-style="hanging">Optional, on the back beside the phone number: a page with
+       the owner's details that a finder opens with their camera. Use a short link you control, so it
+       can be re-pointed without reprinting the tag. A code needs room &mdash; at least 38 mm of
+       tag &mdash; and the readout says when it has been squeezed.</p>
+    <label class="field" data-for="name pet stencil sign" data-light="font"><span>Face</span>
       <select id="font"></select>
     </label>
-    <p class="hint" data-for="name stencil sign" id="font_note"></p>
+    <p class="hint" data-for="name pet stencil sign" id="font_note"></p>
     <div class="field" data-for="name" data-light="cap"><span>Letter height</span>
       <div class="slider"><input type="range" id="cap" min="8" max="26" step="0.5" value="14"><output id="cap_v">14 mm</output></div>
     </div>
     <p class="hint" data-for="name" id="cap_note"></p>
-    <div class="field" data-for="name" data-light="ring_d"><span>Ring hole</span>
+    <div class="field" data-for="name pet" data-light="ring_d" id="ring_field" data-style="hanging"><span>Ring hole</span>
       <div class="slider"><input type="range" id="ring_d" min="0" max="9" step="0.5" value="5"><output id="ring_v">5 mm</output></div>
     </div>
     <p class="hint" data-for="name">A 5 mm hole takes a split ring or a lobster clasp. Nothing at all
        drops the tab and leaves the bare word.</p>
+    <p class="hint" data-for="pet" id="ring_note" data-style="hanging">5 mm takes the split ring or S-hook on most collars. The
+       plastic round it is heavier than a keyring's, because a tab that tears out is a lost tag.</p>
     <label class="check" data-for="name" data-light="outline"><input type="checkbox" id="outline" checked><span>Letters raised in a second colour</span></label>
     <p class="hint" data-for="name">On, the word sits proud of its own outline and the print takes one
        filament change. Off, it is one flat solid in the body colour.</p>
@@ -551,7 +642,19 @@
     <label class="field" data-for="fob" data-light="look"><span>Background pattern</span>
       <select id="look"></select>
     </label>
-    <div class="field"><span>Colours</span>
+    <div class="field" id="spool_field" hidden><span>Colours from the shelf</span>
+      <label class="field spool-all"><span>Every colour in</span><select id="material"></select></label>
+      <div class="spools" id="spools"></div>
+    </div>
+    <p class="warn-note" id="mix_note" hidden>Two materials in one print: each goes on its own
+       head, and the 3MF says which. TPU and PETG bond to each other, but not as well as
+       either bonds to itself &mdash; the letters are locked into pockets, so they hold anyway.</p>
+    <p class="hint" id="spool_note">These are the spools in <code>public/filaments.json</code> &mdash; the
+       colours that can actually be printed. Each colour picks its own material and then its spool,
+       so a TPU tag can carry PETG lettering; <em>Every colour in</em> sets them all at once. The 3MF
+       puts each colour on its own filament, with the colour and material named, so the slicer opens
+       it ready to print. Edit the file when a spool arrives or runs out.</p>
+    <div class="field"><span id="exact_label">Colours</span>
       <div class="swatches">
         <label data-light="c0"><input type="color" id="c0" value="#141414">Body</label>
         <label data-light="c1"><input type="color" id="c1" value="#2e2e2e">Pattern</label>
@@ -565,6 +668,11 @@
        secondary the quieter lines and the tap wording.</p>
     <p class="hint" data-for="name">Body is the outline and Primary the letters on top of it. The other
        two are not used by a keyring.</p>
+    <p class="hint" data-for="pet">Body is the tag. Primary is the name on the front, Secondary the phone
+       number and QR code on the back, and Pattern the border. PETG for a hanging tag &mdash; stiff,
+       and it does not soften in a hot car the way PLA does. TPU for a slide-on: it bends with the
+       collar and cannot shatter, but it is soft enough to chew, so keep it off a hanging tag on a
+       dog that chews. Pick colours with contrast: the number has to read at arm's length.</p>
     <p class="hint" data-for="stencil">Body is the plate. A stencil prints in one colour &mdash; the
        other three are not used.</p>
     <p class="hint" data-for="sign">Body is the case and the lid, in something opaque. Primary is the
@@ -574,6 +682,9 @@
     <div class="field" data-light="rise"><span>Relief</span>
       <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
     </div>
+    <p class="hint" data-for="pet">Flush is the default and the one to sell: the lettering is inlaid 0.6 mm
+       into the tag, so there is nothing standing up to wear off against a collar. Raised is for the
+       look, and only the front can be raised &mdash; the back prints face down.</p>
     <p class="hint" data-for="fob">How far the lettering stands off the face. Flush is a smooth fob with every
        colour in the face layer. 1.2 mm you can feel with a thumb, at the cost of a colour change
        on every layer of the relief.</p>
@@ -612,7 +723,7 @@
 
   <section>
     <h2 data-for="fob">5 &middot; A batch of them</h2>
-    <h2 data-for="name stencil sign">4 &middot; A batch of them</h2>
+    <h2 data-for="name pet stencil sign">4 &middot; A batch of them</h2>
     <label class="field"><span>One person per line</span>
       <textarea id="batch" rows="4" spellcheck="false"
         placeholder="Jane Doe, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
@@ -622,6 +733,9 @@
        anything here, the preview and the downloads are the whole batch on one plate.</p>
     <p class="hint" data-for="name">One name per line. While there is anything here, the preview and the
        downloads are every keyring on one plate.</p>
+    <p class="hint" data-for="pet">One pet per line: name, phone, extra line, QR link &mdash; commas or tabs.
+       Only the name is needed; anything a line leaves out comes from the boxes above, so a litter
+       with one owner is just the names. The preview and the downloads are every tag on one plate.</p>
     <p class="hint" data-for="sign">One sign per line &mdash; a room name each, all the same size. While
        there is anything here, the preview and the downloads are the lot on one plate.</p>
     <label class="field"><span>Plate width</span><input type="text" id="bed" value="220" autocomplete="off" inputmode="decimal"></label>
@@ -632,6 +746,11 @@
   <div id="view">
     <canvas id="gl"></canvas>
     <div id="hud">drag to turn &middot; scroll to zoom</div>
+    <div id="three" hidden></div>
+    <div id="shot" class="segmented" role="group" aria-label="View" hidden>
+      <button type="button" data-shot="model" aria-pressed="true">Model</button>
+      <button type="button" data-shot="product" aria-pressed="false">Product shot</button>
+    </div>
     <div id="modes" class="segmented" hidden>
       <button type="button" data-mode="glued" aria-pressed="true">Glued up</button>
       <button type="button" data-mode="apart" aria-pressed="false">Pulled apart</button>
@@ -663,7 +782,9 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
                 "look", "layout", "cap", "ring_d", "font",
                 "plate_w", "plate_h", "margin", "bridge", "thick",
-                "depth", "wall", "diffuse", "cable", "mount"];
+                "depth", "wall", "diffuse", "cable", "mount",
+                "pet_style", "pet_shape", "pet_size", "pet_sides", "pet_note",
+                "pet_collar", "pet_slot", "pet_link"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "", stencilSvg = "";
@@ -1193,6 +1314,15 @@ const LIGHTS = {
   cable:       { el: ["body"], label: "the case the notch is in" },
   lid:         { el: ["lid"], label: "the back lid" },
   mount:       { el: ["body"], label: "the case the mounts are part of" },
+  pet_note:    { el: ["note"], label: "the extra line" },
+  pet_style:   { all: true, label: "the whole tag" },
+  pet_shape:   { all: true, label: "the whole tag" },
+  pet_size:    { all: true, label: "the whole tag" },
+  pet_sides:   { all: true, label: "the whole tag" },
+  pet_collar:  { el: ["body"], label: "the plate the slots are in" },
+  pet_slot:    { el: ["body"], label: "the plate the slots are in" },
+  pet_border:  { el: ["border"], label: "the border" },
+  pet_link:    { el: ["qr"], label: "the QR code" },
   tag_mode:    { el: ["tag"], mode: "apart", label: "the tag in the joint" },
   tag_w:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
   tag_h:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
@@ -1353,6 +1483,7 @@ function checkLink() {
 function readout() {
   const line = (k, v) => `<span>${k} <b>${v}</b></span>`;
   if (info.kind === "name") return wordReadout(line);
+  if (info.kind === "pet") return petReadout(line);
   if (info.kind === "stencil") return cutReadout(line);
   if (info.kind === "sign") return signReadout(line);
   const split = info.parts.length > 1;
@@ -1410,6 +1541,67 @@ function wordReadout(line) {
   ].join("");
 }
 
+/* A pet tag is read by a stranger at arm's length, so what matters is how big
+   the phone number came out -- and what it weighs, which is what it costs. */
+function petReadout(line) {
+  const grams = info.volume * (spoolMaterial("c0").startsWith("TPU") ? 1.21 : 1.27);
+  const faces = info.colour_bands.length;
+  specs.innerHTML = [
+    info.batch ? line("batch", `${info.batch} tags`) : "",
+    line("size", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.total_z)} mm`),
+    info.name_cap ? line("name", `${mm(info.name_cap)} mm caps, ${info.typeface_name}`) : "",
+    info.phone_cap ? line("phone", `${mm(info.phone_cap)} mm caps` +
+                     (info.style === "slide" || info.sides === "one" ? ", front" : ", back")) : "",
+    info.note_cap ? line("extra line", `${mm(info.note_cap)} mm caps`) : "",
+    info.qr ? line("qr", `${info.qr.modules} modules at ${info.qr.module} mm, ${mm(info.qr.size)} mm square`) : "",
+    info.ring ? line("ring hole", `${mm(info.ring_d)} mm`) : "",
+    info.collar ? line("slots", `for a ${info.collar} mm collar, ${mm(info.slot)} mm wide`) : "",
+    line("weighs", `${grams.toFixed(1)} g (${info.volume.toFixed(2)} cm&sup3;)`),
+    line("colours", `${info.slots.length}, changed only in the ` +
+                    (faces > 1 ? "first and last 3 layers" : "last 3 layers") +
+                    (info.rise ? ` and the ${mm(info.rise)} mm of raised letters` : "")),
+    info.nozzle ? line("finest stroke", `${mm(info.stroke)} mm`) : "",
+    headsLine(line),
+    info.thin.includes("phone number")
+      ? `<span class="warn">phone number under 3.5 mm &mdash; hard to read on a moving dog. A bigger
+         tag, a shorter extra line, or split the number yourself with a |.</span>` : "",
+    info.thin.includes("lettering") && !info.thin.includes("phone number")
+      ? `<span class="warn">everything had to shrink below its floor to fit &mdash; a bigger tag,
+         or fewer lines.</span>` : "",
+    info.qr && info.qr.module < 0.8
+      ? `<span class="warn">QR modules under 0.8 mm scan poorly off a print &mdash; a bigger tag,
+         a shorter link, or leave the code off.</span>` : "",
+  ].join("");
+}
+
+/* Which spool goes on which head.  Numbered the way the 3MF numbers its
+   filaments: the colours the part uses, in slot order, one head per distinct
+   spool -- so two colours from the same spool share a head, and the count is
+   what the printer has to hold, never more than the slots there are. */
+const SLOT_IDS = { body: "c0", pattern: "c1", primary: "c2", secondary: "c3" };
+function headPlan() {
+  const labels = Object.fromEntries(slotRows());
+  const heads = [];
+  for (const slot of info.slots) {
+    const id = SLOT_IDS[slot];
+    const key = `${slotMat[id]}|${$(id).value.toLowerCase()}`;
+    let h = heads.find(x => x.key === key);
+    if (!h) heads.push(h = { key, name: spoolName(id) || $(id).value, material: slotMat[id], uses: [] });
+    h.uses.push((labels[id] || slot).toLowerCase());
+  }
+  return heads;
+}
+
+function headsLine(line) {
+  if (!SPOOLS.length) return "";
+  const heads = headPlan();
+  const plan = line(`heads ${heads.length} of ${HEADS}`, heads.map((h, i) =>
+    `${i + 1} ${h.name} ${h.material} (${h.uses.join(", ")})`).join(" &middot; "));
+  return heads.length > HEADS
+    ? plan + `<span class="err">${heads.length} filaments, and the printer holds ${HEADS} &mdash;
+       use the same spool for two of the colours</span>` : plan;
+}
+
 /* A stencil has no colours, no cavity and no counters -- what it has is a cut,
    the plate left round it, and however many bridges it took to keep the middles
    of the letters in. */
@@ -1464,6 +1656,51 @@ function signReadout(line) {
   ].join("");
 }
 
+/* ------------------------------------------------------- the product shot --
+   A pet tag, hanging on a split ring the way it will on a collar, lit like a
+   product photo: a GLB from the server (the tag's own colour parts and a
+   steel ring through its hole) drawn with three.js.  The model view is the
+   one to check the print with; this is the one to sell it with. */
+let product = false, productSeq = 0, productTimer = null;
+
+async function loadProduct() {
+  if (!product) return;
+  if (!window.shot) {
+    clearTimeout(loadProduct.wait);
+    loadProduct.wait = setTimeout(() => {
+      if (!window.shot && product)
+        $("three").innerHTML = `<p class="threefail">The product shot could not load &mdash;
+          check the connection and reload. The model view and the downloads still work.</p>`;
+    }, 8000);
+    return;
+  }
+  const mine = ++productSeq;
+  const params = formParams();
+  params.format = "glb";
+  params.gzip = false;
+  try {
+    const res = await fetch("/api/model", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    if (mine !== productSeq || !res.ok) return;
+    await window.shot.show(await res.arrayBuffer());
+  } catch (e) { /* the model view has already said what went wrong */ }
+}
+const queueProduct = () => { clearTimeout(productTimer); productTimer = setTimeout(loadProduct, 250); };
+
+function setShot(which) {
+  product = which === "product" && $("kind").value === "pet";
+  for (const b of $("shot").querySelectorAll("button"))
+    b.setAttribute("aria-pressed", String(b.dataset.shot === (product ? "product" : "model")));
+  $("three").hidden = !product;
+  $("view").classList.toggle("product", product);
+  $("hud").hidden = $("flip").hidden = product;
+  if (product) loadProduct();
+}
+for (const b of $("shot").querySelectorAll("button"))
+  b.addEventListener("click", () => setShot(b.dataset.shot));
+
 let pending = null, seq = 0;
 
 const CAN_INFLATE = "DecompressionStream" in window;
@@ -1482,12 +1719,14 @@ function formParams() {
   params.lid = $("lid").checked;
   params.placeholder = $("placeholder").checked ? "box" : "";
   params.outline = $("outline").checked;
+  params.pet_border = $("pet_border").checked;
   params.gzip = CAN_INFLATE;
   params.qr = $("qr").checked;
   if (!params.qr) params.link = "";               // the link only shapes the part as a code
   params.logo = logoText;
   params.design = ["stencil", "sign"].includes($("kind").value) ? stencilSvg : designText;
   params.colours = COLOURS.map(id => $(id).value);
+  params.filaments = filamentParams();
   return params;
 }
 
@@ -1518,6 +1757,7 @@ async function rebuild() {
     }
     readout();
     $("save").disabled = $("save_stl").disabled = false;
+    if (product) loadProduct();
   } catch (e) {
     specs.innerHTML = `<span class="err">${e.message} &mdash; is src/app.py still running?</span>`;
   } finally {
@@ -1613,6 +1853,7 @@ document.querySelectorAll("p.hint").forEach((hint, i) => {
   mark.setAttribute("aria-controls", hint.id);
   mark.setAttribute("aria-expanded", "false");
   if (hint.dataset.for) { box.dataset.for = hint.dataset.for; delete hint.dataset.for; }
+  if (hint.dataset.style) { box.dataset.style = hint.dataset.style; delete hint.dataset.style; }
   hint.replaceWith(box);
   box.append(mark, fold);
   fold.append(hint);
@@ -1632,24 +1873,182 @@ document.querySelectorAll("p.hint").forEach((hint, i) => {
   });
 });
 
+/* ------------------------------------------------------------ the spools --
+   public/filaments.json is the shelf: every spool, its material and whether
+   it is in stock.  The chips set the same four colour inputs the exact
+   pickers do, so the preview and everything else carry on as they were; the
+   chips narrow what is offered to what can be printed, and each colour
+   carries its own material -- a TPU tag with PETG lettering is one print on a
+   multi-material machine, and the 3MF says which filament is which. */
+let SPOOLS = [], HEADS = 4;
+const slotMat = { c0: "", c1: "", c2: "", c3: "" };
+const SLOT_LABELS = {
+  fob:     [["c0", "Body"], ["c1", "Pattern"], ["c2", "Primary"], ["c3", "Secondary"]],
+  name:    [["c0", "Outline"], ["c2", "Letters"]],
+  pet:     [["c0", "Tag"], ["c2", "Name"], ["c3", "Phone and QR code"], ["c1", "Border"]],
+  stencil: [["c0", "Plate"]],
+  sign:    [["c0", "Case"], ["c2", "Letters and diffuser"]],
+};
+const spoolMaterial = (id = "c0") => slotMat[id] || "";
+const hexDist = (a, b) => rgb(a).reduce((t, v, i) => t + (v - rgb(b)[i]) ** 2, 0);
+const spoolOf = id => SPOOLS.find(x => x.material === slotMat[id] &&
+                                       x.hex.toLowerCase() === $(id).value.toLowerCase());
+const spoolName = id => (spoolOf(id) || {}).name || null;
+const materials = () => [...new Set(SPOOLS.map(x => x.material))];
+
+function slotRows() {
+  const kind = $("kind").value;
+  let rows = SLOT_LABELS[kind] || SLOT_LABELS.fob;
+  if (kind === "pet") {
+    const back = $("pet_style").value === "hanging" &&
+                 ($("pet_sides").value === "two" || $("pet_link").value.trim());
+    rows = rows.filter(([id]) => (id !== "c3" || back) && (id !== "c1" || $("pet_border").checked));
+    if ($("pet_sides").value === "one" || $("pet_style").value === "slide")
+      rows = rows.map(([id, l]) => [id, id === "c2" ? "Lettering" : id === "c3" ? "QR code" : l]);
+  }
+  return rows;
+}
+
+/* What the 3MF is told about each slot: colour, material, spool name. */
+const filamentParams = () => COLOURS.map(id => ({
+  hex: $(id).value, material: slotMat[id] || "PETG", name: spoolName(id) || "" }));
+
+/* Move a colour to the nearest spool of its material, so switching a navy
+   tag from PETG to TPU keeps it as navy as the TPU shelf allows. */
+function snapTo(id) {
+  const have = SPOOLS.filter(x => x.material === slotMat[id]);
+  if (!have.length || spoolOf(id)) return;
+  $(id).value = have.reduce((a, b) =>
+    hexDist(a.hex, $(id).value) <= hexDist(b.hex, $(id).value) ? a : b).hex;
+}
+
+/* One row per colour the part uses: its own material, then a chip per spool
+   of that material. */
+function spoolsChosen(snap) {
+  if (!SPOOLS.length) return;
+  const box = $("spools");
+  box.replaceChildren();
+  for (const [id, label] of slotRows()) {
+    if (snap) snapTo(id);
+    const row = document.createElement("div");
+    row.className = "spool-row";
+    row.dataset.light = id;
+    const head = document.createElement("div");
+    head.className = "spool-head";
+    head.innerHTML = `<span>${label}: <b>${spoolName(id) || "not a spool on the shelf"}</b></span>`;
+    const mat = document.createElement("select");
+    mat.setAttribute("aria-label", `${label} material`);
+    mat.innerHTML = materials().map(m => `<option${m === slotMat[id] ? " selected" : ""}>${m}</option>`).join("");
+    mat.addEventListener("change", () => {
+      slotMat[id] = mat.value;
+      $("material").value = "";
+      spoolsChosen(true);
+    });
+    head.append(mat);
+    const chips = document.createElement("div");
+    chips.className = "chips";
+    for (const sp of SPOOLS.filter(x => x.material === slotMat[id])) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "chip";
+      b.style.background = sp.hex;
+      b.title = `${sp.name} ${sp.material}`;
+      b.setAttribute("aria-label", `${label}: ${sp.name}`);
+      b.setAttribute("aria-pressed", String(sp.hex.toLowerCase() === $(id).value.toLowerCase()));
+      b.addEventListener("click", () => {
+        $(id).value = sp.hex;
+        $(id).dispatchEvent(new Event("input"));
+        spoolsChosen();
+      });
+      chips.append(b);
+    }
+    row.append(head, chips);
+    box.append(row);
+  }
+  const mixed = new Set(slotRows().map(([id]) => slotMat[id])).size > 1;
+  $("mix_note").hidden = !mixed;
+  if (snap) recolour();
+  if (info && info.kind === "pet") readout();       // it names the spools to load
+}
+
+fetch("/filaments.json").then(r => r.ok ? r.json() : null).then(shelf => {
+  if (!shelf || !Array.isArray(shelf.spools)) return;
+  SPOOLS = shelf.spools.filter(x => x.stock !== false && /^#[0-9a-f]{6}$/i.test(x.hex || ""));
+  if (Number.isInteger(shelf.heads) && shelf.heads > 0) HEADS = shelf.heads;
+  if (!SPOOLS.length) return;
+  $("material").innerHTML = `<option value="">Mixed</option>` +
+    materials().map(m => `<option>${m}</option>`).join("");
+  $("spool_field").hidden = false;
+  $("exact_label").textContent = "Exact colours";
+  materialFor();
+}).catch(() => {});
+
+/* Every colour in one material. */
+function allIn(m) {
+  for (const id of COLOURS) slotMat[id] = m;
+  $("material").value = m;
+  spoolsChosen(true);
+}
+
+/* The material a shape starts in: PETG for a hanging tag, a TPU body with
+   PETG lettering for a slide-on one -- the TPU bends with the collar, and
+   PETG holds a crisper edge in the letters -- PLA for everything else. */
+function materialFor() {
+  if (!SPOOLS.length) return;
+  const have = materials();
+  const first = (...want) => want.find(m => have.includes(m)) || have[0];
+  const kind = $("kind").value;
+  if (kind === "pet" && $("pet_style").value === "slide") {
+    const tpu = first("TPU 95A", "TPU", "PETG"), petg = first("PETG", "PLA");
+    for (const id of COLOURS) slotMat[id] = petg;
+    slotMat.c0 = tpu;
+    $("material").value = tpu === petg ? tpu : "";
+    spoolsChosen(true);
+  } else allIn(kind === "pet" ? first("PETG", "PLA") : first("PLA"));
+}
+$("material").addEventListener("change", () => { if ($("material").value) allIn($("material").value); });
+for (const id of COLOURS) $(id).addEventListener("input", () => { spoolsChosen(); if (product) queueProduct(); });
+
+/* ------------------------------------------------------------- pet tags -- */
+const PET_SIZES = { circle: 32, bone: 45, heart: 42, tag: 34, slide: 50 };
+function petSize() {
+  const key = $("pet_style").value === "slide" ? "slide" : $("pet_shape").value;
+  $("pet_size").value = PET_SIZES[key];
+  $("pet_size").dispatchEvent(new Event("input"));
+}
+$("pet_style").addEventListener("change", () => { petSize(); shapeChosen(); materialFor(); queue(); });
+$("pet_shape").addEventListener("change", () => { petSize(); queue(); });
+$("pet_sides").addEventListener("change", () => spoolsChosen());
+$("pet_link").addEventListener("input", () => spoolsChosen());
+$("pet_border").addEventListener("change", () => { spoolsChosen(); queue(); });
+$("pet_size").addEventListener("input", () => { $("pet_size_v").textContent = `${$("pet_size").value} mm`; });
+$("pet_slot").addEventListener("input", () => { $("pet_slot_v").textContent = `${$("pet_slot").value} mm`; });
+
 /* The shape is the first choice, and what is offered below follows from it:
    a stencil has no colours to sort, so those controls are not there for one. */
 function shapeChosen() {
   const kind = $("kind").value;
   const word = kind === "name";
+  const style = $("pet_style").value;
+  $("shot").hidden = kind !== "pet";
+  if (kind !== "pet" && product) setShot("model");
   for (const el of document.querySelectorAll("[data-for]"))
-    el.hidden = !el.dataset.for.split(" ").includes(kind);
+    el.hidden = !el.dataset.for.split(" ").includes(kind) ||
+                (kind === "pet" && !!el.dataset.style && el.dataset.style !== style);
   $("shape_note").textContent = {
     fob: "The one that lives on a keyring, with an NFC tag sealed inside it. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.",
+    pet: "A collar tag: the pet's name on the front and the phone number \u2014 and a QR code, if you want one \u2014 on the back. Every letter is inlaid flush, so nothing wears off, and all the colour changes happen in the first and last three layers.",
     name: "No plate and no tag: the name itself is the object. It comes out as wide as the word is long, so a short one is a keyring and a long one is a luggage tag.",
     stencil: "A plate with the words \u2014 or an SVG \u2014 cut clean through it, to paint or spray through. Every counter is an island once the cut goes through, so each one gets a bridge holding it to the plate.",
     sign: "A shallow box with the word lit through its own face: an opaque layer with the letters taken out of it, the letters filled back in in something translucent, and a diffuser sheet behind the lot. Put an LED strip inside and run the lead out of the notch.",
   }[kind];
   // The one text box is the name on a fob, the word on a keyring, and the
   // words to cut or to light on a stencil or a sign.
-  $("name_label").textContent = { stencil: "Words", sign: "Words", name: "Name" }[kind] || "Name";
+  $("name_label").textContent = { stencil: "Words", sign: "Words", name: "Name",
+                                  pet: "Pet's name" }[kind] || "Name";
   $("who").innerHTML = "2 \u00b7 " + ({ stencil: "What it says", sign: "What it says",
-                                      name: "The word" }[kind] || "Who you are");
+                                      name: "The word", pet: "What it says" }[kind] || "Who you are");
+  spoolsChosen();
   // The stencil's two plate sliders are the sign's face.
   $("plate_label").textContent = kind === "sign" ? "Face" : "Plate";
   // A sign is not glued and has no halves: it has a lid that comes off.
@@ -1668,6 +2067,11 @@ for (const tile of document.querySelectorAll(".tile"))
     for (const t of document.querySelectorAll(".tile"))
       t.setAttribute("aria-pressed", String(t === tile));
     shapeChosen();
+    // A pet tag starts navy with white and yellow lettering: contrast enough
+    // for a phone number at arm's length, before anybody picks their own.
+    if (tile.dataset.kind === "pet")
+      ["#1f3a5f", "#f2c14e", "#f4f4f1", "#f2c14e"].forEach((c, i) => { $(COLOURS[i]).value = c; });
+    materialFor();
     queue();
   });
 shapeChosen();
@@ -1761,6 +2165,11 @@ function stem() {
         .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || kind;
       return `${what}_${kind}`;
     }
+  if ($("kind").value === "pet") {
+    const who = ($("name").value || "pet").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "pet";
+    return `${who}_pet_tag`;
+  }
   if ($("kind").value === "name") {
     const who = ($("name").value || "keyring").toLowerCase()
       .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "keyring";
@@ -1798,6 +2207,84 @@ $("save_stl").addEventListener("click", () => download("stl", "model/stl", "stl"
 $("save").addEventListener("click", () => download("3mf", "model/3mf", "3mf"));
 
 rebuild();
+</script>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+/* The pet tag's product shot.  three.js, pinned, from jsdelivr, loaded only
+   for this: the model view needs none of it.  Millimetres, the tag's tab up
+   (+y) and its front towards +z, which is how it hangs. */
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const host = document.getElementById("three");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+host.append(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(60, 90, 120);
+scene.add(key);
+
+const camera = new THREE.PerspectiveCamera(26, 1, 0.5, 2000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true;                 // a slow turn, until somebody takes hold
+controls.autoRotateSpeed = 1.2;
+controls.addEventListener("start", () => { controls.autoRotate = false; });
+
+const loader = new GLTFLoader();
+const group = new THREE.Group();
+scene.add(group);
+let framed = false;
+
+window.shot = {
+  show(buffer) {
+    return new Promise((ok, bad) => loader.parse(buffer, "", gltf => {
+      for (const c of [...group.children]) {
+        group.remove(c);
+        c.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+      }
+      group.add(gltf.scene);
+      if (!framed) {                        // keep the angle across edits
+        const box = new THREE.Box3().setFromObject(group);
+        const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+        const d = Math.max(size.x, size.y) * 3.1;
+        controls.target.copy(mid);
+        camera.position.set(mid.x + d * 0.42, mid.y + d * 0.12, mid.z + d * 0.9);
+        controls.update();
+        framed = true;
+      }
+      ok();
+    }, bad));
+  },
+};
+
+function resize() {
+  const w = host.clientWidth, h = host.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(host);
+renderer.setAnimationLoop(() => {
+  if (host.hidden) return;
+  controls.update();
+  renderer.render(scene, camera);
+});
+// The page may already be on the product shot, waiting for this.
+if (!host.hidden) document.querySelector('#shot [data-shot="product"]').click();
 </script>
 </body>
 </html>

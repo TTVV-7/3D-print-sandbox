@@ -1,6 +1,6 @@
 # 3D print sandbox
 
-Six parametric things live here so far.  All of them are plain Python --
+Seven parametric things live here so far.  All of them are plain Python --
 shapely for the 2-D work, trimesh and manifold for the solids -- and all of
 them re-run in seconds.  The phone case is the exception on every count: it
 needs nothing but the standard library, and it writes g-code rather than a
@@ -14,6 +14,9 @@ mesh.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
   printable piece, with a tab for the ring, in one of forty-eight faces.  Same
   app, second shape.
+- **[Pet tags](#pet-tags)** -- a collar tag with the pet's name on the front and
+  the phone number, and a QR code if you want one, on the back; or a slide-on
+  plate the collar threads through.  Every letter inlaid flush.  Same app.
 - **[Sign enclosures](#sign-enclosures)** -- a shallow light box with the word
   lit through its own face: an opaque layer with the letters taken out, the
   letters filled back in in something translucent, and a diffuser behind the
@@ -852,6 +855,152 @@ for a plate of them -- the whole plate in one face.
 
 ---
 
+# Pet tags
+
+A collar tag: the pet's name on the front, the way home on the back.  The
+**Pet tag** tile in the app, `src/pettag.py` underneath.
+
+![four pet tags, front above back](previews/pet_tags.png)
+
+| | |
+|---|---|
+| Shapes | round, bone, heart, tag -- or a slide-on plate |
+| Hanging | a ring tab on top, 5 mm hole with 2.6 mm of plastic round it |
+| Slide-on | two slots the collar threads through; 10 to 38 mm collars |
+| Body | 3 mm, lettering inlaid 0.6 mm into both faces |
+| A 32 mm round tag | about 3 g of PETG |
+
+**What goes where.**  A hanging tag has two faces, so the name is alone on the
+front at whatever size the tag will take, and the phone number, an extra line
+and the optional QR code go on the back -- the side a stranger turns it over
+to read.  *Everything on the front* is there for a tag that hangs flat against
+a harness.  A slide-on tag's back is against the dog, so everything goes on
+its front and the QR code is not offered.
+
+**The phone number is the line that matters.**  It is set in the plain bold
+sans whatever face the name is in, and the fit is greedy the right way round:
+every line starts at the size it wants, and each pass shrinks whichever has the
+most room above its floor -- so the name gives way long before the number
+does.  A number is also tried split over two lines at its middle separator,
+`(555)` over `214-8890`, and whichever setting gives the bigger number wins;
+that is what gets a full number onto a 28 mm disc at 3.9 mm.  Under 3.5 mm the
+readout warns.  Each shape starts at the width where a full number still
+clears that: 32 mm round, 34 tag, 42 heart, 45 bone -- a bone's number only has
+the bar between its lobes, and a heart narrows to its point.
+
+**Flush, because a tag wears.**  The lettering is a pocket 0.6 mm deep filled
+with the lettering colour, not letters standing on the surface: a tag spends
+its life rubbing on a collar, and there is nothing proud to wear off.  The
+Relief slider raises the front instead, for the look; the back is always
+inlaid, because it prints face down and raised letters there would need
+supports.  So the colour changes are all in the first three layers (the back)
+and the last three (the front), with plain body in between.
+
+**Material, per colour.**  Each colour picks its own material, so TPU and
+PETG can share one print.  A hanging tag starts all PETG: stiff, and it does not
+soften in a hot car the way PLA does.  A slide-on starts with a TPU body, which
+bends with the collar and cannot shatter, and PETG lettering, which holds a
+crisper edge.  Soft TPU on a hanging tag is easy for a dog to chew pieces off,
+so keep it to the slide-on.  TPU and PETG bond to each other less well than
+either bonds to itself; the letters sit in pockets, so they are held in by the
+shape as well as the bond.  None of this has been printed and tested on a real
+collar yet.  Print one, clip it on and pull on the tab before selling any.
+
+**Supports: none, on purpose.**  The tag prints flat on its back with nothing
+overhanging.  The back lettering is inlaid, not raised, for exactly this reason.
+Supports would only leave marks on the face they touch, so the 3MF turns them
+off.
+
+**The 3MF is ready to print.**  Each tag is one object, and each colour is a
+part of it already assigned to its own filament.  Every distinct spool is one
+filament, numbered in slot order, so two colours from the same spool share one.
+The filaments' colours, materials (`TPU`, `PETG`) and names (`"Blue TPU 95A"`)
+are in the file's project settings, and supports are off.  Tested in PrusaSlicer
+2.7: it opens as one object with the parts on the right filaments, and slices
+with the tool changes only in the first and last layers.  It is written the way
+PrusaSlicer writes its own 3MFs (`Metadata/Slic3r_PE_model.config`), which the
+Orca family, Snapmaker's slicer included, also reads when it opens one.
+**That last step has not been tried here.**  Open one in the Snapmaker slicer
+and check each part's filament before the first print.  If they have all landed
+on filament 1, right-click each part to set it; the parts are named after their
+spools.  The purge, a prime tower or none on a toolchanger, is left to the
+printer profile.
+
+The other shapes' 3MFs still put each colour in as a separate *component*.
+PrusaSlicer reads those as separate objects and drops the lettering on the bed
+beside the part.
+
+**Batches.**  One pet per line in the batch box: `name, phone, extra line,
+link`.  Only the name is needed; anything a line leaves out comes from the
+boxes above, so a litter with one owner is just the names.
+
+## The product shot
+
+**Product shot**, bottom left of the preview, swaps the model view for the tag
+as it would be photographed: hanging on a steel split ring, lit, turning
+slowly.  It is the view to sell with.  The model view, which shows how it
+prints, is still the one to check a print with.
+
+![a bone tag on its split ring](previews/pet_tag_product.png)
+
+Nothing in it is downloaded.  The tag is its own colour parts in the chosen
+spools' colours.  The ring (`pettag.split_ring`) is two turns of wire,
+generated to go through that tag's hole: the wire gets thinner for a small
+hole, and the ring leans only as far as the hole allows.  It is checked not to
+pass through the plastic for holes from 2.5 to 9 mm.  The page draws it with
+the same pinned three.js as the phone case view.
+
+## The spools on the shelf
+
+`public/filaments.json` is the list of filament you actually have: a name, a
+hex colour for the preview, a material and whether it is in stock.  The app
+reads it and shows, for every shape, one row of chips per colour the part
+uses: a material for that colour, then a chip for each spool of it.  So a
+design can only be made in colours you can print, and the readout names which
+spool goes in which slot.  *Every colour in* sets all the rows to one material.
+Changing a row's material moves its colour to the nearest spool in the new one.  The exact colour pickers are still underneath, for anything the
+shelf does not have.
+
+```json
+{ "name": "Navy", "hex": "#1f3a5f", "material": "PETG", "stock": true }
+```
+
+**Four heads, four filaments.**  `"heads": 4` at the top of the file is how
+many filaments the printer holds at once.  No design can use more than four
+anyway, because every shape has four colour slots, and two slots on the same
+spool share a head.  A pet tag's readout lists the heads in the order the 3MF
+numbers them, so you know which spool to load where:
+`heads 3 of 4 -- 1 Navy PETG (tag), 2 Yellow PETG (border, phone), 3 White
+PETG (name)`.  The 3MF writer refuses a design that needs more filaments than
+there are heads.
+
+Set `"stock": false` to hide a colour while its spool is empty without losing
+the entry.  Match `hex` to the real spool by eye, next to the screen -- the
+colour on the box is marketing.  **The list that ships is a starting point,
+not your shelf**: replace it with what you have.
+
+## Sketchfab models for the site
+
+`src/sketchfab.py` finds and downloads models from Sketchfab into
+`public/assets/sketchfab/`:
+
+```
+python3 src/sketchfab.py search "dog"            # downloadable models, with licences
+python3 src/sketchfab.py get <uid> --as dog      # saves public/assets/sketchfab/dog.glb
+```
+
+The API key goes in a `.env` file at the top of the repository,
+`SKETCHFAB_TOKEN=...`.  `.gitignore` keeps that file out of git, so the key is
+never pushed with the code.  The site does not need the key: it serves the
+files that were downloaded.
+
+A shop is commercial use, so `get` refuses NonCommercial and Editorial models.
+Every download is recorded in `public/assets/sketchfab/credits.json` with its
+author and licence.  Show the `credit` line wherever a model that needs one
+appears.
+
+---
+
 # Sign enclosures
 
 A shallow box with the word lit through its own face: a name over a door, a
@@ -1446,6 +1595,27 @@ that the next one shows up without anyone looking at a photograph. That one is t
 *shape* being different rather than the millimetres, which is why it has its
 own style and is sized from the body -- what makes a plateau a plateau is
 that it reaches both edges -- rather than being given as a number.
+
+## On the phone, in 3D
+
+**On the phone, 3D**, above the preview, shows the case on the phone. You can
+turn it, lift the case off to see the phone behind it, and change the phone's
+colour.  The case is the 3MF's own solids, with the artwork in colour.  The
+phone (`src/phone_mockup.py`) is drawn from the same table as the case: the
+published body size and corner radius, the camera bump as the camera opening
+less the clearance, the lenses where the flat preview puts them, and the
+buttons where the case cuts for them.  So every phone in the table gets one, a
+new phone gets one for free, and it has no logo and copies nobody's design.
+
+![the case on an iPhone 17 Pro](previews/case_on_phone.png)
+
+**It is only as right as the table.**  Where a camera or button number is
+wrong, the phone drawn here is wrong the same way, and the two still look like
+a perfect fit.  It shows the design, not the fit; the test fit on a real phone
+is still the check.  The server sends it as a GLB (`want: "mockup"`), about
+150 kB and a tenth of a second to build.  The page draws it with three.js
+0.170 from jsdelivr, loaded only for this view.  If that cannot load, the view
+says so and the flat preview and downloads carry on.
 
 ## Printing it face down
 
