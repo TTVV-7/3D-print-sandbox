@@ -44,20 +44,23 @@ SWAY = 0.55          # radians either side of straight on
 # What each tile shows, and in which colours: slot -> hex, in cards.SLOTS order
 # (body, pattern, primary, secondary).  `glow` slots are lit from inside --
 # the sign's letters.
+# printyours.ca's colours, which every shape on the page also starts in.
+INK, INK_LIGHT, PAPER, FLAME = "#0c1a2e", "#1f3a5f", "#f5f2ec", "#ff5b1f"
+
 ICONS = {
-    "fob":     dict(build=lambda: cards.build("fob", name="Jane Doe",
+    "fob":     dict(build=lambda: cards.build("fob", name="Dino",
                                               company="Bluewater Realty",
                                               phone="(555) 214-8890", tag_mode="pocket"),
-                    colours=("#1f3a5f", "#2a4a75", "#f4f4f1", "#f2c14e")),
-    "name":    dict(build=lambda: nametag.build("Ruby"),
-                    colours=("#1f3a5f", "#1f3a5f", "#f2c14e", "#f2c14e")),
-    "pet":     dict(build=lambda: pettag.build("Biscuit", phone="(555) 214-8890",
+                    colours=(INK, INK_LIGHT, PAPER, FLAME)),
+    "name":    dict(build=lambda: nametag.build("Dino"),
+                    colours=(INK, INK, FLAME, FLAME)),
+    "pet":     dict(build=lambda: pettag.build("Dino", phone="(555) 214-8890",
                                                shape="bone"),
-                    colours=("#1f3a5f", "#f2c14e", "#f4f4f1", "#f2c14e"), ring=True),
+                    colours=(INK, FLAME, PAPER, FLAME), ring=True),
     "sign":    dict(build=lambda: signbox.build("OPEN", lid=False),
-                    colours=("#2b2f36", "#2b2f36", "#fff1c9", "#fff1c9"), glow=("primary",)),
+                    colours=(INK, INK, PAPER, PAPER), glow=("primary",)),
     "stencil": dict(build=lambda: stencil.build("SHOP"),
-                    colours=("#e0a100", "#e0a100", "#e0a100", "#e0a100")),
+                    colours=(FLAME, FLAME, FLAME, FLAME)),
 }
 
 

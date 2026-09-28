@@ -1275,9 +1275,9 @@ $("palette").addEventListener("change", () => { setPalette($("palette").value); 
     ({ id: p.id, label: `${p.name} (${p.tools} slots)` })), "bambu-p1s-ams");
   fillSelect($("filament"), catalogue.filaments.map(f => ({ id: f.id, label: f.id })), "pla");
   fillSelect($("palette"), Object.keys(catalogue.palettes).map(k =>
-    ({ id: k, label: `${k} (${catalogue.palettes[k].length})` })), "primary");
+    ({ id: k, label: `${k} (${catalogue.palettes[k].length})` })), "printyours");
   fitTiles(catalogue.cases);
-  setPalette("primary");
+  setPalette("printyours");
   cameraDefaults();
   foldSummaries();
   rebuild();

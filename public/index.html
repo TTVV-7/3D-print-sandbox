@@ -460,7 +460,7 @@
 
   <section>
     <h2 id="who">2 &middot; Who you are</h2>
-    <label class="field" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
+    <label class="field" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Dino" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
     <label class="field" data-for="fob pet" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
@@ -665,10 +665,10 @@
        it ready to print. Edit the file when a spool arrives or runs out.</p>
     <div class="field"><span id="exact_label">Colours</span>
       <div class="swatches">
-        <label data-light="c0"><input type="color" id="c0" value="#141414">Body</label>
-        <label data-light="c1"><input type="color" id="c1" value="#2e2e2e">Pattern</label>
-        <label data-light="c2"><input type="color" id="c2" value="#f2f2f2">Primary</label>
-        <label data-light="c3"><input type="color" id="c3" value="#9a9a9a">Secondary</label>
+        <label data-light="c0"><input type="color" id="c0" value="#0c1a2e">Body</label>
+        <label data-light="c1"><input type="color" id="c1" value="#1f3a5f">Pattern</label>
+        <label data-light="c2"><input type="color" id="c2" value="#f5f2ec">Primary</label>
+        <label data-light="c3"><input type="color" id="c3" value="#ff5b1f">Secondary</label>
       </div>
     </div>
     <p class="hint" data-for="fob">Every colour is an inlay in one thin face layer &mdash; the first 0.6 mm of each
@@ -735,7 +735,7 @@
     <h2 data-for="name pet stencil sign">4 &middot; A batch of them</h2>
     <label class="field"><span>One person per line</span>
       <textarea id="batch" rows="4" spellcheck="false"
-        placeholder="Jane Doe, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
+        placeholder="Dino, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
     </label>
     <p class="hint" data-for="fob">Name, company, phone, link &mdash; commas or tabs, so a spreadsheet
        pastes straight in. The title and email above are shared by the whole batch. While there is
@@ -991,6 +991,7 @@ const FACES = {
 const FACE_GROUPS = ["Plain", "Blackletter", "Ornate", "Western", "Horror", "Dimensional",
                      "Comic", "Stencil", "Retro", "Tech"];
 const PRESETS = {
+  printyours: ["printyours — ink navy, paper lettering, flame accents", "cubes", "centred", ["#0c1a2e", "#1f3a5f", "#f5f2ec", "#ff5b1f"]],
   printlab:  ["Print Lab — black, white lettering, cubes", "cubes", "centred", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
   student:   ["Student — dark card, name top left, address bottom right", "plain", "student", ["#1b2430", "#2a3644", "#f4f6f8", "#9fb0c0"]],
   corporate: ["Corporate — navy, big disc, hexagons along the bottom", "badge", "corporate", ["#141d3a", "#22305c", "#ffffff", "#c8cede"]],
@@ -2069,6 +2070,15 @@ function shapeChosen() {
   if (word && +rise.value === 0) { rise.value = 1.2; rise.dispatchEvent(new Event("input")); }
   if (!word && +rise.value === 1.2) { rise.value = 0; rise.dispatchEvent(new Event("input")); }
 }
+/* Each shape's starting colours: body, pattern, primary, secondary. */
+const INK = "#0c1a2e", INK_LIGHT = "#1f3a5f", PAPER = "#f5f2ec", FLAME = "#ff5b1f";
+const KIND_COLOURS = {
+  fob:     [INK, INK_LIGHT, PAPER, FLAME],
+  name:    [INK, INK, FLAME, FLAME],
+  pet:     [INK, FLAME, PAPER, FLAME],
+  sign:    [INK, INK, PAPER, PAPER],
+  stencil: [FLAME, FLAME, FLAME, FLAME],
+};
 for (const tile of document.querySelectorAll(".tile"))
   tile.addEventListener("click", () => {
     if ($("kind").value === tile.dataset.kind) return;
@@ -2076,10 +2086,13 @@ for (const tile of document.querySelectorAll(".tile"))
     for (const t of document.querySelectorAll(".tile"))
       t.setAttribute("aria-pressed", String(t === tile));
     shapeChosen();
-    // A pet tag starts navy with white and yellow lettering: contrast enough
-    // for a phone number at arm's length, before anybody picks their own.
-    if (tile.dataset.kind === "pet")
-      ["#1f3a5f", "#f2c14e", "#f4f4f1", "#f2c14e"].forEach((c, i) => { $(COLOURS[i]).value = c; });
+    // Every shape starts in printyours.ca's colours -- ink navy, paper white,
+    // flame orange -- arranged for that shape: a pet tag's phone number in
+    // flame on ink, a keyring's letters in flame on an ink outline, a sign lit
+    // paper-white through ink.
+    const start = KIND_COLOURS[tile.dataset.kind];
+    if (start) start.forEach((c, i) => { $(COLOURS[i]).value = c; });
+    if (tile.dataset.kind === "fob") $("preset").value = "printyours";
     materialFor();
     queue();
   });
