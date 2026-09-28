@@ -423,7 +423,7 @@
 <body>
 <aside>
   <div>
-    <h1>Logo cards, fobs, keyrings, pet tags, signs</h1>
+    <h1>Logo cards, keyrings, pet tags, signs</h1>
     <p class="sub">Pick a shape, fill it in, take the file away.</p>
     <p class="sub" style="margin-top:var(--space-200)"><a href="/case"
        style="color:var(--text-secondary)">Phone cases &rarr;</a></p>
@@ -435,10 +435,6 @@
       <button type="button" class="tile" data-kind="card" aria-pressed="true">
         <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/card.webp)"></span>
         <div><b>NFC logo card</b><span>your logo is the shape, in its own colours</span></div>
-      </button>
-      <button type="button" class="tile" data-kind="fob" aria-pressed="false">
-        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/fob.webp)"></span>
-        <div><b>Keyring fob</b><span>62 &times; 34 mm, tag inside</span></div>
       </button>
       <button type="button" class="tile" data-kind="name" aria-pressed="false">
         <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/name.webp)"></span>
@@ -544,6 +540,11 @@
        logo with more colours has its closest ones merged. A logo colour that matches the card's own
        &mdash; white lettering on a white card &mdash; is simply the card showing through, and costs no
        head at all.</p>
+    <label class="check" data-for="card" data-light="card_both"><input type="checkbox" id="card_both"><span>Logo on both sides</span></label>
+    <p class="hint" data-for="card">The logo on the back as well, reading the right way round when the card is
+       turned over, in the same filaments &mdash; no extra head. A logo that is not symmetric does not
+       fit its own mirror image, so the card's outline is cut round both: a wordmark comes out a little
+       wider, and the readout says when. The back then has no room for the tap mark or a QR code.</p>
     <label class="field" data-for="card" data-light="card_ring"><span>Keyring</span>
       <select id="card_ring">
         <option value="tab">Tab with a hole, off the edge</option>
@@ -802,9 +803,25 @@
        lettering <i>and</i> the diffuser behind it, and it wants a translucent or a white filament
        &mdash; they are one piece, and they are the only thing the light comes through. The other two
        are not used.</p>
-    <div class="field" data-light="rise"><span>Relief</span>
+    <div class="field" data-light="rise" id="rise_field"><span>Relief</span>
       <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
     </div>
+    <label class="check" data-for="card" data-light="card_stepped"><input type="checkbox" id="card_stepped"><span>A different height for each colour</span></label>
+    <div id="card_steps" hidden>
+      <div class="field" data-light="c2" data-slot="primary"><span id="card_rise_primary_l">Logo colour 1</span>
+        <div class="slider"><input type="range" id="card_rise_primary" min="0" max="3" step="0.2" value="0.4"><output id="card_rise_primary_v">0.4 mm</output></div>
+      </div>
+      <div class="field" data-light="c3" data-slot="secondary"><span id="card_rise_secondary_l">Logo colour 2</span>
+        <div class="slider"><input type="range" id="card_rise_secondary" min="0" max="3" step="0.2" value="1.2"><output id="card_rise_secondary_v">1.2 mm</output></div>
+      </div>
+      <div class="field" data-light="c1" data-slot="pattern"><span id="card_rise_pattern_l">Logo colour 3</span>
+        <div class="slider"><input type="range" id="card_rise_pattern" min="0" max="3" step="0.2" value="2"><output id="card_rise_pattern_v">2.0 mm</output></div>
+      </div>
+    </div>
+    <p class="hint" data-for="card">Stands each colour of the logo at its own height off the card, so the logo
+       is stepped like a badge &mdash; lettering above the field it sits on, the field above the card.
+       0 is flush. The biggest colour starts lowest and the finer ones higher; set them however the
+       logo reads best. Only the front steps: the back prints on the bed and stays flush.</p>
     <p class="hint" data-for="pet">Flush is the default and the one to sell: the lettering is inlaid 0.6 mm
        into the tag, so there is nothing standing up to wear off against a collar. Raised is for the
        look, and only the front can be raised &mdash; the back prints face down.</p>
@@ -953,6 +970,7 @@ let logoText = "", designText = "", stencilSvg = "";
    and the logo's on it; "slots" when that build moved the card's colour and
    the one after it has to hand out the logo's colours again. */
 let artData = "", artName = "", artFresh = "body";
+const STEP_SLOTS = ["primary", "secondary", "pattern"];
 const specs = $("specs");
 
 /* The looks, as src/looks.py has them -- a layout, a pattern and four colours:
@@ -1461,6 +1479,8 @@ const LIGHTS = {
   card_chip:   { face: "back", label: "the back, over the sticker" },
   card_link:   { el: ["qr"], label: "the QR code" },
   card_back:   { face: "back", label: "the back" },
+  card_both:   { face: "back", label: "the logo on the back" },
+  card_stepped:{ el: ["logo"], label: "the logo" },
   name:        { el: ["name"], label: "the name" },
   company:     { el: ["company"], label: "the company" },
   role:        { el: ["role"], label: "the title" },
@@ -1780,10 +1800,13 @@ function cardReadout(line) {
     info.folded.length ? line("same as the card", info.folded.map(h => `${swatch(h)}${h}`).join(" ") + " &mdash; no inlay needed") : "",
     info.bridged ? line("bridged", info.bridged > 50 ? "the pieces were too far apart, so the card is their outline"
                                                      : `pieces up to ${mm(info.bridged)} mm apart joined into one card`) : "",
+    info.both ? line("back", "the logo again, the right way round when turned over" +
+                      (info.widened ? " &mdash; the outline is cut round it and its mirror image, so it is wider than the logo" : "")) : "",
+    info.stepped ? line("heights", info.art.map(a => `${swatch(a.hex)}${a.rise ? mm(a.rise) + " mm" : "flush"}`).join(" &middot; ")) : "",
     info.ring !== "none" ? line("keyring", `${info.ring}, ${mm(info.ring_d)} mm, ${info.ring_at.replace("-", " ")}`) : "",
     line("weighs", `${grams.toFixed(1)} g (${info.volume.toFixed(2)} cm&sup3;)`),
-    line("colours change", info.colour_bands.length > 1 ? "in the first and last 3 layers" : "in the last 3 layers" +
-                           (info.rise ? ` and the ${mm(info.rise)} mm of relief` : "")),
+    line("colours change", (info.colour_bands.length > 1 ? "in the first and last 3 layers" : "in the last 3 layers") +
+                           (info.rise ? ` and through the ${mm(info.rise)} mm of relief` : "")),
     info.nozzle ? line("finest detail", `${mm(info.stroke)} mm &mdash; ${info.nozzle} mm nozzle or finer`) : "",
     headsLine(line),
     n ? line("nfc sticker", `${n.d} mm round, sealed ${mm(n.z0)}&ndash;${mm(n.z1)} mm up`) : "",
@@ -1958,6 +1981,9 @@ function formParams() {
   params.card_bg = $("card_bg").checked;
   params.card_holes = $("card_holes").checked;
   params.card_nfc = $("card_nfc").checked;
+  params.card_both = $("card_both").checked;
+  params.card_rises = $("card_stepped").checked
+    ? Object.fromEntries(STEP_SLOTS.map(slot => [slot, +$(`card_rise_${slot}`).value])) : null;
   params.art = $("kind").value === "card" ? artData : "";
   if ($("kind").value === "card") params.batch = "";    // one design, one card
   params.gzip = CAN_INFLATE;
@@ -1997,6 +2023,7 @@ async function rebuild() {
     }
     if (info.kind === "card" && artFresh) takeLogoColours(params.colours[0], artFresh === "body");
     else if (info.kind === "card") spoolsChosen();     // as many rows as the logo has colours
+    if (info.kind === "card") stepsShown();
     readout();
     $("save").disabled = $("save_stl").disabled = false;
     if (product) loadProduct();
@@ -2047,7 +2074,29 @@ aside.addEventListener("pointerleave", () => { hoverKey = null; setLight(focused
 
 $("link").addEventListener("input", checkLink);
 $("card_link").addEventListener("input", checkCardLink);
-for (const id of ["card_bg", "card_holes", "card_nfc"]) $(id).addEventListener("change", queue);
+for (const id of ["card_bg", "card_holes", "card_nfc", "card_both", "card_stepped"])
+  $(id).addEventListener("change", () => { stepsShown(); queue(); });
+for (const slot of STEP_SLOTS)
+  $(`card_rise_${slot}`).addEventListener("input", e => {
+    $(`card_rise_${slot}_v`).textContent = +e.target.value ? `${(+e.target.value).toFixed(1)} mm` : "flush";
+    queue();
+  });
+
+/* The logo card's own height controls: one slider per colour the logo has,
+   named as the colour rows are, in place of the one relief slider; and the
+   back's mark gives way to the logo when the logo is on both sides. */
+function stepsShown() {
+  const card = $("kind").value === "card", stepped = card && $("card_stepped").checked;
+  $("card_steps").hidden = !stepped;
+  $("rise_field").hidden = stepped;
+  $("card_back").disabled = $("card_both").checked;
+  const names = Object.fromEntries(slotRows());
+  for (const row of $("card_steps").querySelectorAll("[data-slot]")) {
+    const slot = row.dataset.slot;
+    row.hidden = !!(info && info.kind === "card" && !info.slots.includes(slot));
+    $(`card_rise_${slot}_l`).textContent = `${names[SLOT_IDS[slot]] || slot} height`;
+  }
+}
 $("card_nfc").addEventListener("change", () => { $("card_chip_field").hidden = !$("card_nfc").checked; });
 $("art_file").addEventListener("change", async () => {
   const f = $("art_file").files[0];
@@ -2376,6 +2425,7 @@ function shapeChosen() {
   $("who").innerHTML = "2 \u00b7 " + ({ card: "Your logo", stencil: "What it says", sign: "What it says",
                                       name: "The word", pet: "What it says" }[kind] || "Who you are");
   spoolsChosen();
+  stepsShown();
   // The stencil's two plate sliders are the sign's face.
   $("plate_label").textContent = kind !== "sign" ? "Plate"
     : $("sign_shape").value === "letters" ? "Most room for the word" : "Face";

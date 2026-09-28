@@ -9,13 +9,14 @@ mesh.
 - **[NFC logo cards](#nfc-logo-cards)** -- the business card, remade: upload a
   company's logo, as an SVG or a PNG / JPEG, and the card comes out in the
   logo's own outline and the logo's own colours, with an NFC sticker sealed
-  inside and a keyring hole or tab in the corner you pick.  The first shape in
-  the app.
-- **[NFC fobs](#nfc-fobs)** -- a keyring fob printed as two halves with an NFC
-  tag glued between them, in up to four colours, in one of three layouts.
-  Comes with a browser front end.  The rectangular wallet card it was
-  written for is [archived](#the-archived-business-card) in favour of the logo
-  card: the builder is still here and the command line still writes one.
+  inside and a keyring hole or tab in the corner you pick.  The logo can go
+  on both sides, and each of its colours can stand at its own height.  The
+  first shape in the app.
+- **[NFC fobs](#nfc-fobs)** -- **archived**, along with the rectangular
+  business card before it: the logo card replaced both.  A keyring fob with a
+  name, company and phone on it, printed as two halves with an NFC tag glued
+  between them.  The app no longer offers it; `src/gen_cards.py` still writes
+  one, and everything below about it still holds.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
   printable piece, with a tab for the ring, in one of forty-eight faces.  Same
   app, second shape.
@@ -56,10 +57,25 @@ Right, [a PNG](previews/logo_card_source.png) traced: its transparent
 background gone, the letters bridged into one piece, the green, yellow and
 black kept, and a tab for the ring.
 
+Two options change what the card is rather than how it is cut:
+
+- **Logo on both sides.**  The back carries the logo too, reading the right
+  way round when the card is turned over, in the same filaments -- so it costs
+  no extra head.  An asymmetric logo does not fit its own mirror image, so the
+  outline is cut round both; a wordmark comes out a little wider, and the
+  readout says when.  The back's tap mark and QR code give way to it.
+- **A different height for each colour.**  Each colour of the logo stands at
+  its own height off the card, so a logo reads as a stepped badge: black
+  lettering and frame at 1.2 mm above an orange field at 0.4 mm, say.  One
+  slider per colour, in place of the single relief slider; only the front
+  steps, since the back prints on the bed.  `--rises 0.4,1.2` on the command
+  line, largest colour first.
+
 ```
 python3 src/app.py                                   # first tile: NFC logo card
 python3 src/logocard.py logo.svg -o card.3mf         # or from a terminal
 python3 src/logocard.py logo.png --ring hole --ring-at top-right --link https://example.com
+python3 src/logocard.py logo.png --both --rises 0.4,1.2   # two-sided, stepped
 ```
 
 ## What it does with the logo
@@ -140,6 +156,11 @@ sticker; do that with a phone once the card is printed.
 ---
 
 # NFC fobs
+
+> **Archived.**  The [NFC logo card](#nfc-logo-cards) replaced the fob in the
+> app, which now refuses to build one.  Nothing has been deleted: `src/cards.py`
+> and `python3 src/gen_cards.py` build fobs exactly as described below, and the
+> page's fob controls are still in `public/index.html`, just never shown.
 
 Five fields in, a keyring fob out: your details on the front, laid out by one
 of three layouts; a pocket for an NFC tag and the contactless arcs on the back.
@@ -282,7 +303,7 @@ put on a network.
 
 ### The shape icons
 
-The six tiles at the top of the form show the products themselves: the logo card, a fob,
+The tiles at the top of the form show the products themselves: the logo card,
 a name keyring, the pet tag on its split ring, a lit sign and a stencil.  Each
 is built by its own generator, rendered with the pet tag product shot's
 three.js lighting, and saved as a strip of 24 frames swaying either side of

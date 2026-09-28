@@ -2,10 +2,11 @@
 
     python3 src/app.py            # then open http://127.0.0.1:8765
 
-Six shapes: the NFC logo card (src/logocard.py), an NFC keyring fob
-(src/cards.py), a name keyring (src/nametag.py), a pet collar tag
-(src/pettag.py), a sign enclosure (src/signbox.py) and a stencil
-(src/stencil.py).  Fill in the boxes, watch the part turn in the viewer,
+Five shapes: the NFC logo card (src/logocard.py), a name keyring
+(src/nametag.py), a pet collar tag (src/pettag.py), a sign enclosure
+(src/signbox.py) and a stencil (src/stencil.py).  The NFC keyring fob
+(src/cards.py) is archived: src/gen_cards.py still writes one, the app does
+not.  Fill in the boxes, watch the part turn in the viewer,
 download it.  The 3MF carries each colour as a separate part, so the slicer opens it
 set up for four filaments; the STL is one welded solid.  The preview is the
 same solids, sent one after another with a colour and a place for each, so
@@ -32,7 +33,6 @@ import trimesh
 
 import cards
 import logocard
-import looks
 import nametag
 import pettag
 import signbox
@@ -61,13 +61,16 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "sign_shape", "cable_side", "pet_nfc", "pet_chip",
             "art", "card_size", "card_border", "card_backing", "card_holes",
             "card_colours", "card_bg", "card_ring", "card_at", "card_nfc",
-            "card_chip", "card_back", "card_link")
+            "card_chip", "card_back", "card_link", "card_both", "card_rises")
 
 # The shapes the page can ask for.  "card" is the NFC business card, remade
-# as src/logocard.py: the company's logo is the card's shape and colours.  The
-# old CR80 rectangle it replaces is still in src/cards.py, and
-# `src/gen_cards.py --kind card` still writes one, but the app does not.
-KINDS = ("card", "fob", "name", "pet", "stencil", "sign")
+# as src/logocard.py: the company's logo is the card's shape and colours.
+# The two business-card-style parts before it -- the CR80 rectangle and the
+# keyring fob with a name, company and phone on it -- are archived: their code
+# is all still in src/cards.py and `src/gen_cards.py --kind card|fob` still
+# writes either, but the app builds neither.
+KINDS = ("card", "name", "pet", "stencil", "sign")
+ARCHIVED = ("fob",)
 # What a logo may be: SVG text, or an image as a browser's FileReader sends it.
 IMAGE = re.compile(r"data:image/(png|jpeg|webp|gif|bmp|svg\+xml)[;,]")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
@@ -176,7 +179,10 @@ def model(params):
     key = json.dumps(keyed, sort_keys=True)
     with BUILD:
         if key not in RECENT:
-            kind = params.get("kind", "fob")
+            kind = params.get("kind", "card")
+            if kind in ARCHIVED:
+                raise ValueError("the keyring fob is archived -- the NFC logo card took its "
+                                 "place, and src/gen_cards.py still writes a fob")
             if kind not in KINDS:
                 raise ValueError(f"no such shape: {kind}")
             if kind == "card":
@@ -200,7 +206,12 @@ def model(params):
                     nfc=bool(params.get("card_nfc", True)),
                     chip_d=num("card_chip", 0.0) or None,
                     back=params.get("card_back") or "arcs",
-                    link=params.get("card_link", ""))
+                    link=params.get("card_link", ""),
+                    both=bool(params.get("card_both")),
+                    # {slot: mm}, only when each colour has its own height
+                    rises={k: float(v) for k, v in params["card_rises"].items()
+                           if isinstance(v, (int, float, str)) and str(v).strip()}
+                    if isinstance(params.get("card_rises"), dict) else None)
                 while len(RECENT) > 8:
                     del RECENT[next(iter(RECENT))]
                 parts, info = RECENT[key]
@@ -354,47 +365,7 @@ def model(params):
                     del RECENT[next(iter(RECENT))]
                 parts, info = RECENT[key]
                 return _finish(params, parts, info, num)
-            tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
-                       thick=num("tag_thick", cards.TAG["thick"]))
-            logo = params.get("logo") or None       # the SVGs' text, from the file pickers
-            design = params.get("design") or None
-            for what, svg in (("logo", logo), ("design", design)):
-                if svg and not svg.lstrip().startswith("<"):
-                    raise ValueError(f"the {what} has to be an SVG file")
-            look = params.get("look") or "plain"
-            if look not in looks.PATTERNS:
-                raise ValueError(f"no such pattern: {look}")
-            layout = params.get("layout") or "centred"
-            if layout not in cards.LAYOUTS:
-                raise ValueError(f"no such layout: {layout}")
-            placeholder = params.get("placeholder") or None
-            settings = dict(
-                tag=tag, tap_text=params.get("tap", "TAP HERE"),
-                tag_mode=params.get("tag_mode", "split"),
-                border=bool(params.get("border", False)), rise=num("rise", cards.RISE),
-                font=typefaces.face(face(params))["path"], logo=logo, design=design,
-                qr=bool(params.get("qr")), link=params.get("link", ""),
-                look=look, colours=colours, layout=layout, placeholder=placeholder,
-                role=params.get("role", ""), email=params.get("email", ""))
-            if params.get("batch"):
-                rows = cards.parse_batch(params["batch"])
-                if not rows:
-                    raise ValueError("the batch box is empty")
-                parts, infos = cards.build_batch(rows, kind, **settings)
-                info = {**infos[0], "batch": len(rows), "label": "",
-                        "nozzle": (None if any(i["nozzle"] is None for i in infos
-                                               if i["logo"] or i["qr"])
-                                   else min([i["nozzle"] for i in infos if i["nozzle"]],
-                                            default=None)),
-                        "volume": round(sum(i["volume"] for i in infos), 2),
-                        "watertight": all(i["watertight"] for i in infos)}
-                RECENT[key] = parts, info
-            else:
-                RECENT[key] = cards.build(
-                    kind, name=params.get("name", ""), company=params.get("company", ""),
-                    phone=params.get("phone", ""), **settings)
-            while len(RECENT) > 8:
-                del RECENT[next(iter(RECENT))]
+            raise ValueError(f"no builder for {kind}")          # every kind returns above
         parts, info = RECENT[key]
 
     return _finish(params, parts, info, num)
@@ -431,7 +402,7 @@ def _finish(params, parts, info, num):
 def health():
     """GET /api/model: does the whole pipeline run where this is deployed?
 
-    Builds the default fob and reports on it, so one request from a browser
+    Builds the default logo card and reports on it, so one request from a browser
     tells you the geometry libraries loaded, the font was found and a boolean
     came out watertight -- which is what a hosted function most often gets
     wrong, and what a 200 on the page alone would not show.
@@ -439,9 +410,9 @@ def health():
     import time
     t = time.time()
     with BUILD:
-        parts, info = cards.build("fob", "Self Test")
+        parts, info = logocard.build()
     return dict(ok=info["watertight"], font=cards.default_font(),
-                built=f"{info['w']} x {info['h']} mm fob in {time.time() - t:.2f}s",
+                built=f"{info['w']} x {info['h']} mm logo card in {time.time() - t:.2f}s",
                 python=__import__("sys").version.split()[0])
 
 

@@ -82,6 +82,9 @@ RING_WALL = 2.4          # plastic round the hole, where the pull is
 CLEAR = 0.8              # a hole keeps this far off the artwork
 CORNER_IN = 5.0          # and sits no further than this past its plastic from the edge
 
+# The most any colour of the logo stands off the face.
+RISE_MAX = 3.0
+
 # Colour.  Four heads on the printer: the body and up to three for the logo.
 INLAYS = 3
 INLAY_SLOTS = ("primary", "secondary", "pattern")     # by area, largest first
@@ -221,9 +224,19 @@ def silhouette(art, border, backing, fill_holes=True):
     return fill(base.convex_hull), 99.0
 
 
-def fit_art(regions, size, border, backing, fill_holes):
+def mirror(g):
+    """Turned over left to right about the card's centre line: where a shape
+    drawn to be read from behind lands in the card's own coordinates."""
+    return affinity.scale(g, -1, 1, origin=(0, 0))
+
+
+def fit_art(regions, size, border, backing, fill_holes, both=False):
     """Scale the logo so the finished card's longest side is `size` mm.
-    Returns (regions in mm centred on the origin, outline, bridged)."""
+    Returns (regions in mm centred on the origin, outline, bridged).
+
+    With `both`, the outline is cut round the logo *and* its mirror image,
+    so the logo on the back -- the right way round from behind -- fits the
+    card as well as the front one does.  A symmetric logo loses nothing."""
     every = unary_union([g for _, g in regions])
     x0, y0, x1, y1 = every.bounds
     cx, cy, long = (x0 + x1) / 2, (y0 + y1) / 2, max(x1 - x0, y1 - y0)
@@ -232,7 +245,8 @@ def fit_art(regions, size, border, backing, fill_holes):
         k = target / long
         place = lambda g: affinity.scale(affinity.translate(g, -cx, -cy), k, k, origin=(0, 0))
         art = place(every)
-        outline, bridged = silhouette(art, border, backing, fill_holes)
+        outline, bridged = silhouette(unary_union([art, mirror(art)]) if both else art,
+                                      border, backing, fill_holes)
         bx0, by0, bx1, by1 = outline.bounds
         got = max(bx1 - bx0, by1 - by0)
         if abs(got - size) < 0.05:
@@ -296,12 +310,21 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
           fill_holes=True, ring="tab", ring_at="top-left", ring_d=RING_D,
           colours=cards.COLOURS, max_colours=INLAYS, keep_background=False,
           rise=0.0, nfc=True, chip_d=None, chip_t=pettag.CHIP_T,
-          back="arcs", link="", label=""):
+          back="arcs", link="", both=False, rises=None, label=""):
     """One logo card, as printable parts plus the numbers worth knowing.
 
     Returns ([part], info) in cards.build()'s shape.  info["art"] lists the
     logo's colours and the slot each went to, so a front end can start its
     colour pickers on them.
+
+    `both` puts the logo on the back as well, reading the right way round
+    when the card is turned over, in the same colours; the back then has no
+    room for the tap mark or a QR code, and goes without.
+
+    `rises` gives each logo colour its own height off the face, by slot --
+    {"primary": 1.2, "secondary": 0.4} -- so a logo can be stepped: the
+    lettering standing above its field, the field above the card.  A slot
+    it leaves out stands at `rise`.
     """
     if backing not in BACKINGS:
         raise ValueError(f"no such backing: {backing} -- {', '.join(BACKINGS)}")
@@ -315,6 +338,8 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
     thick = max(2.0, float(thick))
     border = max(0.0, float(border))
     rise = max(0.0, float(rise))
+    rises = {k: min(RISE_MAX, max(0.0, float(v))) for k, v in (rises or {}).items()
+             if k in INLAY_SLOTS}
     max_colours = min(INLAYS, max(1, int(max_colours)))
     link = (link or "").strip()
 
@@ -323,11 +348,17 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
                        report=seen)
     # The sample is drawn to sit on ink, the colour the page starts in.
     suggest = INK if not art else body_for(regions, seen.get("background"))
-    regions, art_2d, outline, bridged = fit_art(regions, size, border, backing, fill_holes)
+    regions, art_2d, outline, bridged = fit_art(regions, size, border, backing, fill_holes,
+                                                both)
+    # How far from symmetric the logo is: past a few percent, a two-sided
+    # card's outline is visibly wider than the logo's own.
+    widened = both and art_2d.symmetric_difference(mirror(art_2d)).area > 0.05 * art_2d.area
     inlays, folded = sort_colours(regions, colours[0], max_colours)
     # The hole keeps clear of what shows: the inlays.  A part of the logo in
     # the card's own colour is the card, and a hole may go through it.
     ink = unary_union([g for _, _, g in inlays]) if inlays else Polygon()
+    if both:
+        ink = unary_union([ink, mirror(ink)])
     outline, hole, ring_got = keyring(outline, ink, ring, ring_at, float(ring_d))
     if ring == "hole" and ring_got != "hole" and backing == "rounded":
         # A rectangle with no room in its corner grows at that end until
@@ -343,6 +374,7 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
     body = cards.prisms([body_2d], 0.0, thick)[0]
     cutters, groups_ = [], []
     report = []
+    back_logo = False
     for slot, hexc, g in inlays:
         g = g.intersection(outline.buffer(-0.3))
         if keep_off is not None:
@@ -350,14 +382,24 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
         polys = tidy(g)
         if not polys:
             continue
-        if rise > 0:
-            mesh = pettag.solid(polys, thick - FACE - 0.01, FACE + rise + 0.01)
+        up = rises.get(slot, rise)
+        if up > 0:
+            mesh = pettag.solid(polys, thick - FACE - 0.01, FACE + up + 0.01)
         else:
             mesh = pettag.solid(polys, thick - FACE - 0.01, FACE + 0.01)
         cutters.append(pettag.solid(polys, thick - FACE, FACE + 1.0))
         groups_.append(dict(slot=slot, element="logo", face="front", mesh=mesh))
         report.append(dict(slot=slot, hex=hexc, area=round(sum(p.area for p in polys), 1),
-                           detail=round(float(cards.finest(polys)), 2)))
+                           detail=round(float(cards.finest(polys)), 2), rise=round(up, 2)))
+        if both:
+            # The same colour on the back, turned over.  Always flush: the
+            # back is the face on the bed, and relief there would need
+            # supports.  Same slots, so a second side costs no extra head.
+            under = [mirror(p) for p in polys]
+            cutters.append(pettag.solid(under, -1.0, FACE + 1.0))
+            groups_.append(dict(slot=slot, element="logo", face="back",
+                                mesh=pettag.solid(under, 0.0, FACE + 0.01)))
+            back_logo = True
 
     # The chip, at the roomiest point of the card, clear of the ring.
     chip = None
@@ -388,7 +430,9 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
     # drawn as seen from behind and then mirrored into the card's coordinates.
     back_polys, qr = [], None
     mark_slot = inlays[0][0] if inlays else "primary"
-    if back == "qr" and link:
+    if back_logo:
+        pass                    # the back is the logo's; nothing goes over it
+    elif back == "qr" and link:
         rows = cards.qr_matrix(link)
         n = len(rows) + 2 * cards.QR_QUIET
         room = body_2d.buffer(-1.5, quad_segs=16)
@@ -434,13 +478,16 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
         thin.append("qr")
     colour_slots = sorted({g["slot"] for g in groups_}, key=cards.SLOTS.index)
     total = float(part["mesh"].bounds[1][2])
-    bands = [[0.0, round(FACE, 2)]] if back_polys else []
+    bands = [[0.0, round(FACE, 2)]] if back_polys or back_logo else []
     bands.append([round(thick - FACE, 2), round(total, 2)])
     info = dict(
         kind="card", label=label, front_up=True,
         w=round(x1 - x0, 2), h=round(y1 - y0, 2), thick=round(thick, 2),
-        rise=round(rise, 2), total_z=round(total, 2), size=round(size, 1),
+        rise=round(max([r["rise"] for r in report] or [0.0]), 2),
+        stepped=len({r["rise"] for r in report}) > 1,
+        total_z=round(total, 2), size=round(size, 1),
         border=round(border, 2), backing=backing, bridged=bridged,
+        both=back_logo, widened=bool(widened and back_logo),
         art=report, folded=folded, body=colours[0], suggest_body=suggest,
         source="svg" if (not art or (isinstance(art, str) and (art.lstrip().startswith("<")
                          or art.startswith("data:image/svg") or art.lower().endswith(".svg"))))
@@ -450,7 +497,7 @@ def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
         ring_at=ring_at if hole is not None else None,
         hole=[round(hole.centroid.x, 3), round(hole.centroid.y, 3), float(ring_d)]
         if hole is not None else None,
-        back=back if back_polys else "none", qr=qr, link=link,
+        back="logo" if back_logo else back if back_polys else "none", qr=qr, link=link,
         stroke=round(float(detail), 2), nozzle=cards.nozzle_for(detail) if report else None,
         slots=colour_slots, part_slots={"card": colour_slots}, parts=["card"], pins=0,
         part_thick=round(total, 2), assembled=round(total, 2),
@@ -492,11 +539,17 @@ if __name__ == "__main__":
     ap.add_argument("--link", default="")
     ap.add_argument("--back", choices=("arcs", "qr", "none"), default="arcs")
     ap.add_argument("--no-nfc", action="store_true")
+    ap.add_argument("--both", action="store_true", help="the logo on the back too")
+    ap.add_argument("--rises", default="", help="each logo colour's height, largest colour "
+                    "first, in mm: 0,1.2 steps the second colour up 1.2 mm")
     a = ap.parse_args()
     body = (a.body,) + tuple(cards.COLOURS[1:])
     parts, info = build(a.logo, size=a.size, border=a.border, backing=a.backing,
                         ring=a.ring, ring_at=a.ring_at, colours=body, link=a.link,
-                        back=a.back, nfc=not a.no_nfc)
+                        back=a.back, nfc=not a.no_nfc, both=a.both,
+                        rises=dict(zip(INLAY_SLOTS, map(float, filter(None,
+                                                            a.rises.split(",")))))
+                        if a.rises else None)
     palette = list(body)
     for r in info["art"]:
         palette[cards.SLOTS.index(r["slot"])] = r["hex"]
