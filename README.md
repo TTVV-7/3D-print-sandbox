@@ -1580,6 +1580,27 @@ that the next one shows up without anyone looking at a photograph. That one is t
 own style and is sized from the body -- what makes a plateau a plateau is
 that it reaches both edges -- rather than being given as a number.
 
+## On the phone, in 3D
+
+**On the phone, 3D**, above the preview, shows the case on the phone. You can
+turn it, lift the case off to see the phone behind it, and change the phone's
+colour.  The case is the 3MF's own solids, with the artwork in colour.  The
+phone (`src/phone_mockup.py`) is drawn from the same table as the case: the
+published body size and corner radius, the camera bump as the camera opening
+less the clearance, the lenses where the flat preview puts them, and the
+buttons where the case cuts for them.  So every phone in the table gets one, a
+new phone gets one for free, and it has no logo and copies nobody's design.
+
+![the case on an iPhone 17 Pro](previews/case_on_phone.png)
+
+**It is only as right as the table.**  Where a camera or button number is
+wrong, the phone drawn here is wrong the same way, and the two still look like
+a perfect fit.  It shows the design, not the fit; the test fit on a real phone
+is still the check.  The server sends it as a GLB (`want: "mockup"`), about
+150 kB and a tenth of a second to build.  The page draws it with three.js
+0.170 from jsdelivr, loaded only for this view.  If that cannot load, the view
+says so and the flat preview and downloads carry on.
+
 ## Printing it face down
 
 The case prints with its back against the build plate, so the artwork is

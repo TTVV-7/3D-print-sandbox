@@ -329,6 +329,23 @@
                  border: 1px solid var(--border-default); border-radius: var(--radius-200);
                  background: var(--bg-default); }
   #empty { color: var(--text-secondary); text-align: center; max-width: 34ch; }
+
+  /* ---- the 3D view: the phone with the case on it ---------------------- */
+  #viewbar { position: absolute; left: var(--space-600); top: var(--space-400); z-index: 3; }
+  #three { position: absolute; inset: 0; z-index: 1; }
+  #three canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #three canvas:active { cursor: grabbing; }
+  #mockbar { position: absolute; left: var(--space-600); bottom: var(--space-600); z-index: 3;
+    display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-300); }
+  #finishes { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+  #finishes button { width: 26px; height: 26px; padding: 0; border-radius: var(--radius-full); cursor: pointer;
+    border: 1px solid var(--border-secondary); box-shadow: inset 0 0 0 2px var(--bg-default); }
+  #finishes button[aria-pressed=true] { outline: 2px solid var(--brand); outline-offset: 1px; }
+  #three-note { position: absolute; right: var(--space-600); top: var(--space-400); z-index: 3;
+    font-size: 13px; color: var(--text-secondary); max-width: 34ch; text-align: right; }
+  main.three #preview, main.three #empty, main.three #hint { visibility: hidden; }
+  .threefail { position: absolute; inset: 0; display: grid; place-items: center; margin: 0;
+    padding: var(--space-800); color: var(--text-secondary); text-align: center; }
   #preview.grabbable svg { cursor: grab; }
   #preview.dragging svg { cursor: grabbing; }
   #preview.dragging #art-runs { opacity: .85; }
@@ -625,6 +642,21 @@
 
 <main>
   <div id="view">
+    <div id="viewbar" class="segmented" role="group" aria-label="Preview">
+      <button type="button" data-view="flat" aria-pressed="true">Back, flat</button>
+      <button type="button" data-view="3d" aria-pressed="false">On the phone, 3D</button>
+    </div>
+    <div id="three" hidden></div>
+    <div id="three-note" hidden>Drag to turn &middot; scroll to zoom. The phone is drawn from the
+      same numbers as the case, so check the fit on a real one before you sell it.</div>
+    <div id="mockbar" hidden>
+      <div class="segmented" id="mockmode" role="group" aria-label="Case">
+        <button type="button" data-mode="on" aria-pressed="true">On the phone</button>
+        <button type="button" data-mode="lifted" aria-pressed="false">Lifted off</button>
+        <button type="button" data-mode="case" aria-pressed="false">Case only</button>
+      </div>
+      <div id="finishes"></div>
+    </div>
     <div id="preview"></div>
     <div id="empty">Pick a phone and drop in an SVG. The preview is the real
       first-layer toolpath, shown the way you will hold the finished case.</div>
@@ -775,12 +807,88 @@ async function rebuild() {
     lastReport = payload.report;
     readout(payload.report);
     foldSummaries();
+    if (view3d) { drawFinishes(); loadMockup(); }
   } catch (exc) {
     if (mine === seq) fail(String(exc));
   } finally {
     if (mine === seq) $("building").hidden = true;
   }
 }
+
+/* ---- the 3D view ------------------------------------------------------ */
+/* The phone with the case on it, as a GLB from the server: the case is the
+   3MF's own solids and the phone is drawn from the same table, so it is the
+   same shape the downloads are.  Built only while the 3D view is showing,
+   and cheap -- about a tenth of a second -- so it follows the form. */
+let view3d = false, mockSeq = 0, finish = null;
+
+async function loadMockup() {
+  if (!view3d) return;
+  if (!window.mock) {
+    // three.js comes from a CDN; if it has not arrived in a few seconds, say
+    // so rather than leave an empty panel.  The flat view needs none of it.
+    clearTimeout(loadMockup.wait);
+    loadMockup.wait = setTimeout(() => {
+      if (!window.mock && view3d)
+        $("three").innerHTML = `<p class="threefail">The 3D viewer could not load &mdash;
+          check the connection and reload. The flat view and the downloads still work.</p>`;
+    }, 8000);
+    return;
+  }
+  const mine = ++mockSeq;
+  $("building").hidden = false;
+  try {
+    const res = await fetch("/api/case", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params({ want: "mockup", finish })),
+    });
+    if (mine !== mockSeq) return;
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || res.statusText);
+    }
+    await window.mock.show(await res.arrayBuffer(), $("phone").value);
+  } catch (exc) {
+    if (mine === mockSeq) fail(String(exc.message || exc));
+  } finally {
+    if (mine === mockSeq) $("building").hidden = true;
+  }
+}
+
+function drawFinishes() {
+  const phone = catalogue && catalogue.phones.find(p => p.id === $("phone").value);
+  const list = (phone && phone.finishes) || [];
+  if (!list.some(f => f.name === finish)) finish = list.length ? list[0].name : null;
+  $("finishes").innerHTML = list.length ? "<span>Phone</span>" : "";
+  for (const f of list) {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.style.background = f.hex;
+    b.title = f.name;
+    b.setAttribute("aria-label", `Phone colour: ${f.name}`);
+    b.setAttribute("aria-pressed", String(f.name === finish));
+    b.addEventListener("click", () => { finish = f.name; drawFinishes(); loadMockup(); });
+    $("finishes").append(b);
+  }
+}
+
+function setView(v) {
+  view3d = v === "3d";
+  for (const b of $("viewbar").querySelectorAll("button"))
+    b.setAttribute("aria-pressed", String(b.dataset.view === v));
+  document.querySelector("main").classList.toggle("three", view3d);
+  $("three").hidden = $("mockbar").hidden = $("three-note").hidden = !view3d;
+  try { localStorage.setItem("case-view", v); } catch (e) {}
+  if (view3d) { drawFinishes(); loadMockup(); }
+}
+for (const b of $("viewbar").querySelectorAll("button"))
+  b.addEventListener("click", () => setView(b.dataset.view));
+for (const b of $("mockmode").querySelectorAll("button"))
+  b.addEventListener("click", () => {
+    for (const o of $("mockmode").querySelectorAll("button"))
+      o.setAttribute("aria-pressed", String(o === b));
+    if (window.mock) window.mock.mode(b.dataset.mode);
+  });
 
 function fail(message) {
   $("notes").innerHTML = `<p class="err">${escape_(message)}</p>`;
@@ -1162,7 +1270,7 @@ $("palette").addEventListener("change", () => { setPalette($("palette").value); 
   const res = await fetch("/api/case");
   catalogue = await res.json();
   fillSelect($("phone"), catalogue.phones.map(p => ({ id: p.id, label: p.name })),
-             "iphone-15-pro");
+             "iphone-17-pro");
   fillSelect($("printer"), catalogue.printers.map(p =>
     ({ id: p.id, label: `${p.name} (${p.tools} slots)` })), "bambu-p1s-ams");
   fillSelect($("filament"), catalogue.filaments.map(f => ({ id: f.id, label: f.id })), "pla");
@@ -1173,7 +1281,115 @@ $("palette").addEventListener("change", () => { setPalette($("palette").value); 
   cameraDefaults();
   foldSummaries();
   rebuild();
+  let saved = null;
+  try { saved = localStorage.getItem("case-view"); } catch (e) {}
+  if (saved === "3d") setView("3d");
 })();
+</script>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+/* The 3D view.  three.js, pinned, from jsdelivr: the rest of the page needs
+   nothing from it, so if it cannot load the flat preview carries on and the
+   3D button says so.  Coordinates are the generator's own -- millimetres, z
+   up from the outer back of the case -- so the GLB goes in as it comes. */
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const host = document.getElementById("three");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+host.append(renderer.domElement);
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+const key = new THREE.DirectionalLight(0xffffff, 1.4);
+key.position.set(-120, -200, 260);
+scene.add(key, new THREE.AmbientLight(0xffffff, 0.25));
+
+const camera = new THREE.PerspectiveCamera(28, 1, 1, 5000);
+camera.up.set(0, 1, 0);                     // the phone's top is up, as in a hand
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true;                 // until somebody takes hold of it
+controls.autoRotateSpeed = 0.8;
+controls.addEventListener("start", () => { controls.autoRotate = false; });
+
+const loader = new GLTFLoader();
+const phone = new THREE.Group(), caseG = new THREE.Group();
+scene.add(phone, caseG);
+let shownPhone = null, mode = "on", lift = 0, liftTo = 0;
+
+function frame(box) {
+  const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+  const d = Math.max(size.x, size.y) * 2.75;
+  controls.target.copy(mid);
+  // Upright and a little to one side, from behind: the back of the case --
+  // the artwork and the camera opening -- is what you see first, the way
+  // you see it holding the phone.  Turning it round shows the screen and lip.
+  camera.position.set(mid.x - d * 0.42, mid.y + d * 0.12, mid.z - d * 0.9);
+  controls.update();
+}
+
+function place() {
+  liftTo = mode === "lifted" ? -28 : 0;
+  phone.visible = mode !== "case";
+}
+
+window.mock = {
+  show(buffer, phoneId) {
+    return new Promise((ok, bad) => loader.parse(buffer, "", gltf => {
+      for (const g of [phone, caseG]) {
+        for (const c of [...g.children]) {
+          g.remove(c);
+          c.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+        }
+      }
+      const meshes = [];
+      gltf.scene.traverse(o => { if (o.isMesh) meshes.push(o); });
+      gltf.scene.updateMatrixWorld(true);
+      for (const m of meshes) (m.name.startsWith("case") ? caseG : phone).attach(m);
+      // Only re-aim when the phone changes, so tweaking the artwork does not
+      // throw away the angle you turned it to.
+      if (phoneId !== shownPhone) {
+        frame(new THREE.Box3().setFromObject(caseG));
+        shownPhone = phoneId;
+      }
+      place();
+      ok();
+    }, bad));
+  },
+  mode(m) { mode = m; place(); },
+};
+
+function resize() {
+  const w = host.clientWidth, h = host.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(host);
+
+renderer.setAnimationLoop(() => {
+  if (host.hidden) return;
+  lift += (liftTo - lift) * 0.12;
+  caseG.position.z = lift;
+  controls.update();
+  renderer.render(scene, camera);
+});
+// The page may already be sitting on the 3D view, waiting for this.
+if (!host.hidden) document.querySelector('#viewbar [data-view="3d"]').click();
 </script>
 </body>
 </html>
