@@ -55,7 +55,8 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "plate_w", "plate_h", "margin", "bridge", "thick",
             "depth", "wall", "diffuse", "lid", "cable", "mount",
             "pet_shape", "pet_style", "pet_size", "pet_sides", "pet_note",
-            "pet_link", "pet_border", "pet_collar", "pet_slot")
+            "pet_link", "pet_border", "pet_collar", "pet_slot",
+            "sign_shape", "cable_side", "pet_nfc", "pet_chip")
 
 # The shapes the page can ask for.  The business card is not among them any
 # more: it is archived -- the code is still in src/cards.py and
@@ -209,7 +210,7 @@ def model(params):
                 # A pet tag: the name on the front, the way home on the back.
                 # The phone, the note and the QR link are shared by a batch
                 # unless a row carries its own.
-                shape = params.get("pet_shape") or "circle"
+                shape = params.get("pet_shape") or "bone"
                 if shape not in pettag.SHAPES:
                     raise ValueError(f"no such tag shape: {shape}")
                 tag = dict(phone=params.get("phone", ""),
@@ -222,7 +223,10 @@ def model(params):
                            border=bool(params.get("pet_border")),
                            ring_d=num("ring_d", pettag.RING_D),
                            collar=num("pet_collar", pettag.COLLAR),
-                           slot=num("pet_slot", pettag.SLOT), colours=colours)
+                           slot=num("pet_slot", pettag.SLOT), colours=colours,
+                           nfc=bool(params.get("pet_nfc")),
+                           # 0 or missing: the biggest usual sticker that fits
+                           chip_d=num("pet_chip", 0.0) or None)
                 if params.get("batch"):
                     rows = pettag.parse_batch(params["batch"])
                     if not rows:
@@ -290,6 +294,10 @@ def model(params):
                            margin=num("margin", signbox.MARGIN),
                            cable=num("cable", signbox.CABLE),
                            mount=params.get("mount") or "none",
+                           # The box follows the letters unless asked for the
+                           # rectangle, and the cable leaves by the back.
+                           shape=params.get("sign_shape") or "letters",
+                           cable_side=params.get("cable_side") or "right",
                            lid=bool(params.get("lid", True)),
                            colours=colours)
                 if params.get("batch"):
@@ -372,7 +380,12 @@ def _finish(params, parts, info, num):
         if params.get("kind") == "pet":
             # Each slot on its own filament, colours and materials named, so
             # a TPU tag with PETG lettering opens ready to slice as one print.
-            return (cards.export_3mf_tools(parts, filaments(params, colours), row_w=row_w),
+            # A sealed NFC chip needs the print to stop above its pocket;
+            # every tag on a plate has its pocket at the same height.
+            pauses = [(info["nfc"]["resume_z"], "Drop the NFC chip into the pocket")] \
+                if info.get("nfc") else []
+            return (cards.export_3mf_tools(parts, filaments(params, colours), row_w=row_w,
+                                           pauses=pauses),
                     info, "model/3mf")
         return cards.export_3mf(parts, colours, row_w=row_w), info, "model/3mf"
     if params.get("format") == "stl":
@@ -422,6 +435,18 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
         elif path == "/filaments.json":
             self._send(200, SPOOLS.read_bytes(), "application/json")
+        elif path.startswith("/assets/"):
+            # Static files under public/assets -- the tile icons.  Resolved and
+            # checked, so a path with .. in it cannot walk out of the folder.
+            base = (ROOT / "public" / "assets").resolve()
+            f = (ROOT / "public" / path.lstrip("/")).resolve()
+            kinds = {".webp": "image/webp", ".png": "image/png", ".glb": "model/gltf-binary",
+                     ".json": "application/json"}
+            if base in f.parents and f.is_file() and f.suffix in kinds:
+                self._send(200, f.read_bytes(), kinds[f.suffix],
+                           [("Cache-Control", "public, max-age=3600")])
+            else:
+                self._send(404, b"not found", "text/plain")
         elif path in ("/api/model", "/model"):
             try:
                 self._send(200, json.dumps(health()).encode(), "application/json")

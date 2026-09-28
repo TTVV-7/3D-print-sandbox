@@ -60,6 +60,11 @@ PROVENANCE = "f7bf3c7"
 #: lower, limit; this one is about not buffering a payload to find out.
 MAX_BODY = 6 << 20
 
+#: printyours.ca's own colours, offered first and chosen by default.  Kept
+#: here rather than in phonecase.profiles, which is the vendored copy.
+HOUSE = {"printyours": Palette.parse(["#0c1a2e:ink", "#ff5b1f:flame",
+                                      "#f5f2ec:paper", "#5aa9e6:sky"])}
+
 #: Finer than this is invisible under a 0.42 mm line and costs seconds.
 MIN_RES = 0.3
 
@@ -408,7 +413,7 @@ def catalogue():
         "filaments": [{"id": k, "purge": v.purge_mm3, "nozzle": v.nozzle_temp}
                       for k, v in FILAMENTS.items()],
         "palettes": {k: [{"index": s.index, "name": s.name, "hex": s.hex}
-                         for s in v.slots] for k, v in PALETTES.items()},
+                         for s in v.slots] for k, v in {**HOUSE, **PALETTES}.items()},
     }
 
 

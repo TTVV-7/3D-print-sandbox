@@ -31,11 +31,12 @@ the STL and the app's viewer all take them unchanged.
 import numpy as np
 import trimesh
 from shapely import affinity
-from shapely.geometry import Point
+from shapely.geometry import Point, Polygon
 from shapely.geometry import box as box_2d
 from shapely.ops import unary_union
 
 import cards
+import nametag
 import stencil
 import typefaces
 
@@ -87,6 +88,24 @@ CLEARANCE = 0.2
 # takes up the top LID mm of it, so the notch is cut that much deeper and the
 # cable still gets its full CABLE mm.  0 leaves the wall closed.
 CABLE = 6.0
+
+# The shape of the box.  "letters" follows the word: the lettering grown by the
+# margin, the gaps between letters closed, the counters filled -- one rounded
+# outline hugging the word, the way a channel-letter sign does.  "box" is the
+# rounded rectangle.
+SHAPES = ("letters", "box")
+
+# How far the gaps between letters are bridged when the outline is drawn, on
+# top of the margin.  Big enough that a word comes out as one shape rather
+# than a row of islands, and it rounds every inside corner by as much.
+JOIN = 8.0
+
+# Where the cable leaves.  "right" and "left" are as seen from the front, and
+# go out through the back: a notch in the edge of the lid at that end, open
+# to the edge so the cable drops in rather than being threaded, and the wall
+# closes it into a hole once the lid is in.  "bottom" is the old way, a
+# notch in the back edge of the bottom wall.
+CABLE_SIDES = ("right", "left", "bottom")
 
 # Clear air between the diffuser and the lid the strip is stuck to.  Less than
 # this and you can count the LEDs through the letters.
@@ -204,10 +223,53 @@ def mount_posts(kind, w, h, wall, margin, radius, inner, room):
     return posts, posts, what
 
 
+def contour(letters, margin, join=JOIN):
+    """The outline of a box that follows the word: every letter grown by
+    `margin`, the gaps between them closed by `join` and the inside corners
+    rounded by as much, then the counters filled so it is one solid shape.
+
+    A word whose letters are further apart than the join -- two words on two
+    lines, say -- is tied together the way a name keyring's loose dot is.
+    """
+    grown = unary_union(letters).buffer(margin + join, quad_segs=16)
+    outline = grown.buffer(-join, quad_segs=16)
+    if outline.geom_type == "MultiPolygon":
+        outline, _ = nametag.tie_together(outline, width=2.0 * margin)
+        outline = outline.buffer(2.0, quad_segs=16).buffer(-2.0, quad_segs=16)
+    if outline.geom_type == "MultiPolygon":
+        outline = max(outline.geoms, key=lambda g: g.area)
+    return Polygon(outline.exterior).simplify(0.02)
+
+
+def cable_notch(lid_poly, cable, side, edge=EDGE):
+    """A notch `cable` wide in the edge of the lid, at the `side` end.
+
+    The lid is built face down like the rest, so the right-hand end as seen
+    from the front is the lid's -x end.  The notch is placed where the lid is
+    widest near that end, so a letter-shaped lid does not get it cut into a
+    sliver, and runs in from the edge a cable and a margin deep.
+    """
+    x0, y0, x1, y1 = lid_poly.bounds
+    reach = cable + 2.0 * edge + 4.0
+    if side == "right":
+        end, strip = x0, box_2d(x0 - 1.0, y0 - 1.0, x0 + reach, y1 + 1.0)
+    else:
+        end, strip = x1, box_2d(x1 - reach, y0 - 1.0, x1 + 1.0, y1 + 1.0)
+    near = lid_poly.intersection(strip)
+    if near.is_empty:
+        raise ValueError("no room at that end of the lid for the cable")
+    cy = near.centroid.y
+    deep = cable + edge
+    if side == "right":
+        return box_2d(end - 1.0, cy - cable / 2.0, end + deep, cy + cable / 2.0)
+    return box_2d(end - deep, cy - cable / 2.0, end + 1.0, cy + cable / 2.0)
+
+
 def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
           diffuse=DIFFUSE, opaque=OPAQUE, margin=MARGIN, radius=RADIUS,
           chamfer=CHAMFER, lid=True, lid_thick=LID, clearance=CLEARANCE,
-          cable=CABLE, mount="none", colours=cards.COLOURS, label=""):
+          cable=CABLE, mount="none", colours=cards.COLOURS, label="",
+          shape="box", cable_side="bottom"):
     """One sign enclosure, as printable parts plus the numbers worth knowing.
 
     Returns ([case, lid], info) in cards.build()'s shape -- or ([case], info)
@@ -234,6 +296,17 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
     if mount not in MOUNTS:
         raise ValueError(f"no such mount: {mount!r} -- it is one of "
                          + ", ".join(MOUNTS))
+    shape = (shape or "box").strip().lower()
+    if shape not in SHAPES:
+        raise ValueError(f"no such shape: {shape!r} -- it is one of " + ", ".join(SHAPES))
+    cable_side = (cable_side or "bottom").strip().lower()
+    if cable_side not in CABLE_SIDES:
+        raise ValueError(f"no such cable exit: {cable_side!r} -- it is one of "
+                         + ", ".join(CABLE_SIDES))
+    if shape == "letters" and mount != "none":
+        raise ValueError("the wall mounts live in the plain border of the rectangular "
+                         "box, and a box that follows the letters has none -- pick the "
+                         "rectangle to mount it, or stick it up by its back")
     colours = tuple(colours or cards.COLOURS)
 
     if depth <= front + lid_thick + 2.0:
@@ -245,14 +318,7 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
                          f"{margin:g} mm margin")
 
     outer = cards.rounded_rect(w, h, radius)
-    inner = outer.buffer(-wall)                  # the cavity, and the lit area
-    if inner.is_empty or inner.geom_type != "Polygon":
-        raise ValueError(f"a {wall:g} mm wall leaves nothing inside a "
-                         f"{w:g} x {h:g} mm box")
     room = outer.buffer(-margin)
-
-    post_case, post_lid, mount_what = mount_posts(
-        mount, w, h, wall, margin, radius, inner, room)
 
     face = typefaces.face(font)
     if svg:
@@ -273,6 +339,20 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
     shapes = [affinity.scale(p, -1.0, 1.0, origin=(0, 0)) for p in shapes]
     letters = stencil.pieces(unary_union(shapes))
 
+    if shape == "letters":
+        # The box is the word's own outline, and the face is only as big as
+        # that -- w and h were the most room the lettering could have.
+        outer = contour(letters, margin)
+        x0, y0, x1, y1 = outer.bounds
+        w, h = x1 - x0, y1 - y0
+    inner = outer.buffer(-wall)                  # the cavity, and the lit area
+    if inner.is_empty or inner.geom_type != "Polygon":
+        raise ValueError(f"a {wall:g} mm wall leaves nothing inside a "
+                         f"{w:g} x {h:g} mm box")
+
+    post_case, post_lid, mount_what = mount_posts(
+        mount, w, h, wall, margin, radius, inner, room)
+
     # The lid's rebate: the last lid_thick mm of the wall is taken back to its
     # outer half, and the step that leaves is what the lid sits on.
     rebate = inner.buffer(wall / 2.0)
@@ -287,13 +367,18 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
         cuts += cards.prisms(
             list(step.geoms) if step.geom_type == "MultiPolygon" else [step],
             depth - lid_thick, lid_thick + 1.0)
-    if cable > 0:
+    if cable > 0 and cable_side == "bottom":
         if cable > inner.bounds[2] - inner.bounds[0]:
             raise ValueError(f"a {cable:g} mm cable notch is wider than the wall it "
                              f"goes through")
         # Open to the back and open to the outside: no bridge, no support, and
         # the cable drops in rather than being threaded.
-        notch = box_2d(-cable / 2.0, -h / 2.0 - 1.0, cable / 2.0, -h / 2.0 + wall + 1.0)
+        # At the bottom of the outline: the middle of a rectangle's bottom
+        # edge, or wherever a letter-shaped box comes lowest.
+        ox0, oy0, ox1, oy1 = outer.bounds
+        low = outer.intersection(box_2d(ox0 - 1.0, oy0 - 1.0, ox1 + 1.0, oy0 + 1.0))
+        nx = low.centroid.x if not low.is_empty else (ox0 + ox1) / 2.0
+        notch = box_2d(nx - cable / 2.0, oy0 - 1.0, nx + cable / 2.0, oy0 + wall + 1.0)
         cuts += cards.prisms([notch], depth - lid_thick - cable, lid_thick + cable + 1.0)
 
     # The face: the letters taken out of the opaque layer, and the diffuser
@@ -310,7 +395,8 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
         lit_poly = inner.difference(unary_union(post_case).buffer(MOUNT_CLEAR))
     cuts += cards.prisms([lit_poly], front - diffuse, diffuse)
 
-    body = shell(w, h, radius, outer, inner, depth, front, chamfer)
+    body = shell(w, h, radius, outer, inner, depth, front,
+                 chamfer if shape == "box" else 0.0)
     if post_case:
         # Unioned before the cuts, so the cable notch goes through a pad in its
         # way rather than the cable having to.
@@ -341,6 +427,10 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
         # than the lid, so the cable passes under a lid that stays whole --
         # which is what holds the cable in and keeps the light off the wall.
         face_poly = rebate.buffer(-clearance)
+        if cable > 0 and cable_side != "bottom":
+            face_poly = face_poly.difference(cable_notch(face_poly, cable, cable_side))
+            if face_poly.geom_type == "MultiPolygon":
+                face_poly = max(face_poly.geoms, key=lambda g: g.area)
         if post_lid:
             face_poly = face_poly.difference(
                 unary_union(post_lid).buffer(MOUNT_CLEAR))
@@ -374,6 +464,7 @@ def build(text="", svg=None, font=None, w=W, h=H, depth=DEPTH, wall=WALL,
         lid=bool(lid), lid_thick=round(lid_thick, 2) if lid else None,
         clearance=round(clearance, 2) if lid else None,
         cable=round(cable, 2) if cable else None,
+        cable_side=cable_side if cable else None, shape=shape,
         mount=mount, mount_what=mount_what, mounts=len(post_case),
         margin=round(margin, 2), radius=round(radius, 2),
         face=cards.FACE, chamfer=round(chamfer, 2),

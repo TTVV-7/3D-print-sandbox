@@ -174,6 +174,22 @@ nothing fetched from a CDN, and it works with the network off.  It listens on
 the loopback address; it is a tool for the machine it runs on, not a service to
 put on a network.
 
+### The shape icons
+
+The five tiles at the top of the form show the products themselves: a fob,
+a name keyring, the pet tag on its split ring, a lit sign and a stencil.  Each
+is built by its own generator, rendered with the pet tag product shot's
+three.js lighting, and saved as a strip of 24 frames swaying either side of
+straight on (`public/assets/tiles/*.webp`, 23 to 48 kB each).  The first frame
+is the icon; hovering a tile plays the rest with a CSS animation, and not with
+reduced motion.  No 3D engine runs for them.
+
+```
+python3 src/gen_tile_icons.py      # needs Node and Playwright; the images are committed
+```
+
+Change a product's look or colours in `ICONS` in that script and re-run it.
+
 ### Hosting it
 
 The repo deploys to Vercel as it stands: `api/model.py` hands Vercel the same
@@ -864,7 +880,7 @@ A collar tag: the pet's name on the front, the way home on the back.  The
 
 | | |
 |---|---|
-| Shapes | round, bone, heart, tag -- or a slide-on plate |
+| Shapes | bone (the default), paw print, heart, round, fish, cat head, shield, tag -- or a slide-on plate |
 | Hanging | a ring tab on top, 5 mm hole with 2.6 mm of plastic round it |
 | Slide-on | two slots the collar threads through; 10 to 38 mm collars |
 | Body | 3 mm, lettering inlaid 0.6 mm into both faces |
@@ -877,6 +893,27 @@ to read.  *Everything on the front* is there for a tag that hangs flat against
 a harness.  A slide-on tag's back is against the dog, so everything goes on
 its front and the QR code is not offered.
 
+**Name on both sides** is the third layout: the name on the front and,
+readable, on the back too, with the extra line and the QR code under it on
+the back.  The number is then carried by the NFC chip, and the readout warns
+when there is no chip to carry it.
+
+**An NFC chip, with any layout.**  Tick it and a round NFC sticker is sealed
+in the middle of the tag, holding the phone number: a phone held to the tag
+offers to call it.  The chip sits in a pocket at 0.8 to 1.6 mm up, clear of
+both faces' inlays and on whole 0.2 mm layers.  The print pauses once the
+pocket is finished, you drop the sticker in, and the rest prints over it, so
+the chip is sealed against rain, baths and teeth and nothing shows.  The pause
+is written into the 3MF the way PrusaSlicer files its own
+(`Metadata/Prusa_Slicer_custom_gcode_per_print_z.xml`); sliced in PrusaSlicer
+2.7 it lands before the layer at 1.8 mm, the first one over the pocket.  That
+assumes 0.2 mm layers with a 0.2 mm first layer; the readout gives the height
+if your profile differs.  The chip is the biggest of the usual 20, 15 and 12 mm
+stickers that fits the tag (15 on the default bone and heart), or pick one.
+The readout says exactly what to write to it, for example `tel:5552148890`,
+and checks it fits an NTAG213: with NFC Tools or similar, add a phone number
+record, write it, then lock the chip.
+
 **The phone number is the line that matters.**  It is set in the plain bold
 sans whatever face the name is in, and the fit is greedy the right way round:
 every line starts at the size it wants, and each pass shrinks whichever has the
@@ -885,8 +922,12 @@ does.  A number is also tried split over two lines at its middle separator,
 `(555)` over `214-8890`, and whichever setting gives the bigger number wins;
 that is what gets a full number onto a 28 mm disc at 3.9 mm.  Under 3.5 mm the
 readout warns.  Each shape starts at the width where a full number still
-clears that: 32 mm round, 34 tag, 42 heart, 45 bone -- a bone's number only has
-the bar between its lobes, and a heart narrows to its point.
+clears that: 32 mm round, 34 tag or shield, 36 cat head, 42 heart, 44 paw, 45
+bone, 50 fish.  A bone's number only has the bar between its lobes, a paw's
+only its pad, a fish's the body in front of the tail, and a heart narrows to
+its point.  The paw is one solid piece: the toes are bumps along the top of the
+pad, with the notches between them still cut, because separate toes on a tag
+are what would snap off first.
 
 **Flush, because a tag wears.**  The lettering is a pocket 0.6 mm deep filled
 with the lettering colour, not letters standing on the surface: a tag spends
@@ -1037,6 +1078,26 @@ whose counters fall out on the bed.
 ![the lid off](previews/sign_apart.png)
 
 ## The box
+
+**By default the box follows the letters** (`shape="letters"`): the
+lettering grown by the margin, the gaps between letters closed, the inside
+corners rounded and the counters filled.  The sign is one rounded shape
+hugging the word, the way a channel-letter sign is, and it is only as big as
+the word needs; the two size sliders become the most room the word can have.
+Letters too far apart to close up, such as two words on two lines, are tied
+together the way a name keyring's loose dot is.  The walls, diffuser, lid
+rebate and lid all follow the outline.  Wall mounts need the plain border of
+the rectangular box (`shape="box"`), so the form only offers them there.
+
+**The cable leaves by the back, at one end** (`cable_side="right"` or
+`"left"`, as you look at the lit front).  It goes through a notch in the edge
+of the lid at that end.  The notch is open to the edge so the cable drops in
+rather than being threaded, and the wall closes it into a hole once the lid
+is in, so nothing shows from the front.  It is placed where the lid is widest
+near that end, so a letter-shaped lid is not cut into a sliver.
+`cable_side="bottom"` keeps the notch in the back edge of the bottom wall.
+
+The rectangular box is described below.
 
 | | |
 |---|---|

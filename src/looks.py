@@ -213,6 +213,10 @@ def pattern(name, w, h, clip, halo=None):
 # palettes: body, pattern, primary, secondary
 # ---------------------------------------------------------------------------
 PRESETS = {
+    # printyours.ca's own colours: ink navy, paper white, flame orange.
+    "printyours": dict(title="printyours -- ink navy, paper lettering, flame accents",
+                       pattern="cubes", layout="centred",
+                       colours=("#0c1a2e", "#1f3a5f", "#f5f2ec", "#ff5b1f")),
     "printlab": dict(title="Print Lab -- black, white lettering, cubes",
                      pattern="cubes", layout="centred",
                      colours=("#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a")),
@@ -238,7 +242,7 @@ PRESETS = {
     "plain":    dict(title="Plain -- grey body, gold lettering, no pattern",
                      pattern="plain", layout="centred", colours=("#cfd3d6", "#cfd3d6", "#d9a441", "#d9a441")),
 }
-DEFAULT = "printlab"
+DEFAULT = "printyours"
 
 
 def rgb(hex_colour):

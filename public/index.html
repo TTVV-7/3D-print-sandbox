@@ -125,6 +125,15 @@
   .tile[aria-pressed=true] { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); }
   .tile b { font-weight: 600; }
   .tile span { font-size: 13px; line-height: 1.3; color: var(--text-secondary); }
+  /* The icons are the products themselves, rendered by src/gen_tile_icons.py
+     as a strip of 24 frames swaying either side of straight on: the first
+     frame is the icon, and hovering steps through the rest.  No 3D engine
+     runs for these -- five small images. */
+  .icon3d { display: block; width: 60px; height: 48px;
+    background: var(--sprite) 0 0 / 1440px 48px no-repeat; }
+  .tile:hover .icon3d, .tile:focus-visible .icon3d { animation: sway 1.8s steps(24) infinite; }
+  @keyframes sway { to { background-position: -1440px 0; } }
+  @media (prefers-reduced-motion: reduce) { .tile:hover .icon3d, .tile:focus-visible .icon3d { animation: none; } }
   .tile svg { width: 100%; height: 34px; fill: none; stroke: var(--text-secondary);
               stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
   .tile[aria-pressed=true] svg { stroke: var(--text-default); }
@@ -424,23 +433,23 @@
     <h2>1 &middot; Shape</h2>
     <div class="tiles" data-light="kind">
       <button type="button" class="tile" data-kind="fob" aria-pressed="true">
-        <svg viewBox="0 0 62 34" aria-hidden="true"><rect x="1.5" y="1.5" width="59" height="31" rx="4"/><circle cx="9" cy="17" r="3"/><path d="M20 12h30M20 19h22"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/fob.webp)"></span>
         <div><b>Keyring fob</b><span>62 &times; 34 mm, tag inside</span></div>
       </button>
       <button type="button" class="tile" data-kind="name" aria-pressed="false">
-        <svg viewBox="0 0 86 34" aria-hidden="true"><circle cx="9" cy="17" r="6"/><path d="M15 17h6"/><path d="M23 27V9c6 0 9 3 9 9s-3 9-9 9zM38 27V13m0 0c5 0 7 2 7 6v8M53 27V13m0 0c5 0 7 2 7 6v8M68 9v18"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/name.webp)"></span>
         <div><b>Name keyring</b><span>the letters are the whole thing</span></div>
       </button>
       <button type="button" class="tile" data-kind="pet" aria-pressed="false">
-        <svg viewBox="0 0 86 34" aria-hidden="true"><circle cx="43" cy="5" r="3"/><path d="M38.5 7.5a13 13 0 1 0 9 0"/><path d="M36 20h14M38 25h10"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/pet.webp)"></span>
         <div><b>Pet tag</b><span>name on the front, the way home on the back</span></div>
       </button>
       <button type="button" class="tile" data-kind="sign" aria-pressed="false">
-        <svg viewBox="0 0 86 34" aria-hidden="true"><rect x="1.5" y="4.5" width="83" height="25" rx="4"/><rect x="8" y="10" width="70" height="14" rx="2"/><path d="M18 20v-6h4M18 17h3M30 20v-6l5 6v-6M43 20v-6h5M43 17h4M43 20h5M56 14v6h5"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/sign.webp)"></span>
         <div><b>Sign enclosure</b><span>a light box with the name lit through it</span></div>
       </button>
       <button type="button" class="tile" data-kind="stencil" aria-pressed="false">
-        <svg viewBox="0 0 86 34" aria-hidden="true"><rect x="1.5" y="1.5" width="83" height="31" rx="4"/><path d="M20 25V9h6a5 5 0 0 1 0 10h-6M38 25V9m0 0h8m-8 8h6m-6 8h8M58 25V9h6a5 5 0 0 1 0 10h-6m0 0 7 6"/></svg>
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/stencil.webp)"></span>
         <div><b>Stencil</b><span>a plate with the word cut through it</span></div>
       </button>
     </div>
@@ -451,7 +460,7 @@
 
   <section>
     <h2 id="who">2 &middot; Who you are</h2>
-    <label class="field" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Jane Doe" autocomplete="off"></label>
+    <label class="field" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Dino" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
     <label class="field" data-for="fob pet" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
@@ -490,6 +499,17 @@
 
   <section>
     <h2>3 &middot; How it looks</h2>
+    <label class="field" data-for="sign" data-light="sign_shape"><span>Box shape</span>
+      <select id="sign_shape">
+        <option value="letters">Follows the letters</option>
+        <option value="box">Rectangle</option>
+      </select>
+    </label>
+    <p class="hint" data-for="sign">Follows the letters: the box is the word's own outline &mdash; every
+       letter grown by the margin, the gaps between them closed and the insides of the O's filled,
+       so the sign is one rounded shape hugging the word, the way a channel-letter sign is. The two
+       sliders below are then the most room the word can have, and the box comes out as big as the
+       word needs. Rectangle is the plain box, and the one the wall mounts fit.</p>
     <div class="field" data-for="stencil sign" data-light="plate"><span id="plate_label">Plate</span>
       <div class="slider"><input type="range" id="plate_w" min="30" max="250" step="5" value="120"><output id="plate_w_v">120 mm</output></div>
     </div>
@@ -533,25 +553,34 @@
     </div>
     <p class="hint" data-for="sign">Five lines of a 0.4 mm nozzle at the default: stiff enough to hold the
        lid without bowing, and opaque enough that the light leaves by the letters.</p>
-    <div class="field" data-for="sign" data-light="cable"><span>Cable notch</span>
+    <label class="field" data-for="sign" data-light="cable"><span>Cable out</span>
+      <select id="cable_side">
+        <option value="right">Through the back, right-hand end</option>
+        <option value="left">Through the back, left-hand end</option>
+        <option value="bottom">Through the bottom wall</option>
+      </select>
+    </label>
+    <div class="field" data-for="sign" data-light="cable"><span>Cable width</span>
       <div class="slider"><input type="range" id="cable" min="0" max="12" step="0.5" value="6"><output id="cable_v">6 mm</output></div>
     </div>
-    <p class="hint" data-for="sign">A square notch in the back edge of the bottom wall for the lead. It is
-       cut a lid deeper than it looks, so the cable passes under a lid that stays whole. 0 closes the
-       wall.</p>
+    <p class="hint" data-for="sign">Right and left are as you look at the lit front. Through the back, the
+       lead leaves by a notch in the edge of the lid at that end: open to the edge, so the cable drops
+       in rather than being threaded, and closed into a hole by the wall once the lid is in &mdash; so
+       nothing shows from the front. Through the bottom wall is a notch in the back edge of the
+       wall, cut a lid deeper so the cable passes under a lid that stays whole. 0 leaves no way out.</p>
     <label class="check" data-for="sign" data-light="lid"><input type="checkbox" id="lid" checked><span>Back lid</span></label>
     <p class="hint" data-for="sign">A plate that drops into a rebate in the back and stops flush on the
        ledge it leaves &mdash; a friction fit, so you can get it off again to change the strip. Stick the
        LEDs to the inside of it; it prints that face down, which is the flat one. Off leaves the back
        open.</p>
-    <label class="field" data-for="sign" data-light="mount"><span>Wall mount</span>
+    <label class="field" data-for="sign" data-shape="box" data-light="mount"><span>Wall mount</span>
       <select id="mount">
         <option value="none">None</option>
         <option value="tape">Tape pads</option>
         <option value="screw">Screw posts</option>
       </select>
     </label>
-    <p class="hint" data-for="sign">The back of this box is a lid held in by friction, so tape or a screw
+    <p class="hint" data-for="sign" data-shape="box">The back of this box is a lid held in by friction, so tape or a screw
        on the lid holds the <em>lid</em> &mdash; the case pulls off it and leaves the back on the wall.
        Both mounts here are part of the case instead: a post that rises off the inside of the face,
        comes up through a hole in the lid and finishes flush with the back, so the load goes into the
@@ -572,23 +601,29 @@
        off when a ring opens &mdash; but its back is against the dog, so everything is on the front.</p>
     <label class="field" data-for="pet" data-light="pet_shape" id="pet_shape_field" data-style="hanging"><span>Shape</span>
       <select id="pet_shape">
-        <option value="circle">Round</option>
-        <option value="bone">Bone</option>
+        <option value="bone" selected>Bone</option>
+        <option value="paw">Paw print</option>
         <option value="heart">Heart</option>
+        <option value="circle">Round</option>
+        <option value="fish">Fish</option>
+        <option value="cat">Cat head</option>
+        <option value="shield">Shield</option>
         <option value="tag">Tag</option>
       </select>
     </label>
     <div class="field" data-for="pet" data-light="pet_size"><span>Width</span>
-      <div class="slider"><input type="range" id="pet_size" min="20" max="60" step="1" value="32"><output id="pet_size_v">32 mm</output></div>
+      <div class="slider"><input type="range" id="pet_size" min="20" max="60" step="1" value="45"><output id="pet_size_v">45 mm</output></div>
     </div>
-    <p class="hint" data-for="pet" id="pet_size_note">Round and tag shapes keep a full phone number
-       readable from about 28 mm &mdash; a cat or a toy breed &mdash; with 32 for a medium dog. A bone's
-       number only has the bar between its lobes and a heart's narrows to the point, so both start at
-       42 to 45. Picking a shape puts this back to that shape's starting size; the readout warns when
-       the number drops under 3.5 mm.</p>
+    <p class="hint" data-for="pet" id="pet_size_note">Each shape starts at the width where a full phone number still comes out
+       at a readable 3.5 mm or more: a round, tag, shield or cat head from about 32 mm, a heart or
+       paw print from about 42, a bone at 45 and a fish at 50 &mdash; a bone's number only has the bar
+       between its lobes, a paw's only the pad, and a fish's the body in front of its tail. Picking a
+       shape puts this back to that shape's starting size; the readout warns when the number drops
+       under 3.5 mm.</p>
     <label class="field" data-for="pet" data-light="pet_sides" id="pet_sides_field" data-style="hanging"><span>Sides</span>
       <select id="pet_sides">
         <option value="two">Name on the front, phone on the back</option>
+        <option value="name">Name on both sides</option>
         <option value="one">Everything on the front</option>
       </select>
     </label>
@@ -607,6 +642,23 @@
     <p class="hint" data-for="pet" id="pet_slot_note" data-style="slide">The slots are the collar's width plus 1.5 mm long,
        and this wide: the strap's thickness with room to go through at an angle. Measure the
        collar; nylon webbing is about 2 mm, leather 3 to 4.</p>
+    <label class="check" data-for="pet" data-light="pet_nfc"><input type="checkbox" id="pet_nfc"><span>NFC chip inside, with the phone number</span></label>
+    <label class="field" data-for="pet" data-light="pet_nfc" id="pet_chip_field" hidden><span>Chip</span>
+      <select id="pet_chip">
+        <option value="0">Biggest that fits</option>
+        <option value="25">25 mm round</option>
+        <option value="20">20 mm round</option>
+        <option value="15">15 mm round</option>
+        <option value="12">12 mm round</option>
+      </select>
+    </label>
+    <p class="hint" data-for="pet">A round NFC sticker sealed in the middle of the tag, holding the phone
+       number: a phone held to the tag offers to call it. It prints in one go with one pause &mdash; the
+       printer stops once the pocket is finished, you drop the sticker in, and the rest prints over it,
+       so it is sealed against rain, baths and teeth, and nothing shows. The 3MF carries the pause, and
+       the readout says the height and exactly what to write to the chip (NFC Tools and the like:
+       add a phone number record, write, then lock it). Works with every layout &mdash; with
+       <em>Name on both sides</em>, the chip is where the number lives.</p>
     <label class="check" data-for="pet" data-light="pet_border"><input type="checkbox" id="pet_border"><span>Border round the front</span></label>
     <label class="field" data-for="pet" data-light="pet_link" id="pet_link_field" data-style="hanging"><span>QR code link</span><input type="text" id="pet_link" value="" autocomplete="off" placeholder="https://..."></label>
     <p class="hint" data-for="pet" id="pet_link_note" data-style="hanging">Optional, on the back beside the phone number: a page with
@@ -656,10 +708,10 @@
        it ready to print. Edit the file when a spool arrives or runs out.</p>
     <div class="field"><span id="exact_label">Colours</span>
       <div class="swatches">
-        <label data-light="c0"><input type="color" id="c0" value="#141414">Body</label>
-        <label data-light="c1"><input type="color" id="c1" value="#2e2e2e">Pattern</label>
-        <label data-light="c2"><input type="color" id="c2" value="#f2f2f2">Primary</label>
-        <label data-light="c3"><input type="color" id="c3" value="#9a9a9a">Secondary</label>
+        <label data-light="c0"><input type="color" id="c0" value="#0c1a2e">Body</label>
+        <label data-light="c1"><input type="color" id="c1" value="#1f3a5f">Pattern</label>
+        <label data-light="c2"><input type="color" id="c2" value="#f5f2ec">Primary</label>
+        <label data-light="c3"><input type="color" id="c3" value="#ff5b1f">Secondary</label>
       </div>
     </div>
     <p class="hint" data-for="fob">Every colour is an inlay in one thin face layer &mdash; the first 0.6 mm of each
@@ -726,7 +778,7 @@
     <h2 data-for="name pet stencil sign">4 &middot; A batch of them</h2>
     <label class="field"><span>One person per line</span>
       <textarea id="batch" rows="4" spellcheck="false"
-        placeholder="Jane Doe, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
+        placeholder="Dino, Bluewater Realty, (555) 214-8890, https://...&#10;Sam Lee, Bluewater Realty, (555) 214-8891"></textarea>
     </label>
     <p class="hint" data-for="fob">Name, company, phone, link &mdash; commas or tabs, so a spreadsheet
        pastes straight in. The title and email above are shared by the whole batch. While there is
@@ -782,9 +834,9 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
                 "look", "layout", "cap", "ring_d", "font",
                 "plate_w", "plate_h", "margin", "bridge", "thick",
-                "depth", "wall", "diffuse", "cable", "mount",
+                "depth", "wall", "diffuse", "cable", "mount", "sign_shape", "cable_side",
                 "pet_style", "pet_shape", "pet_size", "pet_sides", "pet_note",
-                "pet_collar", "pet_slot", "pet_link"];
+                "pet_collar", "pet_slot", "pet_link", "pet_chip"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "", stencilSvg = "";
@@ -982,6 +1034,7 @@ const FACES = {
 const FACE_GROUPS = ["Plain", "Blackletter", "Ornate", "Western", "Horror", "Dimensional",
                      "Comic", "Stencil", "Retro", "Tech"];
 const PRESETS = {
+  printyours: ["printyours — ink navy, paper lettering, flame accents", "cubes", "centred", ["#0c1a2e", "#1f3a5f", "#f5f2ec", "#ff5b1f"]],
   printlab:  ["Print Lab — black, white lettering, cubes", "cubes", "centred", ["#141414", "#2e2e2e", "#f2f2f2", "#9a9a9a"]],
   student:   ["Student — dark card, name top left, address bottom right", "plain", "student", ["#1b2430", "#2a3644", "#f4f6f8", "#9fb0c0"]],
   corporate: ["Corporate — navy, big disc, hexagons along the bottom", "badge", "corporate", ["#141d3a", "#22305c", "#ffffff", "#c8cede"]],
@@ -1562,6 +1615,14 @@ function petReadout(line) {
                     (info.rise ? ` and the ${mm(info.rise)} mm of raised letters` : "")),
     info.nozzle ? line("finest stroke", `${mm(info.stroke)} mm`) : "",
     headsLine(line),
+    info.nfc ? line("nfc chip", `${info.nfc.d} mm round, sealed ${mm(info.nfc.z0)}&ndash;${mm(info.nfc.z1)} mm up`) : "",
+    info.nfc ? line("pause", `after the layer at ${mm(info.nfc.pause_z)} mm, drop the chip in, resume at ${mm(info.nfc.resume_z)} (0.2 mm layers; the 3MF has it)`) : "",
+    info.nfc && info.nfc.uri ? line("write to the chip", `<code>${info.nfc.uri}</code> &mdash; ${info.nfc.bytes} bytes, `
+      + (info.nfc.fits ? "fits an NTAG213" : `<span class="err">too long for an NTAG213</span>`)) : "",
+    info.nfc && !info.nfc.uri ? `<span class="warn">no phone number to put on the chip &mdash; fill in the phone box</span>` : "",
+    info.thin.includes("no phone number")
+      ? `<span class="warn">no phone number anywhere on this tag &mdash; turn on the NFC chip, or pick a
+         layout with the number on it</span>` : "",
     info.thin.includes("phone number")
       ? `<span class="warn">phone number under 3.5 mm &mdash; hard to read on a moving dog. A bigger
          tag, a shorter extra line, or split the number yourself with a |.</span>` : "",
@@ -1643,7 +1704,8 @@ function signReadout(line) {
     line("lit", `${info.lit_area}% of the face, narrowest stroke ${mm(info.stroke)} mm`),
     line("inside", `${mm(info.clear)} mm of clear air for the strip` +
                    (info.lid ? `, behind a ${mm(info.lid_thick)} mm lid` : ", back open")),
-    info.cable ? line("cable notch", `${mm(info.cable)} mm, bottom wall`) : "",
+    info.cable ? line("cable", `${mm(info.cable)} mm, ` + ({ right: "out the back, right-hand end",
+      left: "out the back, left-hand end", bottom: "through the bottom wall" }[info.cable_side] || "")) : "",
     line("uses", `${info.volume.toFixed(2)} cm&sup3;` +
                  (info.parts.length > 1 ? " over both parts" : "")),
     info.nozzle ? line("nozzle", `${info.nozzle} mm or finer`) : "",
@@ -1720,6 +1782,7 @@ function formParams() {
   params.placeholder = $("placeholder").checked ? "box" : "";
   params.outline = $("outline").checked;
   params.pet_border = $("pet_border").checked;
+  params.pet_nfc = $("pet_nfc").checked;
   params.gzip = CAN_INFLATE;
   params.qr = $("qr").checked;
   if (!params.qr) params.link = "";               // the link only shapes the part as a code
@@ -1854,6 +1917,7 @@ document.querySelectorAll("p.hint").forEach((hint, i) => {
   mark.setAttribute("aria-expanded", "false");
   if (hint.dataset.for) { box.dataset.for = hint.dataset.for; delete hint.dataset.for; }
   if (hint.dataset.style) { box.dataset.style = hint.dataset.style; delete hint.dataset.style; }
+  if (hint.dataset.shape) { box.dataset.shape = hint.dataset.shape; delete hint.dataset.shape; }
   hint.replaceWith(box);
   box.append(mark, fold);
   fold.append(hint);
@@ -1900,11 +1964,13 @@ function slotRows() {
   const kind = $("kind").value;
   let rows = SLOT_LABELS[kind] || SLOT_LABELS.fob;
   if (kind === "pet") {
-    const back = $("pet_style").value === "hanging" &&
-                 ($("pet_sides").value === "two" || $("pet_link").value.trim());
+    const sides = $("pet_style").value === "slide" ? "one" : $("pet_sides").value;
+    const back = sides === "two" || sides === "name" || $("pet_link").value.trim();
     rows = rows.filter(([id]) => (id !== "c3" || back) && (id !== "c1" || $("pet_border").checked));
-    if ($("pet_sides").value === "one" || $("pet_style").value === "slide")
+    if (sides === "one")
       rows = rows.map(([id, l]) => [id, id === "c2" ? "Lettering" : id === "c3" ? "QR code" : l]);
+    if (sides === "name")
+      rows = rows.map(([id, l]) => [id, id === "c2" ? "Name, front" : id === "c3" ? "Name, back" : l]);
   }
   return rows;
 }
@@ -2010,17 +2076,27 @@ $("material").addEventListener("change", () => { if ($("material").value) allIn(
 for (const id of COLOURS) $(id).addEventListener("input", () => { spoolsChosen(); if (product) queueProduct(); });
 
 /* ------------------------------------------------------------- pet tags -- */
-const PET_SIZES = { circle: 32, bone: 45, heart: 42, tag: 34, slide: 50 };
+const PET_SIZES = { circle: 32, bone: 45, heart: 42, tag: 34, paw: 44, fish: 50, cat: 36,
+                    shield: 34, slide: 50 };
 function petSize() {
   const key = $("pet_style").value === "slide" ? "slide" : $("pet_shape").value;
   $("pet_size").value = PET_SIZES[key];
   $("pet_size").dispatchEvent(new Event("input"));
 }
+/* A box that follows the letters has no plain border for a mount to live in. */
+$("sign_shape").addEventListener("change", () => {
+  if ($("sign_shape").value === "letters") $("mount").value = "none";
+  shapeChosen();
+});
 $("pet_style").addEventListener("change", () => { petSize(); shapeChosen(); materialFor(); queue(); });
 $("pet_shape").addEventListener("change", () => { petSize(); queue(); });
 $("pet_sides").addEventListener("change", () => spoolsChosen());
 $("pet_link").addEventListener("input", () => spoolsChosen());
 $("pet_border").addEventListener("change", () => { spoolsChosen(); queue(); });
+$("pet_nfc").addEventListener("change", () => {
+  $("pet_chip_field").hidden = !$("pet_nfc").checked;
+  queue();
+});
 $("pet_size").addEventListener("input", () => { $("pet_size_v").textContent = `${$("pet_size").value} mm`; });
 $("pet_slot").addEventListener("input", () => { $("pet_slot_v").textContent = `${$("pet_slot").value} mm`; });
 
@@ -2034,7 +2110,10 @@ function shapeChosen() {
   if (kind !== "pet" && product) setShot("model");
   for (const el of document.querySelectorAll("[data-for]"))
     el.hidden = !el.dataset.for.split(" ").includes(kind) ||
-                (kind === "pet" && !!el.dataset.style && el.dataset.style !== style);
+                (kind === "pet" && !!el.dataset.style && el.dataset.style !== style) ||
+                (kind === "sign" && !!el.dataset.shape && el.dataset.shape !== $("sign_shape").value);
+  // The chip's size is only a question once there is a chip.
+  if (kind === "pet") $("pet_chip_field").hidden = !$("pet_nfc").checked;
   $("shape_note").textContent = {
     fob: "The one that lives on a keyring, with an NFC tag sealed inside it. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.",
     pet: "A collar tag: the pet's name on the front and the phone number \u2014 and a QR code, if you want one \u2014 on the back. Every letter is inlaid flush, so nothing wears off, and all the colour changes happen in the first and last three layers.",
@@ -2050,7 +2129,8 @@ function shapeChosen() {
                                       name: "The word", pet: "What it says" }[kind] || "Who you are");
   spoolsChosen();
   // The stencil's two plate sliders are the sign's face.
-  $("plate_label").textContent = kind === "sign" ? "Face" : "Plate";
+  $("plate_label").textContent = kind !== "sign" ? "Plate"
+    : $("sign_shape").value === "letters" ? "Most room for the word" : "Face";
   // A sign is not glued and has no halves: it has a lid that comes off.
   const labels = kind === "sign" ? ["Put together", "Lid off", "On the plate"]
                                  : ["Glued up", "Pulled apart", "On the plate"];
@@ -2060,17 +2140,42 @@ function shapeChosen() {
   if (word && +rise.value === 0) { rise.value = 1.2; rise.dispatchEvent(new Event("input")); }
   if (!word && +rise.value === 1.2) { rise.value = 0; rise.dispatchEvent(new Event("input")); }
 }
+/* Each shape's starting face: the script for a pet's name, the plain sans for
+   the rest, whose strokes a stencil's bridges and a sign's light prefer. */
+const KIND_FONT = { fob: "sans", name: "sans", pet: "script", sign: "sans", stencil: "sans" };
+
+/* Each shape's starting colours: body, pattern, primary, secondary. */
+const INK = "#0c1a2e", INK_LIGHT = "#1f3a5f", PAPER = "#f5f2ec", FLAME = "#ff5b1f";
+const KIND_COLOURS = {
+  fob:     [INK, INK_LIGHT, PAPER, FLAME],
+  name:    [INK, INK, FLAME, FLAME],
+  pet:     [INK, FLAME, PAPER, FLAME],
+  sign:    [INK, INK, PAPER, PAPER],
+  stencil: [FLAME, FLAME, FLAME, FLAME],
+};
 for (const tile of document.querySelectorAll(".tile"))
   tile.addEventListener("click", () => {
     if ($("kind").value === tile.dataset.kind) return;
+    const prevKind = $("kind").value;
     $("kind").value = tile.dataset.kind;
     for (const t of document.querySelectorAll(".tile"))
       t.setAttribute("aria-pressed", String(t === tile));
     shapeChosen();
-    // A pet tag starts navy with white and yellow lettering: contrast enough
-    // for a phone number at arm's length, before anybody picks their own.
-    if (tile.dataset.kind === "pet")
-      ["#1f3a5f", "#f2c14e", "#f4f4f1", "#f2c14e"].forEach((c, i) => { $(COLOURS[i]).value = c; });
+    // Each shape's own starting face -- Pacifico for a pet tag -- unless the
+    // face has been changed from the last shape's own, which is a choice.
+    const was = $("font").value;
+    if (was === KIND_FONT[prevKind] && KIND_FONT[tile.dataset.kind]) {
+      $("font").value = KIND_FONT[tile.dataset.kind];
+      faceChosen(was);
+      $("font").dataset.was = $("font").value;
+    }
+    // Every shape starts in printyours.ca's colours -- ink navy, paper white,
+    // flame orange -- arranged for that shape: a pet tag's phone number in
+    // flame on ink, a keyring's letters in flame on an ink outline, a sign lit
+    // paper-white through ink.
+    const start = KIND_COLOURS[tile.dataset.kind];
+    if (start) start.forEach((c, i) => { $(COLOURS[i]).value = c; });
+    if (tile.dataset.kind === "fob") $("preset").value = "printyours";
     materialFor();
     queue();
   });

@@ -40,6 +40,7 @@ from shapely.geometry import LineString, Point, Polygon
 from shapely.ops import polylabel, unary_union
 
 import cards
+import nametag
 import typefaces
 
 # Nominal width of a hanging tag.  32 mm is a medium dog; a cat or a toy breed
@@ -91,15 +92,37 @@ SLOT_EDGE = 3.0         # plate left outside each slot
 SLOT_FRAME = 3.5        # plate above and below each slot
 SLOT_SLACK = 1.5        # added to the collar width
 
-SHAPES = ("circle", "bone", "heart", "tag")
+SHAPES = ("bone", "circle", "heart", "tag", "paw", "fish", "cat", "shield")
 
 # Where each shape starts: the smallest size at which "(555) 214-8890" still
 # comes out at PHONE_MIN or more on the back.  A disc or a plain tag manages
 # that from about 28 mm; a bone's number has only the bar between the lobes,
 # and a heart's narrows to its point, so both need about 42.
-SIZES = dict(circle=32.0, bone=45.0, heart=42.0, tag=34.0, slide=SLIDE_W)
+SIZES = dict(circle=32.0, bone=45.0, heart=42.0, tag=34.0, paw=44.0, fish=50.0,
+             cat=36.0, shield=34.0, slide=SLIDE_W)
 STYLES = ("hanging", "slide")
-SIDES = ("two", "one")
+# What goes on which face.  "two": the name on the front, the way home on the
+# back.  "name": the name on both, readable either way round, and the phone
+# number carried by the NFC chip if there is one.  "one": everything on the
+# front.
+SIDES = ("two", "name", "one")
+
+# The NFC chip, sealed in the middle of the tag.  A round NTAG213 sticker --
+# 20 mm is the size that fits a medium tag with plastic to spare; 12, 15 and
+# 25 mm are the others sellers stock.  The pocket is the sticker plus
+# CHIP_SLACK all round and CHIP_AIR over its thickness, cut on whole 0.2 mm
+# layers so the pause lands between two of them.  The print stops at the top
+# of the pocket, the sticker goes in, and the rest of the tag prints over it:
+# sealed, so it survives rain, baths and teeth, and invisible.
+CHIP_D = 20.0
+CHIP_T = 0.5
+CHIP_SIZES = (12.0, 15.0, 20.0, 25.0)
+CHIP_SLACK = 0.4
+CHIP_AIR = 0.3
+CHIP_WALL = 1.2           # plastic left round the pocket, edge and hole
+LAYER = 0.2
+# An NTAG213 holds 144 bytes of NDEF, which is a phone number many times over.
+NTAG213 = 144
 
 FIT_STEP = 0.95
 FIT_MAX = 160
@@ -125,6 +148,46 @@ def outline(shape, size):
         # Close then open: rounds the waist where the lobes meet the bar, and
         # any point a lobe leaves.
         return unary_union([bar, *lobes]).buffer(1.2, quad_segs=16).buffer(-1.2, quad_segs=16)
+    if shape == "paw":
+        # A big pad and four toes, the inner two higher, closed up into one
+        # piece: the gaps between toe and pad are what would snap first, so
+        # they are filled rather than left as necks.
+        pad = affinity.scale(Point(0, -0.14 * s).buffer(0.32 * s, quad_segs=48), 1.0, 0.8)
+        toes = [affinity.scale(Point(x * s, y * s).buffer(0.125 * s, quad_segs=32), 0.9, 1.15,
+                               origin=(x * s, y * s))
+                for x, y in ((-0.36, 0.16), (-0.13, 0.34), (0.13, 0.34), (0.36, 0.16))]
+        # Only just closed: enough to join each toe to the pad and its
+        # neighbour with a real neck, not so much that the notches between
+        # them fill in -- they are what makes it read as a paw.
+        close = 0.035 * s
+        paw = unary_union([pad, *toes]).buffer(close, quad_segs=16).buffer(-close, quad_segs=16)
+        if paw.geom_type == "MultiPolygon":
+            paw, _ = nametag.tie_together(paw, width=0.09 * s)
+        # Joining the toes to each other encloses a gap above the pad; filled,
+        # the toes are bumps along the top of one solid pad, with the notches
+        # between them still cut.
+        return Polygon(paw.exterior)
+    if shape == "fish":
+        # A plump body and a forked tail to the right, rounded off.
+        body = affinity.scale(Point(-0.08 * s, 0).buffer(0.36 * s, quad_segs=48), 1.0, 0.68)
+        tail = Polygon([(0.2 * s, 0), (0.5 * s, 0.24 * s), (0.42 * s, 0), (0.5 * s, -0.24 * s)])
+        r = 0.03 * s
+        return unary_union([body, tail]).buffer(r, quad_segs=16).buffer(-2 * r, quad_segs=16) \
+            .buffer(r, quad_segs=16)
+    if shape == "cat":
+        # A round face with two pointed ears; the tab goes between the ears.
+        head = affinity.scale(Point(0, -0.06 * s).buffer(0.44 * s, quad_segs=48), 1.0, 0.84)
+        ears = [Polygon([(sx * 0.44 * s, 0.0), (sx * 0.38 * s, 0.56 * s),
+                         (sx * 0.1 * s, 0.24 * s)]) for sx in (-1, 1)]
+        r = 0.025 * s
+        return unary_union([head, *ears]).buffer(-r, quad_segs=16).buffer(r, quad_segs=16)
+    if shape == "shield":
+        # A badge: square shoulders, straight sides, a point at the bottom.
+        w2 = s / 2.0
+        poly = Polygon([(-w2, 0.42 * s), (w2, 0.42 * s), (w2, -0.05 * s), (0, -0.5 * s),
+                        (-w2, -0.05 * s)])
+        r = 0.08 * s
+        return poly.buffer(-r, join_style=1).buffer(r, quad_segs=16, join_style=1)
     if shape == "heart":
         t = np.linspace(0, 2 * np.pi, 360, endpoint=False)
         x = 16 * np.sin(t) ** 3
@@ -336,15 +399,65 @@ def solid(polys, z0, t):
     return meshes[0] if len(meshes) == 1 else cards.trimesh.util.concatenate(meshes)
 
 
-def build(name="", phone="", note="", link="", shape="circle", style="hanging",
+def tel_uri(phone):
+    """The phone number as the tel: link an NFC chip carries: the digits,
+    and a leading + if there was one, which is all a dialler wants."""
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    return ("tel:+" if phone.strip().startswith("+") else "tel:") + digits if digits else ""
+
+
+def ndef_bytes(uri):
+    """What a one-record NDEF message holding `uri` takes on the chip: the TLV
+    wrapper, the record header, a one-byte code standing for "tel:", the rest,
+    and the terminator.  Same sum the fob's link check does."""
+    rest = uri[4:] if uri.startswith("tel:") else uri
+    return 8 + len(rest.encode())
+
+
+def chip_pocket(body_2d, keep, d, t, thick):
+    """(pocket polygon, z0, z1): where the chip goes.
+
+    In the middle of the plastic -- the middle of the biggest circle that
+    fits once the ring hole and the collar slots are kept clear -- and in the
+    middle of the thickness, clear of both faces' inlays.  Refused, with the
+    size it would need, when the tag is too small or too thin to hold it.
+    """
+    solid_2d = body_2d
+    for k in keep:
+        solid_2d = solid_2d.difference(k)
+    if solid_2d.geom_type == "MultiPolygon":
+        solid_2d = max(solid_2d.geoms, key=lambda g: g.area)
+    r = d / 2.0 + CHIP_SLACK
+    centre = polylabel(solid_2d, tolerance=0.1)
+    if solid_2d.exterior.distance(centre) < r + CHIP_WALL - 1e-6 or \
+            any(Polygon(i).distance(centre) < r + CHIP_WALL for i in solid_2d.interiors):
+        room = solid_2d.exterior.distance(centre) - CHIP_WALL
+        raise ValueError(f"a {d:g} mm NFC chip does not fit this tag -- it has room for "
+                         f"{max(0.0, 2 * (room - CHIP_SLACK)):.0f} mm; pick a smaller chip "
+                         f"or a bigger tag")
+    # Above the back's inlay with a layer to spare, on the layer grid.
+    z0 = np.ceil((FACE + LAYER) / LAYER - 1e-9) * LAYER
+    z1 = z0 + np.ceil((t + CHIP_AIR) / LAYER - 1e-9) * LAYER
+    if z1 > thick - FACE - LAYER + 1e-9:
+        raise ValueError(f"a {thick:g} mm tag is too thin to seal a {t:g} mm chip between "
+                         f"its two faces -- it needs {z1 + FACE + LAYER:.1f} mm")
+    return Point(centre.x, centre.y).buffer(r, quad_segs=48), float(z0), float(z1)
+
+
+def build(name="", phone="", note="", link="", shape="bone", style="hanging",
           size=None, sides="two", font=None, rise=0.0, border=False,
           ring_d=RING_D, collar=COLLAR, slot=SLOT, thick=THICK,
-          colours=cards.COLOURS, label=""):
+          colours=cards.COLOURS, label="", nfc=False, chip_d=None, chip_t=CHIP_T):
     """One pet tag, as printable parts plus the numbers worth knowing.
 
     Returns ([part], info) in cards.build()'s shape.  Colour slots: body, the
     front lettering in primary, the back lettering and QR code in secondary,
     the border in pattern.
+
+    `nfc` seals a round NFC sticker `chip_d` mm across in the middle of the
+    tag, for the phone number: info["nfc"] says where to pause the print to
+    drop it in and what to write to it.  Leave `chip_d` out and it is the
+    biggest of the usual 20, 15 and 12 mm stickers that fits.
     """
     name, phone, note, link = ((v or "").strip() for v in (name, phone, note, link))
     if not name:
@@ -395,6 +508,11 @@ def build(name="", phone="", note="", link="", shape="circle", style="hanging",
     if sides == "two":
         front, front_phone = rows(name, False, "", "", True), ""
         back, back_phone = rows("", True, note, link, False), phone
+    elif sides == "name":
+        # The name both ways round; the extra line and the code, if any, go
+        # under it on the back.  The number is left to the chip.
+        front, front_phone = rows(name, False, "", "", True), ""
+        back, back_phone = rows(name, False, note, link, not (note or link)), ""
     else:
         front, front_phone = rows(name, True, note, "", False), phone
         back, back_phone = rows("", False, "", link, False), ""
@@ -442,6 +560,33 @@ def build(name="", phone="", note="", link="", shape="circle", style="hanging",
         cutters.append(solid(ps, -1.0, FACE + 1.0))
         groups_.append(dict(slot="secondary", element=role, face="back",
                             mesh=solid(ps, 0.0, FACE + 0.01)))
+    chip = None
+    if nfc:
+        keep = [k.buffer(0.01) for k in ([keep_out] if keep_out is not None else [])]
+        keep += [s.buffer(CHIP_WALL) for s in slots]
+        if chip_d:
+            pocket, z0, z1 = chip_pocket(body_2d, keep, float(chip_d), float(chip_t), thick)
+        else:
+            for chip_d in (CHIP_D, 15.0, 12.0):
+                try:
+                    pocket, z0, z1 = chip_pocket(body_2d, keep, chip_d, float(chip_t), thick)
+                    break
+                except ValueError as exc:
+                    if "too thin" in str(exc) or chip_d == 12.0:
+                        raise
+        cutters.append(cards.prisms([pocket], z0, z1 - z0)[0])
+        uri = tel_uri(phone)
+        chip = dict(d=float(chip_d), t=float(chip_t),
+                    pocket=round(2 * (float(chip_d) / 2 + CHIP_SLACK), 2),
+                    z0=round(z0, 2), z1=round(z1, 2),
+                    # The print stops once the layer that tops the pocket is
+                    # down -- pause_z -- and before the first one that roofs it
+                    # over, whose top is resume_z: that is the height a slicer
+                    # files a pause under.
+                    pause_z=round(z1, 2), resume_z=round(z1 + LAYER, 2),
+                    centre=[round(pocket.centroid.x, 2), round(pocket.centroid.y, 2)],
+                    uri=uri, bytes=ndef_bytes(uri) if uri else None,
+                    fits=bool(uri) and ndef_bytes(uri) <= NTAG213)
     if cutters:
         body = cards.boolean("difference", [body, *cutters])
     groups_.insert(0, dict(slot="body", element="body", face="body", mesh=body))
@@ -470,6 +615,8 @@ def build(name="", phone="", note="", link="", shape="circle", style="hanging",
         thin.append("phone number")
     if front_squeezed or back_squeezed:
         thin.append("lettering")
+    if sides == "name" and not (nfc and phone):
+        thin.append("no phone number")
     colour_slots = sorted({g["slot"] for g in groups_}, key=cards.SLOTS.index)
     total = float(part["mesh"].bounds[1][2])
     bands = [[0.0, round(FACE, 2)]] if back_placed else []
@@ -499,6 +646,7 @@ def build(name="", phone="", note="", link="", shape="circle", style="hanging",
         volume=round(part["mesh"].volume / 1000.0, 2),
         watertight=part["mesh"].is_watertight and part["mesh"].is_winding_consistent,
         thin=thin, face=FACE, chamfer=0.0, layout=None, look=None,
+        nfc=chip, pause_z=chip["pause_z"] if chip else None,
     )
     return parts, info
 
