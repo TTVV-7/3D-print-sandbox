@@ -1073,7 +1073,7 @@ def export_3mf(parts, colours=COLOURS, gap=6.0, row_w=None):
 HEADS = 4       # filaments the printer holds at once: the Snapmaker U1's four heads
 
 
-def export_3mf_tools(parts, filaments, gap=6.0, row_w=None, heads=HEADS):
+def export_3mf_tools(parts, filaments, gap=6.0, row_w=None, heads=HEADS, pauses=()):
     """The parts as a 3MF a slicer opens ready to print: one object per part,
     one volume per colour slot, and each volume already on its own filament.
 
@@ -1091,6 +1091,12 @@ def export_3mf_tools(parts, filaments, gap=6.0, row_w=None, heads=HEADS):
     project settings, which is also where the slicer learns there is more
     than one of them.  The Orca family of slicers -- Snapmaker's among them --
     reads both files when it opens a PrusaSlicer 3MF.
+
+    `pauses` is a list of (print_z, note): the heights at which the print
+    should stop -- to drop in an NFC chip -- written the way PrusaSlicer
+    files its own pauses, so the slicer adds them rather than you finding the
+    layer by hand.  print_z is the top of the first layer printed *after* the
+    pause.
     """
     import io
     import zipfile
@@ -1185,6 +1191,14 @@ def export_3mf_tools(parts, filaments, gap=6.0, row_w=None, heads=HEADS):
         z.writestr("3D/3dmodel.model", model)
         z.writestr("Metadata/Slic3r_PE_model.config", model_config)
         z.writestr("Metadata/Slic3r_PE.config", project)
+        if pauses:
+            codes = "".join(
+                f'<code print_z="{z:.3f}" type="1" extruder="1" color="" '
+                f'extra={quoteattr(note)} gcode="M601"/>\n' for z, note in pauses)
+            mode = "MultiExtruder" if len(tools) > 1 else "SingleExtruder"
+            z.writestr("Metadata/Prusa_Slicer_custom_gcode_per_print_z.xml",
+                       '<?xml version="1.0" encoding="utf-8"?>\n<custom_gcodes_per_print_z>\n'
+                       + codes + f'<mode value="{mode}"/>\n</custom_gcodes_per_print_z>\n')
     return buf.getvalue()
 
 

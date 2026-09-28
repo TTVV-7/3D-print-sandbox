@@ -56,7 +56,7 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "depth", "wall", "diffuse", "lid", "cable", "mount",
             "pet_shape", "pet_style", "pet_size", "pet_sides", "pet_note",
             "pet_link", "pet_border", "pet_collar", "pet_slot",
-            "sign_shape", "cable_side")
+            "sign_shape", "cable_side", "pet_nfc", "pet_chip")
 
 # The shapes the page can ask for.  The business card is not among them any
 # more: it is archived -- the code is still in src/cards.py and
@@ -223,7 +223,10 @@ def model(params):
                            border=bool(params.get("pet_border")),
                            ring_d=num("ring_d", pettag.RING_D),
                            collar=num("pet_collar", pettag.COLLAR),
-                           slot=num("pet_slot", pettag.SLOT), colours=colours)
+                           slot=num("pet_slot", pettag.SLOT), colours=colours,
+                           nfc=bool(params.get("pet_nfc")),
+                           # 0 or missing: the biggest usual sticker that fits
+                           chip_d=num("pet_chip", 0.0) or None)
                 if params.get("batch"):
                     rows = pettag.parse_batch(params["batch"])
                     if not rows:
@@ -377,7 +380,12 @@ def _finish(params, parts, info, num):
         if params.get("kind") == "pet":
             # Each slot on its own filament, colours and materials named, so
             # a TPU tag with PETG lettering opens ready to slice as one print.
-            return (cards.export_3mf_tools(parts, filaments(params, colours), row_w=row_w),
+            # A sealed NFC chip needs the print to stop above its pocket;
+            # every tag on a plate has its pocket at the same height.
+            pauses = [(info["nfc"]["resume_z"], "Drop the NFC chip into the pocket")] \
+                if info.get("nfc") else []
+            return (cards.export_3mf_tools(parts, filaments(params, colours), row_w=row_w,
+                                           pauses=pauses),
                     info, "model/3mf")
         return cards.export_3mf(parts, colours, row_w=row_w), info, "model/3mf"
     if params.get("format") == "stl":

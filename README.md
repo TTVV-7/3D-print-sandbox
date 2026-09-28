@@ -893,6 +893,27 @@ to read.  *Everything on the front* is there for a tag that hangs flat against
 a harness.  A slide-on tag's back is against the dog, so everything goes on
 its front and the QR code is not offered.
 
+**Name on both sides** is the third layout: the name on the front and,
+readable, on the back too, with the extra line and the QR code under it on
+the back.  The number is then carried by the NFC chip, and the readout warns
+when there is no chip to carry it.
+
+**An NFC chip, with any layout.**  Tick it and a round NFC sticker is sealed
+in the middle of the tag, holding the phone number: a phone held to the tag
+offers to call it.  The chip sits in a pocket at 0.8 to 1.6 mm up, clear of
+both faces' inlays and on whole 0.2 mm layers.  The print pauses once the
+pocket is finished, you drop the sticker in, and the rest prints over it, so
+the chip is sealed against rain, baths and teeth and nothing shows.  The pause
+is written into the 3MF the way PrusaSlicer files its own
+(`Metadata/Prusa_Slicer_custom_gcode_per_print_z.xml`); sliced in PrusaSlicer
+2.7 it lands before the layer at 1.8 mm, the first one over the pocket.  That
+assumes 0.2 mm layers with a 0.2 mm first layer; the readout gives the height
+if your profile differs.  The chip is the biggest of the usual 20, 15 and 12 mm
+stickers that fits the tag (15 on the default bone and heart), or pick one.
+The readout says exactly what to write to it, for example `tel:5552148890`,
+and checks it fits an NTAG213: with NFC Tools or similar, add a phone number
+record, write it, then lock the chip.
+
 **The phone number is the line that matters.**  It is set in the plain bold
 sans whatever face the name is in, and the fit is greedy the right way round:
 every line starts at the size it wants, and each pass shrinks whichever has the

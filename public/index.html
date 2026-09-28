@@ -618,6 +618,7 @@
     <label class="field" data-for="pet" data-light="pet_sides" id="pet_sides_field" data-style="hanging"><span>Sides</span>
       <select id="pet_sides">
         <option value="two">Name on the front, phone on the back</option>
+        <option value="name">Name on both sides</option>
         <option value="one">Everything on the front</option>
       </select>
     </label>
@@ -636,6 +637,23 @@
     <p class="hint" data-for="pet" id="pet_slot_note" data-style="slide">The slots are the collar's width plus 1.5 mm long,
        and this wide: the strap's thickness with room to go through at an angle. Measure the
        collar; nylon webbing is about 2 mm, leather 3 to 4.</p>
+    <label class="check" data-for="pet" data-light="pet_nfc"><input type="checkbox" id="pet_nfc"><span>NFC chip inside, with the phone number</span></label>
+    <label class="field" data-for="pet" data-light="pet_nfc" id="pet_chip_field" hidden><span>Chip</span>
+      <select id="pet_chip">
+        <option value="0">Biggest that fits</option>
+        <option value="25">25 mm round</option>
+        <option value="20">20 mm round</option>
+        <option value="15">15 mm round</option>
+        <option value="12">12 mm round</option>
+      </select>
+    </label>
+    <p class="hint" data-for="pet">A round NFC sticker sealed in the middle of the tag, holding the phone
+       number: a phone held to the tag offers to call it. It prints in one go with one pause &mdash; the
+       printer stops once the pocket is finished, you drop the sticker in, and the rest prints over it,
+       so it is sealed against rain, baths and teeth, and nothing shows. The 3MF carries the pause, and
+       the readout says the height and exactly what to write to the chip (NFC Tools and the like:
+       add a phone number record, write, then lock it). Works with every layout &mdash; with
+       <em>Name on both sides</em>, the chip is where the number lives.</p>
     <label class="check" data-for="pet" data-light="pet_border"><input type="checkbox" id="pet_border"><span>Border round the front</span></label>
     <label class="field" data-for="pet" data-light="pet_link" id="pet_link_field" data-style="hanging"><span>QR code link</span><input type="text" id="pet_link" value="" autocomplete="off" placeholder="https://..."></label>
     <p class="hint" data-for="pet" id="pet_link_note" data-style="hanging">Optional, on the back beside the phone number: a page with
@@ -813,7 +831,7 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "plate_w", "plate_h", "margin", "bridge", "thick",
                 "depth", "wall", "diffuse", "cable", "mount", "sign_shape", "cable_side",
                 "pet_style", "pet_shape", "pet_size", "pet_sides", "pet_note",
-                "pet_collar", "pet_slot", "pet_link"];
+                "pet_collar", "pet_slot", "pet_link", "pet_chip"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "", stencilSvg = "";
@@ -1592,6 +1610,14 @@ function petReadout(line) {
                     (info.rise ? ` and the ${mm(info.rise)} mm of raised letters` : "")),
     info.nozzle ? line("finest stroke", `${mm(info.stroke)} mm`) : "",
     headsLine(line),
+    info.nfc ? line("nfc chip", `${info.nfc.d} mm round, sealed ${mm(info.nfc.z0)}&ndash;${mm(info.nfc.z1)} mm up`) : "",
+    info.nfc ? line("pause", `after the layer at ${mm(info.nfc.pause_z)} mm, drop the chip in, resume at ${mm(info.nfc.resume_z)} (0.2 mm layers; the 3MF has it)`) : "",
+    info.nfc && info.nfc.uri ? line("write to the chip", `<code>${info.nfc.uri}</code> &mdash; ${info.nfc.bytes} bytes, `
+      + (info.nfc.fits ? "fits an NTAG213" : `<span class="err">too long for an NTAG213</span>`)) : "",
+    info.nfc && !info.nfc.uri ? `<span class="warn">no phone number to put on the chip &mdash; fill in the phone box</span>` : "",
+    info.thin.includes("no phone number")
+      ? `<span class="warn">no phone number anywhere on this tag &mdash; turn on the NFC chip, or pick a
+         layout with the number on it</span>` : "",
     info.thin.includes("phone number")
       ? `<span class="warn">phone number under 3.5 mm &mdash; hard to read on a moving dog. A bigger
          tag, a shorter extra line, or split the number yourself with a |.</span>` : "",
@@ -1751,6 +1777,7 @@ function formParams() {
   params.placeholder = $("placeholder").checked ? "box" : "";
   params.outline = $("outline").checked;
   params.pet_border = $("pet_border").checked;
+  params.pet_nfc = $("pet_nfc").checked;
   params.gzip = CAN_INFLATE;
   params.qr = $("qr").checked;
   if (!params.qr) params.link = "";               // the link only shapes the part as a code
@@ -1932,11 +1959,13 @@ function slotRows() {
   const kind = $("kind").value;
   let rows = SLOT_LABELS[kind] || SLOT_LABELS.fob;
   if (kind === "pet") {
-    const back = $("pet_style").value === "hanging" &&
-                 ($("pet_sides").value === "two" || $("pet_link").value.trim());
+    const sides = $("pet_style").value === "slide" ? "one" : $("pet_sides").value;
+    const back = sides === "two" || sides === "name" || $("pet_link").value.trim();
     rows = rows.filter(([id]) => (id !== "c3" || back) && (id !== "c1" || $("pet_border").checked));
-    if ($("pet_sides").value === "one" || $("pet_style").value === "slide")
+    if (sides === "one")
       rows = rows.map(([id, l]) => [id, id === "c2" ? "Lettering" : id === "c3" ? "QR code" : l]);
+    if (sides === "name")
+      rows = rows.map(([id, l]) => [id, id === "c2" ? "Name, front" : id === "c3" ? "Name, back" : l]);
   }
   return rows;
 }
@@ -2058,6 +2087,10 @@ $("pet_shape").addEventListener("change", () => { petSize(); queue(); });
 $("pet_sides").addEventListener("change", () => spoolsChosen());
 $("pet_link").addEventListener("input", () => spoolsChosen());
 $("pet_border").addEventListener("change", () => { spoolsChosen(); queue(); });
+$("pet_nfc").addEventListener("change", () => {
+  $("pet_chip_field").hidden = !$("pet_nfc").checked;
+  queue();
+});
 $("pet_size").addEventListener("input", () => { $("pet_size_v").textContent = `${$("pet_size").value} mm`; });
 $("pet_slot").addEventListener("input", () => { $("pet_slot_v").textContent = `${$("pet_slot").value} mm`; });
 
@@ -2073,6 +2106,8 @@ function shapeChosen() {
     el.hidden = !el.dataset.for.split(" ").includes(kind) ||
                 (kind === "pet" && !!el.dataset.style && el.dataset.style !== style) ||
                 (kind === "sign" && !!el.dataset.shape && el.dataset.shape !== $("sign_shape").value);
+  // The chip's size is only a question once there is a chip.
+  if (kind === "pet") $("pet_chip_field").hidden = !$("pet_nfc").checked;
   $("shape_note").textContent = {
     fob: "The one that lives on a keyring, with an NFC tag sealed inside it. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.",
     pet: "A collar tag: the pet's name on the front and the phone number \u2014 and a QR code, if you want one \u2014 on the back. Every letter is inlaid flush, so nothing wears off, and all the colour changes happen in the first and last three layers.",
