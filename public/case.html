@@ -36,6 +36,10 @@
     background: var(--bg-default); border-right: 1px solid var(--border-default);
     display: flex; flex-direction: column; gap: var(--space-600);
   }
+  /* Without this the panels, which clip their own overflow, are what give
+     way when the form outgrows the window: open ones are squashed to a sliver
+     and the sidebar itself never scrolls. */
+  aside > * { flex-shrink: 0; }
   h1 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
   .sub { color: var(--text-secondary); margin: var(--space-100) 0 0; }
 
@@ -467,7 +471,7 @@
         <div style="font-size:13px">Drop an SVG here, or</div>
         <input type="file" id="art" accept=".svg,image/svg+xml" style="margin-top:8px">
       </div>
-      <div class="row">
+      <div class="row" style="flex-wrap:wrap">
         <button type="button" class="button subtle" id="example">Use the example</button>
         <button type="button" class="button subtle" id="resetart">Recentre</button>
         <button type="button" class="button subtle" id="clearart">Clear</button>
@@ -500,15 +504,13 @@
       <label for="artRotate">Rotate</label>
       <div class="slider"><input type="range" id="artRotate" min="-180" max="180" step="1" value="0"><output>0&deg;</output></div>
     </div>
-    <div class="grid2">
-      <div class="field">
-        <label for="artX">Across</label>
-        <div class="slider"><input type="range" id="artX" min="-40" max="40" step="0.5" value="0"><output>0 mm</output></div>
-      </div>
-      <div class="field">
-        <label for="artY">Along</label>
-        <div class="slider"><input type="range" id="artY" min="-80" max="80" step="0.5" value="0"><output>0 mm</output></div>
-      </div>
+    <div class="field">
+      <label for="artX">Across</label>
+      <div class="slider"><input type="range" id="artX" min="-40" max="40" step="0.5" value="0"><output>0 mm</output></div>
+    </div>
+    <div class="field">
+      <label for="artY">Along</label>
+      <div class="slider"><input type="range" id="artY" min="-80" max="80" step="0.5" value="0"><output>0 mm</output></div>
     </div>
     <label class="check"><input type="checkbox" id="wrap"><span>Carry it up the sides</span></label>
     <label class="check"><input type="checkbox" id="noMirror"><span>Do not mirror</span></label>
@@ -740,6 +742,8 @@ function drawSwatches() {
       slots[+inp.dataset.slot].hex = inp.value;
       // A hand-picked colour is no longer the palette's, so it loses its name.
       slots[+inp.dataset.slot].name = inp.value.slice(1);
+      const opt = $("base").querySelector(`option[value="${inp.dataset.slot}"]`);
+      if (opt) opt.textContent = `T${inp.dataset.slot} ${slots[+inp.dataset.slot].name}`;
       refresh();
     }));
   $("base").innerHTML = '<option value="">Auto &mdash; the artwork\'s main colour</option>'
@@ -786,6 +790,7 @@ function params(extra) {
 let timer = null;
 function refresh() {
   clearTimeout(timer);
+  foldSummaries();                              // from the form, so no need to wait
   timer = setTimeout(rebuild, 220);             // one build per pause, not per keystroke
 }
 
@@ -849,7 +854,7 @@ async function loadMockup() {
     }
     await window.mock.show(await res.arrayBuffer(), $("phone").value);
   } catch (exc) {
-    if (mine === mockSeq) fail(String(exc.message || exc));
+    if (mine === mockSeq) fail(String(exc.message || exc), true);
   } finally {
     if (mine === mockSeq) $("building").hidden = true;
   }
@@ -890,9 +895,16 @@ for (const b of $("mockmode").querySelectorAll("button"))
     if (window.mock) window.mock.mode(b.dataset.mode);
   });
 
-function fail(message) {
+function fail(message, keepDownloads) {
   $("notes").innerHTML = `<p class="err">${escape_(message)}</p>`;
-  $("save").disabled = true;
+  if (!keepDownloads) $("save").disabled = $("save3mf").disabled = $("savestl").disabled = true;
+}
+
+/* The downloads as the last good report left them. */
+function downloadState() {
+  const r = lastReport;
+  $("save").disabled = !(r && r.ok);
+  $("savestl").disabled = $("save3mf").disabled = !(r && r.ok) || !!(r && r.testFit);
 }
 
 function escape_(s) {
@@ -944,8 +956,7 @@ function readout(r) {
   if (r.testFit) notes.push(`<p class="warn">Test fit: back plate reduced to a
     ${r.testFit} mm rim, artwork off.</p>`);
   $("notes").innerHTML = notes.join("");
-  $("save").disabled = !r.ok;
-  $("savestl").disabled = $("save3mf").disabled = !r.ok || !!r.testFit;
+  downloadState();
   $("savenote").textContent = !r.ok ? "Fix what is in red first."
     : r.testFit ? "A test fit is g-code only — see the note below."
     : "G-code prints as is; 3MF keeps the colours; STL is the shape alone.";
@@ -979,6 +990,7 @@ async function download(want) {
     a.download = `${$("phone").value}-${info.testFit ? "test-fit" : "case"}.${want}`;
     a.click();
     URL.revokeObjectURL(a.href);
+    lastReport = info;
     readout(info);                              // now it knows grams and changes
     $("savenote").textContent = want === "3mf"
       ? `${info.solid.parts} parts, one per filament, `
@@ -993,10 +1005,7 @@ async function download(want) {
     $("savenote").textContent = String(exc.message || exc);
   } finally {
     $("building").hidden = true;
-    buttons.forEach(b => b.disabled = false);
-    if ($("testFit").checked) {
-      $("savestl").disabled = $("save3mf").disabled = true;
-    }
+    downloadState();
   }
 }
 
@@ -1034,6 +1043,7 @@ $("example").addEventListener("click", async () => {
   artText = await res.text();
   artName = "example-art.svg";
   $("artname").textContent = artName;
+  $("art").value = "";                          // or the picker still names the old file
   refresh();
 });
 
