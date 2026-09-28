@@ -963,6 +963,26 @@ the entry.  Match `hex` to the real spool by eye, next to the screen -- the
 colour on the box is marketing.  **The list that ships is a starting point,
 not your shelf**: replace it with what you have.
 
+## Sketchfab models for the site
+
+`src/sketchfab.py` finds and downloads models from Sketchfab into
+`public/assets/sketchfab/`:
+
+```
+python3 src/sketchfab.py search "dog"            # downloadable models, with licences
+python3 src/sketchfab.py get <uid> --as dog      # saves public/assets/sketchfab/dog.glb
+```
+
+The API key goes in a `.env` file at the top of the repository,
+`SKETCHFAB_TOKEN=...`.  `.gitignore` keeps that file out of git, so the key is
+never pushed with the code.  The site does not need the key: it serves the
+files that were downloaded.
+
+A shop is commercial use, so `get` refuses NonCommercial and Editorial models.
+Every download is recorded in `public/assets/sketchfab/credits.json` with its
+author and licence.  Show the `credit` line wherever a model that needs one
+appears.
+
 ---
 
 # Sign enclosures
