@@ -1054,6 +1054,26 @@ whose counters fall out on the bed.
 
 ## The box
 
+**By default the box follows the letters** (`shape="letters"`): the
+lettering grown by the margin, the gaps between letters closed, the inside
+corners rounded and the counters filled.  The sign is one rounded shape
+hugging the word, the way a channel-letter sign is, and it is only as big as
+the word needs; the two size sliders become the most room the word can have.
+Letters too far apart to close up, such as two words on two lines, are tied
+together the way a name keyring's loose dot is.  The walls, diffuser, lid
+rebate and lid all follow the outline.  Wall mounts need the plain border of
+the rectangular box (`shape="box"`), so the form only offers them there.
+
+**The cable leaves by the back, at one end** (`cable_side="right"` or
+`"left"`, as you look at the lit front).  It goes through a notch in the edge
+of the lid at that end.  The notch is open to the edge so the cable drops in
+rather than being threaded, and the wall closes it into a hole once the lid
+is in, so nothing shows from the front.  It is placed where the lid is widest
+near that end, so a letter-shaped lid is not cut into a sliver.
+`cable_side="bottom"` keeps the notch in the back edge of the bottom wall.
+
+The rectangular box is described below.
+
 | | |
 |---|---|
 | Face | 120 x 60 mm by default, any size you like |

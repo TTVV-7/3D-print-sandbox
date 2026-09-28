@@ -55,7 +55,8 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "plate_w", "plate_h", "margin", "bridge", "thick",
             "depth", "wall", "diffuse", "lid", "cable", "mount",
             "pet_shape", "pet_style", "pet_size", "pet_sides", "pet_note",
-            "pet_link", "pet_border", "pet_collar", "pet_slot")
+            "pet_link", "pet_border", "pet_collar", "pet_slot",
+            "sign_shape", "cable_side")
 
 # The shapes the page can ask for.  The business card is not among them any
 # more: it is archived -- the code is still in src/cards.py and
@@ -290,6 +291,10 @@ def model(params):
                            margin=num("margin", signbox.MARGIN),
                            cable=num("cable", signbox.CABLE),
                            mount=params.get("mount") or "none",
+                           # The box follows the letters unless asked for the
+                           # rectangle, and the cable leaves by the back.
+                           shape=params.get("sign_shape") or "letters",
+                           cable_side=params.get("cable_side") or "right",
                            lid=bool(params.get("lid", True)),
                            colours=colours)
                 if params.get("batch"):

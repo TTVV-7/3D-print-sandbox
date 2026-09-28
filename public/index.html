@@ -499,6 +499,17 @@
 
   <section>
     <h2>3 &middot; How it looks</h2>
+    <label class="field" data-for="sign" data-light="sign_shape"><span>Box shape</span>
+      <select id="sign_shape">
+        <option value="letters">Follows the letters</option>
+        <option value="box">Rectangle</option>
+      </select>
+    </label>
+    <p class="hint" data-for="sign">Follows the letters: the box is the word's own outline &mdash; every
+       letter grown by the margin, the gaps between them closed and the insides of the O's filled,
+       so the sign is one rounded shape hugging the word, the way a channel-letter sign is. The two
+       sliders below are then the most room the word can have, and the box comes out as big as the
+       word needs. Rectangle is the plain box, and the one the wall mounts fit.</p>
     <div class="field" data-for="stencil sign" data-light="plate"><span id="plate_label">Plate</span>
       <div class="slider"><input type="range" id="plate_w" min="30" max="250" step="5" value="120"><output id="plate_w_v">120 mm</output></div>
     </div>
@@ -542,25 +553,34 @@
     </div>
     <p class="hint" data-for="sign">Five lines of a 0.4 mm nozzle at the default: stiff enough to hold the
        lid without bowing, and opaque enough that the light leaves by the letters.</p>
-    <div class="field" data-for="sign" data-light="cable"><span>Cable notch</span>
+    <label class="field" data-for="sign" data-light="cable"><span>Cable out</span>
+      <select id="cable_side">
+        <option value="right">Through the back, right-hand end</option>
+        <option value="left">Through the back, left-hand end</option>
+        <option value="bottom">Through the bottom wall</option>
+      </select>
+    </label>
+    <div class="field" data-for="sign" data-light="cable"><span>Cable width</span>
       <div class="slider"><input type="range" id="cable" min="0" max="12" step="0.5" value="6"><output id="cable_v">6 mm</output></div>
     </div>
-    <p class="hint" data-for="sign">A square notch in the back edge of the bottom wall for the lead. It is
-       cut a lid deeper than it looks, so the cable passes under a lid that stays whole. 0 closes the
-       wall.</p>
+    <p class="hint" data-for="sign">Right and left are as you look at the lit front. Through the back, the
+       lead leaves by a notch in the edge of the lid at that end: open to the edge, so the cable drops
+       in rather than being threaded, and closed into a hole by the wall once the lid is in &mdash; so
+       nothing shows from the front. Through the bottom wall is a notch in the back edge of the
+       wall, cut a lid deeper so the cable passes under a lid that stays whole. 0 leaves no way out.</p>
     <label class="check" data-for="sign" data-light="lid"><input type="checkbox" id="lid" checked><span>Back lid</span></label>
     <p class="hint" data-for="sign">A plate that drops into a rebate in the back and stops flush on the
        ledge it leaves &mdash; a friction fit, so you can get it off again to change the strip. Stick the
        LEDs to the inside of it; it prints that face down, which is the flat one. Off leaves the back
        open.</p>
-    <label class="field" data-for="sign" data-light="mount"><span>Wall mount</span>
+    <label class="field" data-for="sign" data-shape="box" data-light="mount"><span>Wall mount</span>
       <select id="mount">
         <option value="none">None</option>
         <option value="tape">Tape pads</option>
         <option value="screw">Screw posts</option>
       </select>
     </label>
-    <p class="hint" data-for="sign">The back of this box is a lid held in by friction, so tape or a screw
+    <p class="hint" data-for="sign" data-shape="box">The back of this box is a lid held in by friction, so tape or a screw
        on the lid holds the <em>lid</em> &mdash; the case pulls off it and leaves the back on the wall.
        Both mounts here are part of the case instead: a post that rises off the inside of the face,
        comes up through a hole in the lid and finishes flush with the back, so the load goes into the
@@ -791,7 +811,7 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
                 "look", "layout", "cap", "ring_d", "font",
                 "plate_w", "plate_h", "margin", "bridge", "thick",
-                "depth", "wall", "diffuse", "cable", "mount",
+                "depth", "wall", "diffuse", "cable", "mount", "sign_shape", "cable_side",
                 "pet_style", "pet_shape", "pet_size", "pet_sides", "pet_note",
                 "pet_collar", "pet_slot", "pet_link"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
@@ -1653,7 +1673,8 @@ function signReadout(line) {
     line("lit", `${info.lit_area}% of the face, narrowest stroke ${mm(info.stroke)} mm`),
     line("inside", `${mm(info.clear)} mm of clear air for the strip` +
                    (info.lid ? `, behind a ${mm(info.lid_thick)} mm lid` : ", back open")),
-    info.cable ? line("cable notch", `${mm(info.cable)} mm, bottom wall`) : "",
+    info.cable ? line("cable", `${mm(info.cable)} mm, ` + ({ right: "out the back, right-hand end",
+      left: "out the back, left-hand end", bottom: "through the bottom wall" }[info.cable_side] || "")) : "",
     line("uses", `${info.volume.toFixed(2)} cm&sup3;` +
                  (info.parts.length > 1 ? " over both parts" : "")),
     info.nozzle ? line("nozzle", `${info.nozzle} mm or finer`) : "",
@@ -1864,6 +1885,7 @@ document.querySelectorAll("p.hint").forEach((hint, i) => {
   mark.setAttribute("aria-expanded", "false");
   if (hint.dataset.for) { box.dataset.for = hint.dataset.for; delete hint.dataset.for; }
   if (hint.dataset.style) { box.dataset.style = hint.dataset.style; delete hint.dataset.style; }
+  if (hint.dataset.shape) { box.dataset.shape = hint.dataset.shape; delete hint.dataset.shape; }
   hint.replaceWith(box);
   box.append(mark, fold);
   fold.append(hint);
@@ -2026,6 +2048,11 @@ function petSize() {
   $("pet_size").value = PET_SIZES[key];
   $("pet_size").dispatchEvent(new Event("input"));
 }
+/* A box that follows the letters has no plain border for a mount to live in. */
+$("sign_shape").addEventListener("change", () => {
+  if ($("sign_shape").value === "letters") $("mount").value = "none";
+  shapeChosen();
+});
 $("pet_style").addEventListener("change", () => { petSize(); shapeChosen(); materialFor(); queue(); });
 $("pet_shape").addEventListener("change", () => { petSize(); queue(); });
 $("pet_sides").addEventListener("change", () => spoolsChosen());
@@ -2044,7 +2071,8 @@ function shapeChosen() {
   if (kind !== "pet" && product) setShot("model");
   for (const el of document.querySelectorAll("[data-for]"))
     el.hidden = !el.dataset.for.split(" ").includes(kind) ||
-                (kind === "pet" && !!el.dataset.style && el.dataset.style !== style);
+                (kind === "pet" && !!el.dataset.style && el.dataset.style !== style) ||
+                (kind === "sign" && !!el.dataset.shape && el.dataset.shape !== $("sign_shape").value);
   $("shape_note").textContent = {
     fob: "The one that lives on a keyring, with an NFC tag sealed inside it. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.",
     pet: "A collar tag: the pet's name on the front and the phone number \u2014 and a QR code, if you want one \u2014 on the back. Every letter is inlaid flush, so nothing wears off, and all the colour changes happen in the first and last three layers.",
@@ -2060,7 +2088,8 @@ function shapeChosen() {
                                       name: "The word", pet: "What it says" }[kind] || "Who you are");
   spoolsChosen();
   // The stencil's two plate sliders are the sign's face.
-  $("plate_label").textContent = kind === "sign" ? "Face" : "Plate";
+  $("plate_label").textContent = kind !== "sign" ? "Plate"
+    : $("sign_shape").value === "letters" ? "Most room for the word" : "Face";
   // A sign is not glued and has no halves: it has a lid that comes off.
   const labels = kind === "sign" ? ["Put together", "Lid off", "On the plate"]
                                  : ["Glued up", "Pulled apart", "On the plate"];
