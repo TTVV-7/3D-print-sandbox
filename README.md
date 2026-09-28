@@ -880,7 +880,7 @@ A collar tag: the pet's name on the front, the way home on the back.  The
 
 | | |
 |---|---|
-| Shapes | round, bone, heart, tag -- or a slide-on plate |
+| Shapes | bone (the default), paw print, heart, round, fish, cat head, shield, tag -- or a slide-on plate |
 | Hanging | a ring tab on top, 5 mm hole with 2.6 mm of plastic round it |
 | Slide-on | two slots the collar threads through; 10 to 38 mm collars |
 | Body | 3 mm, lettering inlaid 0.6 mm into both faces |
@@ -922,8 +922,12 @@ does.  A number is also tried split over two lines at its middle separator,
 `(555)` over `214-8890`, and whichever setting gives the bigger number wins;
 that is what gets a full number onto a 28 mm disc at 3.9 mm.  Under 3.5 mm the
 readout warns.  Each shape starts at the width where a full number still
-clears that: 32 mm round, 34 tag, 42 heart, 45 bone -- a bone's number only has
-the bar between its lobes, and a heart narrows to its point.
+clears that: 32 mm round, 34 tag or shield, 36 cat head, 42 heart, 44 paw, 45
+bone, 50 fish.  A bone's number only has the bar between its lobes, a paw's
+only its pad, a fish's the body in front of the tail, and a heart narrows to
+its point.  The paw is one solid piece: the toes are bumps along the top of the
+pad, with the notches between them still cut, because separate toes on a tag
+are what would snap off first.
 
 **Flush, because a tag wears.**  The lettering is a pocket 0.6 mm deep filled
 with the lettering colour, not letters standing on the surface: a tag spends

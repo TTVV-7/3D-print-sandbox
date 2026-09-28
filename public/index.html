@@ -601,20 +601,25 @@
        off when a ring opens &mdash; but its back is against the dog, so everything is on the front.</p>
     <label class="field" data-for="pet" data-light="pet_shape" id="pet_shape_field" data-style="hanging"><span>Shape</span>
       <select id="pet_shape">
-        <option value="circle">Round</option>
-        <option value="bone">Bone</option>
+        <option value="bone" selected>Bone</option>
+        <option value="paw">Paw print</option>
         <option value="heart">Heart</option>
+        <option value="circle">Round</option>
+        <option value="fish">Fish</option>
+        <option value="cat">Cat head</option>
+        <option value="shield">Shield</option>
         <option value="tag">Tag</option>
       </select>
     </label>
     <div class="field" data-for="pet" data-light="pet_size"><span>Width</span>
-      <div class="slider"><input type="range" id="pet_size" min="20" max="60" step="1" value="32"><output id="pet_size_v">32 mm</output></div>
+      <div class="slider"><input type="range" id="pet_size" min="20" max="60" step="1" value="45"><output id="pet_size_v">45 mm</output></div>
     </div>
-    <p class="hint" data-for="pet" id="pet_size_note">Round and tag shapes keep a full phone number
-       readable from about 28 mm &mdash; a cat or a toy breed &mdash; with 32 for a medium dog. A bone's
-       number only has the bar between its lobes and a heart's narrows to the point, so both start at
-       42 to 45. Picking a shape puts this back to that shape's starting size; the readout warns when
-       the number drops under 3.5 mm.</p>
+    <p class="hint" data-for="pet" id="pet_size_note">Each shape starts at the width where a full phone number still comes out
+       at a readable 3.5 mm or more: a round, tag, shield or cat head from about 32 mm, a heart or
+       paw print from about 42, a bone at 45 and a fish at 50 &mdash; a bone's number only has the bar
+       between its lobes, a paw's only the pad, and a fish's the body in front of its tail. Picking a
+       shape puts this back to that shape's starting size; the readout warns when the number drops
+       under 3.5 mm.</p>
     <label class="field" data-for="pet" data-light="pet_sides" id="pet_sides_field" data-style="hanging"><span>Sides</span>
       <select id="pet_sides">
         <option value="two">Name on the front, phone on the back</option>
@@ -2071,7 +2076,8 @@ $("material").addEventListener("change", () => { if ($("material").value) allIn(
 for (const id of COLOURS) $(id).addEventListener("input", () => { spoolsChosen(); if (product) queueProduct(); });
 
 /* ------------------------------------------------------------- pet tags -- */
-const PET_SIZES = { circle: 32, bone: 45, heart: 42, tag: 34, slide: 50 };
+const PET_SIZES = { circle: 32, bone: 45, heart: 42, tag: 34, paw: 44, fish: 50, cat: 36,
+                    shield: 34, slide: 50 };
 function petSize() {
   const key = $("pet_style").value === "slide" ? "slide" : $("pet_shape").value;
   $("pet_size").value = PET_SIZES[key];

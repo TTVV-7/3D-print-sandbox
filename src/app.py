@@ -210,7 +210,7 @@ def model(params):
                 # A pet tag: the name on the front, the way home on the back.
                 # The phone, the note and the QR link are shared by a batch
                 # unless a row carries its own.
-                shape = params.get("pet_shape") or "circle"
+                shape = params.get("pet_shape") or "bone"
                 if shape not in pettag.SHAPES:
                     raise ValueError(f"no such tag shape: {shape}")
                 tag = dict(phone=params.get("phone", ""),

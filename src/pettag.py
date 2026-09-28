@@ -40,6 +40,7 @@ from shapely.geometry import LineString, Point, Polygon
 from shapely.ops import polylabel, unary_union
 
 import cards
+import nametag
 import typefaces
 
 # Nominal width of a hanging tag.  32 mm is a medium dog; a cat or a toy breed
@@ -91,13 +92,14 @@ SLOT_EDGE = 3.0         # plate left outside each slot
 SLOT_FRAME = 3.5        # plate above and below each slot
 SLOT_SLACK = 1.5        # added to the collar width
 
-SHAPES = ("circle", "bone", "heart", "tag")
+SHAPES = ("bone", "circle", "heart", "tag", "paw", "fish", "cat", "shield")
 
 # Where each shape starts: the smallest size at which "(555) 214-8890" still
 # comes out at PHONE_MIN or more on the back.  A disc or a plain tag manages
 # that from about 28 mm; a bone's number has only the bar between the lobes,
 # and a heart's narrows to its point, so both need about 42.
-SIZES = dict(circle=32.0, bone=45.0, heart=42.0, tag=34.0, slide=SLIDE_W)
+SIZES = dict(circle=32.0, bone=45.0, heart=42.0, tag=34.0, paw=44.0, fish=50.0,
+             cat=36.0, shield=34.0, slide=SLIDE_W)
 STYLES = ("hanging", "slide")
 # What goes on which face.  "two": the name on the front, the way home on the
 # back.  "name": the name on both, readable either way round, and the phone
@@ -146,6 +148,46 @@ def outline(shape, size):
         # Close then open: rounds the waist where the lobes meet the bar, and
         # any point a lobe leaves.
         return unary_union([bar, *lobes]).buffer(1.2, quad_segs=16).buffer(-1.2, quad_segs=16)
+    if shape == "paw":
+        # A big pad and four toes, the inner two higher, closed up into one
+        # piece: the gaps between toe and pad are what would snap first, so
+        # they are filled rather than left as necks.
+        pad = affinity.scale(Point(0, -0.14 * s).buffer(0.32 * s, quad_segs=48), 1.0, 0.8)
+        toes = [affinity.scale(Point(x * s, y * s).buffer(0.125 * s, quad_segs=32), 0.9, 1.15,
+                               origin=(x * s, y * s))
+                for x, y in ((-0.36, 0.16), (-0.13, 0.34), (0.13, 0.34), (0.36, 0.16))]
+        # Only just closed: enough to join each toe to the pad and its
+        # neighbour with a real neck, not so much that the notches between
+        # them fill in -- they are what makes it read as a paw.
+        close = 0.035 * s
+        paw = unary_union([pad, *toes]).buffer(close, quad_segs=16).buffer(-close, quad_segs=16)
+        if paw.geom_type == "MultiPolygon":
+            paw, _ = nametag.tie_together(paw, width=0.09 * s)
+        # Joining the toes to each other encloses a gap above the pad; filled,
+        # the toes are bumps along the top of one solid pad, with the notches
+        # between them still cut.
+        return Polygon(paw.exterior)
+    if shape == "fish":
+        # A plump body and a forked tail to the right, rounded off.
+        body = affinity.scale(Point(-0.08 * s, 0).buffer(0.36 * s, quad_segs=48), 1.0, 0.68)
+        tail = Polygon([(0.2 * s, 0), (0.5 * s, 0.24 * s), (0.42 * s, 0), (0.5 * s, -0.24 * s)])
+        r = 0.03 * s
+        return unary_union([body, tail]).buffer(r, quad_segs=16).buffer(-2 * r, quad_segs=16) \
+            .buffer(r, quad_segs=16)
+    if shape == "cat":
+        # A round face with two pointed ears; the tab goes between the ears.
+        head = affinity.scale(Point(0, -0.06 * s).buffer(0.44 * s, quad_segs=48), 1.0, 0.84)
+        ears = [Polygon([(sx * 0.44 * s, 0.0), (sx * 0.38 * s, 0.56 * s),
+                         (sx * 0.1 * s, 0.24 * s)]) for sx in (-1, 1)]
+        r = 0.025 * s
+        return unary_union([head, *ears]).buffer(-r, quad_segs=16).buffer(r, quad_segs=16)
+    if shape == "shield":
+        # A badge: square shoulders, straight sides, a point at the bottom.
+        w2 = s / 2.0
+        poly = Polygon([(-w2, 0.42 * s), (w2, 0.42 * s), (w2, -0.05 * s), (0, -0.5 * s),
+                        (-w2, -0.05 * s)])
+        r = 0.08 * s
+        return poly.buffer(-r, join_style=1).buffer(r, quad_segs=16, join_style=1)
     if shape == "heart":
         t = np.linspace(0, 2 * np.pi, 360, endpoint=False)
         x = 16 * np.sin(t) ** 3
@@ -402,7 +444,7 @@ def chip_pocket(body_2d, keep, d, t, thick):
     return Point(centre.x, centre.y).buffer(r, quad_segs=48), float(z0), float(z1)
 
 
-def build(name="", phone="", note="", link="", shape="circle", style="hanging",
+def build(name="", phone="", note="", link="", shape="bone", style="hanging",
           size=None, sides="two", font=None, rise=0.0, border=False,
           ring_d=RING_D, collar=COLLAR, slot=SLOT, thick=THICK,
           colours=cards.COLOURS, label="", nfc=False, chip_d=None, chip_t=CHIP_T):
