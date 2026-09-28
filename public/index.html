@@ -190,6 +190,15 @@
   #hud { position: absolute; left: var(--space-600); top: var(--space-400); color: var(--text-secondary);
          font-size: 14px; pointer-events: none; }
   #modes { position: absolute; right: var(--space-600); top: var(--space-400); }
+  /* the pet tag's product shot: the tag on a split ring, in three.js */
+  #shot { position: absolute; left: var(--space-600); bottom: var(--space-600); z-index: 3; }
+  #three { position: absolute; inset: 0; z-index: 2;
+    background: radial-gradient(ellipse at 50% 40%, #ffffff 0%, #ececec 70%, #e2e2e2 100%); }
+  #three canvas { display: block; width: 100%; height: 100%; touch-action: none; cursor: grab; }
+  #three canvas:active { cursor: grabbing; }
+  #three .threefail { position: absolute; inset: 0; display: grid; place-items: center; margin: 0;
+    padding: 32px; color: var(--text-secondary); text-align: center; }
+  #view.product #buttons, #view.product #shot { z-index: 3; }
   #nogl { position: absolute; inset: 0; display: none; place-items: center; padding: 30px;
           text-align: center; color: var(--text-secondary); }
   /* A build in flight.  A ring going round says only that something is
@@ -737,6 +746,11 @@
   <div id="view">
     <canvas id="gl"></canvas>
     <div id="hud">drag to turn &middot; scroll to zoom</div>
+    <div id="three" hidden></div>
+    <div id="shot" class="segmented" role="group" aria-label="View" hidden>
+      <button type="button" data-shot="model" aria-pressed="true">Model</button>
+      <button type="button" data-shot="product" aria-pressed="false">Product shot</button>
+    </div>
     <div id="modes" class="segmented" hidden>
       <button type="button" data-mode="glued" aria-pressed="true">Glued up</button>
       <button type="button" data-mode="apart" aria-pressed="false">Pulled apart</button>
@@ -1642,6 +1656,51 @@ function signReadout(line) {
   ].join("");
 }
 
+/* ------------------------------------------------------- the product shot --
+   A pet tag, hanging on a split ring the way it will on a collar, lit like a
+   product photo: a GLB from the server (the tag's own colour parts and a
+   steel ring through its hole) drawn with three.js.  The model view is the
+   one to check the print with; this is the one to sell it with. */
+let product = false, productSeq = 0, productTimer = null;
+
+async function loadProduct() {
+  if (!product) return;
+  if (!window.shot) {
+    clearTimeout(loadProduct.wait);
+    loadProduct.wait = setTimeout(() => {
+      if (!window.shot && product)
+        $("three").innerHTML = `<p class="threefail">The product shot could not load &mdash;
+          check the connection and reload. The model view and the downloads still work.</p>`;
+    }, 8000);
+    return;
+  }
+  const mine = ++productSeq;
+  const params = formParams();
+  params.format = "glb";
+  params.gzip = false;
+  try {
+    const res = await fetch("/api/model", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(params),
+    });
+    if (mine !== productSeq || !res.ok) return;
+    await window.shot.show(await res.arrayBuffer());
+  } catch (e) { /* the model view has already said what went wrong */ }
+}
+const queueProduct = () => { clearTimeout(productTimer); productTimer = setTimeout(loadProduct, 250); };
+
+function setShot(which) {
+  product = which === "product" && $("kind").value === "pet";
+  for (const b of $("shot").querySelectorAll("button"))
+    b.setAttribute("aria-pressed", String(b.dataset.shot === (product ? "product" : "model")));
+  $("three").hidden = !product;
+  $("view").classList.toggle("product", product);
+  $("hud").hidden = $("flip").hidden = product;
+  if (product) loadProduct();
+}
+for (const b of $("shot").querySelectorAll("button"))
+  b.addEventListener("click", () => setShot(b.dataset.shot));
+
 let pending = null, seq = 0;
 
 const CAN_INFLATE = "DecompressionStream" in window;
@@ -1698,6 +1757,7 @@ async function rebuild() {
     }
     readout();
     $("save").disabled = $("save_stl").disabled = false;
+    if (product) loadProduct();
   } catch (e) {
     specs.innerHTML = `<span class="err">${e.message} &mdash; is src/app.py still running?</span>`;
   } finally {
@@ -1947,7 +2007,7 @@ function materialFor() {
   } else allIn(kind === "pet" ? first("PETG", "PLA") : first("PLA"));
 }
 $("material").addEventListener("change", () => { if ($("material").value) allIn($("material").value); });
-for (const id of COLOURS) $(id).addEventListener("input", () => spoolsChosen());
+for (const id of COLOURS) $(id).addEventListener("input", () => { spoolsChosen(); if (product) queueProduct(); });
 
 /* ------------------------------------------------------------- pet tags -- */
 const PET_SIZES = { circle: 32, bone: 45, heart: 42, tag: 34, slide: 50 };
@@ -1970,6 +2030,8 @@ function shapeChosen() {
   const kind = $("kind").value;
   const word = kind === "name";
   const style = $("pet_style").value;
+  $("shot").hidden = kind !== "pet";
+  if (kind !== "pet" && product) setShot("model");
   for (const el of document.querySelectorAll("[data-for]"))
     el.hidden = !el.dataset.for.split(" ").includes(kind) ||
                 (kind === "pet" && !!el.dataset.style && el.dataset.style !== style);
@@ -2145,6 +2207,84 @@ $("save_stl").addEventListener("click", () => download("stl", "model/stl", "stl"
 $("save").addEventListener("click", () => download("3mf", "model/3mf", "3mf"));
 
 rebuild();
+</script>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+/* The pet tag's product shot.  three.js, pinned, from jsdelivr, loaded only
+   for this: the model view needs none of it.  Millimetres, the tag's tab up
+   (+y) and its front towards +z, which is how it hangs. */
+import * as THREE from "three";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const host = document.getElementById("three");
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+host.append(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.environment = new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(), 0.04).texture;
+const key = new THREE.DirectionalLight(0xffffff, 1.2);
+key.position.set(60, 90, 120);
+scene.add(key);
+
+const camera = new THREE.PerspectiveCamera(26, 1, 0.5, 2000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.autoRotate = true;                 // a slow turn, until somebody takes hold
+controls.autoRotateSpeed = 1.2;
+controls.addEventListener("start", () => { controls.autoRotate = false; });
+
+const loader = new GLTFLoader();
+const group = new THREE.Group();
+scene.add(group);
+let framed = false;
+
+window.shot = {
+  show(buffer) {
+    return new Promise((ok, bad) => loader.parse(buffer, "", gltf => {
+      for (const c of [...group.children]) {
+        group.remove(c);
+        c.traverse(o => { if (o.geometry) o.geometry.dispose(); });
+      }
+      group.add(gltf.scene);
+      if (!framed) {                        // keep the angle across edits
+        const box = new THREE.Box3().setFromObject(group);
+        const size = box.getSize(new THREE.Vector3()), mid = box.getCenter(new THREE.Vector3());
+        const d = Math.max(size.x, size.y) * 3.1;
+        controls.target.copy(mid);
+        camera.position.set(mid.x + d * 0.42, mid.y + d * 0.12, mid.z + d * 0.9);
+        controls.update();
+        framed = true;
+      }
+      ok();
+    }, bad));
+  },
+};
+
+function resize() {
+  const w = host.clientWidth, h = host.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(host);
+renderer.setAnimationLoop(() => {
+  if (host.hidden) return;
+  controls.update();
+  renderer.render(scene, camera);
+});
+// The page may already be on the product shot, waiting for this.
+if (!host.hidden) document.querySelector('#shot [data-shot="product"]').click();
 </script>
 </body>
 </html>

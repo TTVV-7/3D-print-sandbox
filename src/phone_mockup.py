@@ -61,9 +61,14 @@ def finishes(phone_id):
     return FINISHES.get(phone_id, GENERIC)
 
 
-def _rgba(hexc, alpha=255):
-    h = hexc.lstrip("#")
-    return [int(h[i:i + 2], 16) for i in (0, 2, 4)] + [alpha]
+def _rgba(hexc):
+    """A #rrggbb colour as the linear RGBA a glTF base colour is -- written
+    straight from the hex, every colour comes out paler than it is."""
+    out = []
+    for i in (0, 2, 4):
+        c = int(hexc.lstrip("#")[i:i + 2], 16) / 255.0
+        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return out + [1.0]
 
 
 def _material(hexc, metal=0.0, rough=0.5, name="m"):

@@ -934,6 +934,22 @@ beside the part.
 link`.  Only the name is needed; anything a line leaves out comes from the
 boxes above, so a litter with one owner is just the names.
 
+## The product shot
+
+**Product shot**, bottom left of the preview, swaps the model view for the tag
+as it would be photographed: hanging on a steel split ring, lit, turning
+slowly.  It is the view to sell with.  The model view, which shows how it
+prints, is still the one to check a print with.
+
+![a bone tag on its split ring](previews/pet_tag_product.png)
+
+Nothing in it is downloaded.  The tag is its own colour parts in the chosen
+spools' colours.  The ring (`pettag.split_ring`) is two turns of wire,
+generated to go through that tag's hole: the wire gets thinner for a small
+hole, and the ring leans only as far as the hole allows.  It is checked not to
+pass through the plastic for holes from 2.5 to 9 mm.  The page draws it with
+the same pinned three.js as the phone case view.
+
 ## The spools on the shelf
 
 `public/filaments.json` is the list of filament you actually have: a name, a

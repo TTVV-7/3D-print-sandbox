@@ -377,6 +377,9 @@ def _finish(params, parts, info, num):
         return cards.export_3mf(parts, colours, row_w=row_w), info, "model/3mf"
     if params.get("format") == "stl":
         return cards.plate(parts, row_w=row_w).export(file_type="stl"), info, "model/stl"
+    if params.get("format") == "glb" and params.get("kind") == "pet":
+        # The product shot: the first tag, hanging on a split ring.
+        return pettag.product_glb(parts[:1], info, colours), info, "model/gltf-binary"
     data, described = preview(parts, info, row_w)
     return data, {**info, "preview": described}, "model/stl"
 

@@ -484,6 +484,9 @@ def build(name="", phone="", note="", link="", shape="circle", style="hanging",
         note_cap=cap_of("note", everything),
         qr=dict(modules=qr[0], module=qr[1], size=round(qr[0] * qr[1], 2)) if qr else None,
         ring=hole is not None, ring_d=float(ring_d) if hole is not None else None,
+        # where the split ring goes through, for the product shot
+        hole=[round(hole.centroid.x, 3), round(hole.centroid.y, 3), float(ring_d)]
+        if hole is not None else None,
         collar=float(collar) if style == "slide" else None,
         slot=float(slot) if style == "slide" else None,
         border=bool(border),
@@ -498,6 +501,87 @@ def build(name="", phone="", note="", link="", shape="circle", style="hanging",
         thin=thin, face=FACE, chamfer=0.0, layout=None, look=None,
     )
     return parts, info
+
+
+# ---------------------------------------------------------------------------
+# the product shot
+# ---------------------------------------------------------------------------
+# A split ring for the product shot: two turns of steel wire.  Sized off the
+# tag's own hole, so the wire fills it the way a real one does.
+RING_WIRE = 1.1          # wire thickness, mm
+RING_ACROSS = 20.0       # outside diameter of the ring, mm
+STEEL = "#cfd1d4"
+
+
+def linear_rgba(hexc):
+    """A #rrggbb colour as the linear RGBA a glTF base colour is.  Written
+    straight from the hex, a navy tag shows up light blue: glTF colours are
+    linear, and the viewer converts them back to sRGB for the screen."""
+    out = []
+    for i in (0, 2, 4):
+        c = int(hexc.lstrip("#")[i:i + 2], 16) / 255.0
+        out.append(c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4)
+    return out + [1.0]
+
+
+def split_ring(hole, wire=RING_WIRE, across=RING_ACROSS, turns=2.0, lean=None,
+               thick=THICK):
+    """A split ring through `hole` ([x, y, d]), as a trimesh.
+
+    The ring stands in the plane across the tag -- y up, z through it -- with
+    its lowest point in the hole, and two turns of wire side by side along x,
+    the way the coils of a real one sit.  `lean` turns it about the vertical
+    through the hole, so it reads as a ring rather than a line edge-on; the
+    lowest point stays where it is, in the hole.  Left alone it turns as far
+    as the hole lets it, less a margin: leant further, a ring of this wire
+    would pass through the plastic.
+    """
+    import trimesh
+    wire = min(wire, hole[2] * 0.3)          # two coils side by side, and room round them
+    if lean is None:
+        room = hole[2] / 2.0 - wire * 1.05 / 2.0 - wire / 2.0
+        lean = max(0.2, min(0.85, 0.95 * float(np.arctan2(max(room, 0.0), thick / 2.0))))
+    r = across / 2.0 - wire / 2.0
+    cx, cy = hole[0], hole[1] + r
+    n = int(96 * turns)
+    t = np.linspace(0.0, 2 * np.pi * turns, n)
+    # start and finish at the bottom, which is where the ring passes through
+    path = np.column_stack([cx + (t / (2 * np.pi) - turns / 2) * wire * 1.05,
+                            cy - r * np.cos(t), r * np.sin(t)])
+    profile = Point(0, 0).buffer(wire / 2.0, quad_segs=6)
+    ring = trimesh.creation.sweep_polygon(profile, path)
+    turn = trimesh.transformations.rotation_matrix(lean, [0, 1, 0], [hole[0], hole[1], 0])
+    ring.apply_transform(turn)
+    return ring
+
+
+def product_glb(parts, info, colours):
+    """The tag as a GLB for the page's product shot: every colour a part in
+    its own filament colour, and a steel split ring through the hole when
+    it has one.  The tag's front is +z and its tab is up (+y), which is how it
+    hangs."""
+    import io
+    import trimesh
+
+    part = parts[0]
+    scene = trimesh.Scene()
+    thick = info["thick"]
+    for slot, mesh in part["slots"].items():
+        m = mesh.copy()
+        m.apply_translation((0, 0, -thick / 2.0))          # centred on its own thickness
+        m.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
+            name=slot, baseColorFactor=linear_rgba(colours[cards.SLOTS.index(slot)]),
+            metallicFactor=0.0, roughnessFactor=0.42))
+        scene.add_geometry(m, node_name=f"tag-{slot}", geom_name=f"tag-{slot}")
+    if info.get("hole"):
+        ring = split_ring(info["hole"], thick=thick)
+        ring.visual = trimesh.visual.TextureVisuals(material=trimesh.visual.material.PBRMaterial(
+            name="steel", baseColorFactor=linear_rgba(STEEL),
+            metallicFactor=1.0, roughnessFactor=0.22))
+        scene.add_geometry(ring, node_name="ring", geom_name="ring")
+    buf = io.BytesIO()
+    buf.write(scene.export(file_type="glb"))
+    return buf.getvalue()
 
 
 def parse_batch(text):
