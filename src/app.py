@@ -2,9 +2,10 @@
 
     python3 src/app.py            # then open http://127.0.0.1:8765
 
-Five shapes: an NFC keyring fob (src/cards.py), a name keyring
-(src/nametag.py), a pet collar tag (src/pettag.py), a sign enclosure
-(src/signbox.py) and a stencil (src/stencil.py).  Fill in the boxes, watch the part turn in the viewer,
+Six shapes: the NFC logo card (src/logocard.py), an NFC keyring fob
+(src/cards.py), a name keyring (src/nametag.py), a pet collar tag
+(src/pettag.py), a sign enclosure (src/signbox.py) and a stencil
+(src/stencil.py).  Fill in the boxes, watch the part turn in the viewer,
 download it.  The 3MF carries each colour as a separate part, so the slicer opens it
 set up for four filaments; the STL is one welded solid.  The preview is the
 same solids, sent one after another with a colour and a place for each, so
@@ -30,6 +31,7 @@ from pathlib import Path
 import trimesh
 
 import cards
+import logocard
 import looks
 import nametag
 import pettag
@@ -56,13 +58,18 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "depth", "wall", "diffuse", "lid", "cable", "mount",
             "pet_shape", "pet_style", "pet_size", "pet_sides", "pet_note",
             "pet_link", "pet_border", "pet_collar", "pet_slot",
-            "sign_shape", "cable_side", "pet_nfc", "pet_chip")
+            "sign_shape", "cable_side", "pet_nfc", "pet_chip",
+            "art", "card_size", "card_border", "card_backing", "card_holes",
+            "card_colours", "card_bg", "card_ring", "card_at", "card_nfc",
+            "card_chip", "card_back", "card_link")
 
-# The shapes the page can ask for.  The business card is not among them any
-# more: it is archived -- the code is still in src/cards.py and
-# `src/gen_cards.py --kind card` still writes one, but the app offers the fob,
-# the name keyring, the stencil and the sign enclosure.
-KINDS = ("fob", "name", "pet", "stencil", "sign")
+# The shapes the page can ask for.  "card" is the NFC business card, remade
+# as src/logocard.py: the company's logo is the card's shape and colours.  The
+# old CR80 rectangle it replaces is still in src/cards.py, and
+# `src/gen_cards.py --kind card` still writes one, but the app does not.
+KINDS = ("card", "fob", "name", "pet", "stencil", "sign")
+# What a logo may be: SVG text, or an image as a browser's FileReader sends it.
+IMAGE = re.compile(r"data:image/(png|jpeg|webp|gif|bmp|svg\+xml)[;,]")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -164,16 +171,40 @@ def model(params):
     keyed = {k: params.get(k) for k in GEOMETRY}
     if params.get("logo") or params.get("design"):
         keyed["colours"] = colours          # the fills sort into slots by colour
+    if params.get("kind") == "card":
+        keyed["body"] = colours[0]          # logo colours near it fold into the body
     key = json.dumps(keyed, sort_keys=True)
     with BUILD:
         if key not in RECENT:
             kind = params.get("kind", "fob")
-            if kind == "card":
-                raise ValueError("the business card is archived -- the fob is the one "
-                                 "the app builds now, and src/gen_cards.py --kind card "
-                                 "still writes a card")
             if kind not in KINDS:
                 raise ValueError(f"no such shape: {kind}")
+            if kind == "card":
+                # The logo card: the logo, as SVG text or an image data: URL,
+                # is the card's outline and its colours.  One design, so no
+                # batch -- a stack of the same card is one file printed again.
+                art = params.get("art") or None
+                if art and not (art.lstrip().startswith("<") or IMAGE.match(art)):
+                    raise ValueError("the logo has to be an SVG, PNG, JPEG or WebP")
+                RECENT[key] = logocard.build(
+                    art, size=num("card_size", logocard.SIZE),
+                    border=num("card_border", logocard.BORDER),
+                    backing=params.get("card_backing") or "outline",
+                    fill_holes=bool(params.get("card_holes", True)),
+                    max_colours=int(num("card_colours", logocard.INLAYS)),
+                    keep_background=bool(params.get("card_bg")),
+                    ring=params.get("card_ring") or "tab",
+                    ring_at=params.get("card_at") or "top-left",
+                    ring_d=num("ring_d", logocard.RING_D),
+                    rise=num("rise", 0.0), colours=colours,
+                    nfc=bool(params.get("card_nfc", True)),
+                    chip_d=num("card_chip", 0.0) or None,
+                    back=params.get("card_back") or "arcs",
+                    link=params.get("card_link", ""))
+                while len(RECENT) > 8:
+                    del RECENT[next(iter(RECENT))]
+                parts, info = RECENT[key]
+                return _finish(params, parts, info, num)
             if kind == "name":
                 # A name keyring has no front and back, no tag and no
                 # layout: the word is the whole object, so only these few
@@ -377,7 +408,7 @@ def _finish(params, parts, info, num):
     colours = palette(params)
     row_w = num("bed", 220.0) if params.get("batch") else None
     if params.get("format") == "3mf":
-        if params.get("kind") == "pet":
+        if params.get("kind") in ("pet", "card"):
             # Each slot on its own filament, colours and materials named, so
             # a TPU tag with PETG lettering opens ready to slice as one print.
             # A sealed NFC chip needs the print to stop above its pocket;
