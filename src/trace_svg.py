@@ -23,9 +23,10 @@ from pathlib import Path
 import numpy as np
 from shapely.geometry import Point, Polygon, box
 from shapely.ops import unary_union
-from svgpathtools import parse_path
+from svgpathtools import Line, parse_path
 
 SAMPLES = 220   # points per subpath; the curves are short, this is plenty
+CURVE = 24      # points per curved segment, for painted()
 
 
 def subpath_polygons(d):
@@ -162,6 +163,254 @@ def shapes(svg, fills=False):
     if fills:
         return [(fill, merge(filled)) for fill, filled in groups.items()]
     return merge([s for filled in groups.values() for s in filled])
+
+
+# ---------------------------------------------------------------------------
+# painted(): the SVG as it looks, for a logo that *is* the part
+# ---------------------------------------------------------------------------
+# shapes() is enough for artwork drawn the way a stencil wants it.  A company
+# logo off a website is rarely that: it is nested groups with transforms on
+# them, fills set by a CSS class in a <style> block, strokes, and colours
+# painted on top of each other -- a white letter drawn over a red disc, which
+# is a red disc with a letter-shaped hole in it and a white letter in the hole.
+# painted() reads all of that and hands back what you would see.
+
+def _numbers(text):
+    import re
+    return [float(v) for v in re.findall(r"[-+]?(?:\d*\.\d+|\d+\.?)(?:[eE][-+]?\d+)?", text)]
+
+
+def parse_transform(text):
+    """An SVG transform list as a 2x3 affine (a, b, c, d, e, f), meaning
+    x' = a x + c y + e, y' = b x + d y + f -- SVG's own matrix() order."""
+    import re
+    m = np.eye(3)
+    for name, args in re.findall(r"(\w+)\s*\(([^)]*)\)", text or ""):
+        v = _numbers(args)
+        t = np.eye(3)
+        if name == "matrix" and len(v) == 6:
+            t = np.array([[v[0], v[2], v[4]], [v[1], v[3], v[5]], [0, 0, 1]])
+        elif name == "translate" and v:
+            t[0, 2], t[1, 2] = v[0], (v[1] if len(v) > 1 else 0.0)
+        elif name == "scale" and v:
+            t[0, 0], t[1, 1] = v[0], (v[1] if len(v) > 1 else v[0])
+        elif name == "rotate" and v:
+            a = np.radians(v[0])
+            r = np.array([[np.cos(a), -np.sin(a), 0], [np.sin(a), np.cos(a), 0], [0, 0, 1]])
+            if len(v) == 3:
+                to = np.array([[1, 0, v[1]], [0, 1, v[2]], [0, 0, 1]])
+                back = np.array([[1, 0, -v[1]], [0, 1, -v[2]], [0, 0, 1]])
+                r = to @ r @ back
+            t = r
+        elif name == "skewX" and v:
+            t[0, 1] = np.tan(np.radians(v[0]))
+        elif name == "skewY" and v:
+            t[1, 0] = np.tan(np.radians(v[0]))
+        m = m @ t
+    return m
+
+
+def _css(root):
+    """{selector: {property: value}} from every <style> block, for the plain
+    selectors an exported logo uses: .class, #id and bare element names,
+    comma-separated.  Anything fancier is ignored."""
+    import re
+    rules = {}
+    for el in root.iter():
+        if el.tag.rsplit("}", 1)[-1] != "style" or not el.text:
+            continue
+        text = re.sub(r"/\*.*?\*/", "", el.text, flags=re.S)
+        for sels, body in re.findall(r"([^{}]+)\{([^{}]*)\}", text):
+            decls = {}
+            for decl in body.split(";"):
+                k, _, v = decl.partition(":")
+                if k.strip():
+                    decls[k.strip().lower()] = v.strip()
+            for sel in sels.split(","):
+                rules.setdefault(sel.strip(), {}).update(decls)
+    return rules
+
+
+def _style(el, rules):
+    """Every presentation property set on the element itself: attribute, then
+    CSS rules by element, class and id, then the style attribute -- the
+    cascade order that matters for an exported file."""
+    tag = el.tag.rsplit("}", 1)[-1]
+    out = {}
+    for k in ("fill", "stroke", "stroke-width", "opacity", "fill-opacity",
+              "stroke-opacity", "display", "visibility", "fill-rule"):
+        if el.get(k) is not None:
+            out[k] = el.get(k)
+    out.update(rules.get(tag, {}))
+    for cls in (el.get("class") or "").split():
+        out.update(rules.get("." + cls, {}))
+    if el.get("id"):
+        out.update(rules.get("#" + el.get("id"), {}))
+    for decl in (el.get("style") or "").split(";"):
+        k, _, v = decl.partition(":")
+        if k.strip():
+            out[k.strip().lower()] = v.strip()
+    return out
+
+
+def _raw(el):
+    """An element's polygons in its own SVG coordinates, y down, plus its
+    outline as lines, for a stroke.  element_polygons() flips y; this undoes
+    that so the transform can be applied the way the file means it."""
+    from shapely import affinity
+    from shapely.geometry import LineString
+    tag = el.tag.rsplit("}", 1)[-1]
+    flip = lambda g: affinity.scale(g, 1, -1, origin=(0, 0))
+    lines = []
+    if tag == "path" and el.get("d"):
+        polys = []
+        for sub in parse_path(el.get("d")).continuous_subpaths():
+            # A straight segment is its two ends; a curve is sampled along its
+            # own length, CURVE points each -- rather than every subpath at a
+            # fixed count, which an illustration of a thousand strokes spends
+            # seconds on.
+            zs = []
+            for seg in sub:
+                if isinstance(seg, Line):
+                    zs.append(seg.start)
+                    continue
+                t = np.linspace(0, 1, CURVE, endpoint=False)
+                try:
+                    zs.extend(seg.poly()(t))
+                except (AttributeError, TypeError):     # arcs have no polynomial
+                    zs.extend(seg.point(x) for x in t)
+            if not sub.isclosed():
+                zs.append(sub.end)
+            pts = [(z.real, z.imag) for z in zs]
+            if len(pts) > 1:
+                lines.append(LineString(pts + ([pts[0]] if sub.isclosed() else [])))
+            if len(pts) > 2:
+                poly = Polygon(pts).buffer(0)
+                if not poly.is_empty and poly.area > 0:
+                    polys.extend(getattr(poly, "geoms", [poly]))
+        return polys, lines
+    if tag in ("line", "polyline"):
+        if tag == "line":
+            g = lambda k: float(el.get(k, "0"))
+            lines = [LineString([(g("x1"), g("y1")), (g("x2"), g("y2"))])]
+        else:
+            v = _numbers(el.get("points") or "")
+            pts = list(zip(v[::2], v[1::2]))
+            lines = [LineString(pts)] if len(pts) > 1 else []
+        return [], lines
+    if tag == "rect" and (el.get("rx") or el.get("ry")):
+        g = lambda k, d="0": float((el.get(k) or d).rstrip("px") or 0)
+        x, y, w, h = g("x"), g("y"), g("width"), g("height")
+        r = min(g("rx", el.get("ry") or "0"), w / 2, h / 2)
+        polys = [box(x + r, y + r, x + w - r, y + h - r).buffer(r, quad_segs=24)
+                 if r > 0 else box(x, y, x + w, y + h)]
+        return polys, [p.exterior for p in polys]
+    polys = [flip(p) for p in element_polygons(el)]
+    return polys, [p.exterior for p in polys]
+
+
+def painted(svg, keep_background=True, report=None):
+    """[(fill, geometry)] for an SVG, as it is seen: y up, transforms applied,
+    fills and strokes both, each colour's region with whatever was painted
+    over it later taken out.  `fill` is '#rrggbb'; anything unstated paints
+    black, which is what a browser does.
+
+    With keep_background=False, a first shape that covers everything else --
+    the white or coloured rectangle a logo is so often exported on -- is left
+    out, so the logo's own outline is what is left.  Its colour goes in
+    report["background"], if a `report` dict is handed in.
+    """
+    from shapely import affinity
+    text = svg if svg.lstrip().startswith("<") else Path(svg).read_text()
+    root = ET.fromstring(text)
+    rules = _css(root)
+    order = []                      # (fill, geometry) as painted
+
+    def paint(colour, geom):
+        if colour and not geom.is_empty and geom.area > 0:
+            order.append((colour, geom))
+
+    def walk(el, ctm, inherited):
+        tag = el.tag.rsplit("}", 1)[-1]
+        if tag in ("defs", "clipPath", "mask", "symbol", "pattern", "marker", "style",
+                   "title", "desc", "metadata", "linearGradient", "radialGradient", "text"):
+            return
+        own = _style(el, rules)
+        if own.get("display", "").strip() == "none":
+            return
+        style = {**inherited, **{k: v for k, v in own.items() if k != "opacity"}}
+        try:
+            opacity = inherited.get("_opacity", 1.0) * float(own.get("opacity", 1))
+        except ValueError:
+            opacity = inherited.get("_opacity", 1.0)
+        style["_opacity"] = opacity
+        ctm = ctm @ parse_transform(el.get("transform"))
+        if opacity > 0.05 and style.get("visibility", "visible") != "hidden":
+            polys, lines = _raw(el)
+            a, c, e = ctm[0]
+            b, d, f = ctm[1]
+            place = lambda g: affinity.scale(affinity.affine_transform(g, [a, c, b, d, e, f]),
+                                             1, -1, origin=(0, 0))
+            fill = style.get("fill", "#000000")
+            fill = None if (fill or "").strip().lower() == "none" else parse_colour(fill)
+            try:
+                fill_op = float(style.get("fill-opacity", 1))
+            except ValueError:
+                fill_op = 1.0
+            if polys and fill and fill_op > 0.05:
+                polys.sort(key=lambda p: -p.area)
+                shape = polys[0]
+                for p in polys[1:]:
+                    shape = shape.symmetric_difference(p)
+                paint(fill, place(shape))
+            stroke = parse_colour(style.get("stroke"))
+            try:
+                width = float(_numbers(style.get("stroke-width", "1"))[0])
+            except (IndexError, ValueError):
+                width = 1.0
+            if stroke and lines and width > 0:
+                scale = np.sqrt(abs(np.linalg.det(ctm[:2, :2]))) or 1.0
+                band = unary_union([place(l) for l in lines]).buffer(
+                    width * scale / 2.0, quad_segs=12)
+                paint(stroke, band)
+        for child in el:
+            walk(child, ctm, style)
+
+    walk(root, np.eye(3), {})
+    if not order:
+        raise ValueError("nothing filled or stroked in that SVG -- text has to be "
+                         "converted to outlines first")
+
+    if not keep_background and len(order) > 1:
+        first = order[0][1]
+        rest = unary_union([g for _, g in order[1:]])
+        # A backdrop: the first thing painted, nearly its own bounding box,
+        # and everything after it inside it.
+        x0, y0, x1, y1 = first.bounds
+        boxy = first.area >= 0.9 * (x1 - x0) * (y1 - y0)
+        if boxy and rest.difference(first).area <= 0.02 * rest.area:
+            if report is not None:
+                report["background"] = order[0][0]
+            order = order[1:]
+
+    # What shows of each shape is the shape less everything of another colour
+    # painted after it.  Each is cut only by the later shapes that actually
+    # overlap it -- a spatial index finds them -- and each colour is merged
+    # once at the end, so an illustration of a thousand strokes takes
+    # seconds rather than a minute.
+    from shapely.strtree import STRtree
+    geoms = [g for _, g in order]
+    tree = STRtree(geoms)
+    pieces = {}
+    for i, (colour, geom) in enumerate(order):
+        later = [geoms[j] for j in tree.query(geom)
+                 if j > i and order[j][0] != colour and geoms[j].intersects(geom)]
+        if later:
+            geom = geom.difference(unary_union(later))
+        if not geom.is_empty:
+            pieces.setdefault(colour, []).append(geom)
+    regions = {k: unary_union(v) for k, v in pieces.items()}
+    return [(k, g) for k, g in regions.items() if not g.is_empty and g.area > 0]
 
 
 def trace(svg_path):

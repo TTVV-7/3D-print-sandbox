@@ -1,16 +1,22 @@
 # 3D print sandbox
 
-Seven parametric things live here so far.  All of them are plain Python --
+Eight parametric things live here so far.  All of them are plain Python --
 shapely for the 2-D work, trimesh and manifold for the solids -- and all of
 them re-run in seconds.  The phone case is the exception on every count: it
 needs nothing but the standard library, and it writes g-code rather than a
 mesh.
 
-- **[NFC fobs](#nfc-fobs)** -- a keyring fob printed as two halves with an NFC
-  tag glued between them, in up to four colours, in one of three layouts.
-  Comes with a browser front end.  The wallet-sized business card it was
-  written for is [archived](#the-archived-business-card): the builder is still
-  here and the command line still writes one, but the app does not offer it.
+- **[NFC logo cards](#nfc-logo-cards)** -- the business card, remade: upload a
+  company's logo, as an SVG or a PNG / JPEG, and the card comes out in the
+  logo's own outline and the logo's own colours, with an NFC sticker sealed
+  inside and a keyring hole or tab in the corner you pick.  The logo can go
+  on both sides, and each of its colours can stand at its own height.  The
+  first shape in the app.
+- **[NFC fobs](#nfc-fobs)** -- **archived**, along with the rectangular
+  business card before it: the logo card replaced both.  A keyring fob with a
+  name, company and phone on it, printed as two halves with an NFC tag glued
+  between them.  The app no longer offers it; `src/gen_cards.py` still writes
+  one, and everything below about it still holds.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
   printable piece, with a tab for the ring, in one of forty-eight faces.  Same
   app, second shape.
@@ -33,7 +39,148 @@ mesh.
 
 ---
 
+# NFC logo cards
+
+The company's logo *is* the card.  Hand it the logo and it traces every colour,
+merges them into one silhouette, grows that by a border of plain card like a
+die-cut sticker, and prints each colour of the logo as a flush inlay in the
+front.  An NFC sticker is sealed in the middle of it, and a keyring goes
+through a hole in the corner or a tab off the edge.
+
+| | |
+|---|---|
+| ![the sample logo as a card, front and back](previews/logo_card.png) | ![a traced PNG wordmark as a card](previews/logo_card_traced.png) |
+
+Left, the page's sample logo (an SVG) on its ink body, with a hole in its top
+right corner; the back has the contactless mark right over the sticker.
+Right, [a PNG](previews/logo_card_source.png) traced: its transparent
+background gone, the letters bridged into one piece, the green, yellow and
+black kept, and a tab for the ring.
+
+Two options change what the card is rather than how it is cut:
+
+- **Logo on both sides.**  The back carries the logo too, right behind the
+  front one, in the same filaments -- so it costs no extra head.  Turned over,
+  the card shows the logo's mirror image, filling exactly the same outline.
+  The back's tap mark and QR code give way to it.
+- **Two halves** -- the default.  Under *How it goes in*, the sticker is
+  glued between two halves, or sealed in by a pause instead.  The card is split through the
+  middle of its thickness with half the cavity in each, and three pins on the
+  glue line key them so they only go together one way.  Neither half is
+  turned over to print: the back half lies back face down with its pins
+  standing up, the front half front face up with the pins' holes underneath,
+  so raised colours still print on top.  The preview's *Glued up*, *Pulled
+  apart* and *On the plate* show it, and the 3MF has both halves on one plate
+  with no pause in it.  A sealed card gets the same three views as *Finished*,
+  *At the pause* and *On the plate*: at the pause, the card is shown cut at the
+  height the print stops at, the sticker going into its open pocket and the
+  rest of the card lifted off above.  Only the preview is cut.
+- **A different height for each colour.**  Each colour of the logo stands at
+  its own height off the card, so a logo reads as a stepped badge: black
+  lettering and frame at 1.2 mm above an orange field at 0.4 mm, say.  One
+  slider per colour, in place of the single relief slider; only the front
+  steps, since the back prints on the bed.  `--rises 0.4,1.2` on the command
+  line, largest colour first.
+
+```
+python3 src/app.py                                   # first tile: NFC logo card
+python3 src/logocard.py logo.svg -o card.3mf         # or from a terminal
+python3 src/logocard.py logo.png --ring hole --ring-at top-right --link https://example.com
+python3 src/logocard.py logo.png --both --rises 0.4,1.2   # two-sided (mirrored), stepped
+```
+
+## What it does with the logo
+
+**An SVG** (`trace_svg.painted()`) is read the way a browser draws it, which is
+what a logo exported from Illustrator or off a website needs: nested groups
+and their transforms, fills set by a CSS class in a `<style>` block, strokes
+(grown into shapes at their width), opacity, and later shapes painted over
+earlier ones -- a white letter on a red disc is a red disc with a letter-shaped
+hole in it, and a white letter in the hole.  Text has to be converted to
+outlines first; gradients are skipped.
+
+**A PNG, JPEG or WebP** (`src/trace_image.py`) is traced.  Transparent pixels
+are background; an opaque image has the colour round its edge taken as
+background, but only where it connects to the edge, so the white inside a red
+disc stays part of the logo.  What is left is clustered into a few flat
+colours, the in-between shades anti-aliasing leaves on every edge are folded
+into their neighbours so a halo never becomes a colour of its own, and each
+colour's pixels are traced and smoothed into the edge they were sampling.  The
+page sends images at up to 960 pixels; the tracer works at 480, which on a
+70 mm card is about a tenth of a millimetre a pixel.
+
+A simple logo builds in well under a second.  A detailed illustration --
+hundreds of shapes -- takes longer, up to a minute on a very busy one, and the
+page says so while it builds.  Most of that is cutting every colour's pocket
+out of the card; reading the SVG itself only compares each shape with the later
+ones that actually overlap it, and the STL's single welded solid is only made
+when an STL is downloaded.
+
+Either way a **background** the logo was drawn on -- the rectangle behind it,
+the white page -- is taken off, unless *Keep the background* is ticked (for an
+app icon whose square is the point).  Its colour is what the card suggests for
+its own body.
+
+## The shape
+
+*Follows the logo* is the logo's silhouette grown by the border (2 mm by
+default).  Marks that stand further apart than twice the border are bridged
+until the card is one piece, and holes inside it -- the middle of an O -- are
+filled, so there is solid plastic for the sticker.  A long thin wordmark may
+still have no room for one; a *rounded rectangle* or a *disc* behind the logo
+fixes that.  *Size* is the longest side of the finished card, tab aside.
+
+## The colours
+
+A four-head printer is one head for the card and three for the logo.  Each
+logo colour, largest first, goes to the primary, secondary and pattern slots;
+past three, the two closest colours are merged into the larger one.  A logo
+colour within a small distance of the card's own colour needs no inlay at all
+-- white lettering on a white card is the card showing through -- so it costs
+no head.  That is also why changing the card's colour rebuilds, where changing
+a logo colour only repaints.
+
+When a logo arrives the page starts the colour pickers on it: the card on the
+background the logo came on (or white, or ink for a light logo), and each slot
+on the logo's own colour, moved to the nearest spool on the shelf.  The card
+starts on whichever material has the most spools.  If nothing on that shelf is
+close to a logo colour, the readout says so and what it is printing instead.
+
+## The keyring
+
+*Tab* stands a ring tab off the outline at the chosen corner or side, moved
+outwards if it would cut into the logo.  *Hole* goes through the card itself,
+as far into that corner as it will sit with 2.4 mm of plastic round it and
+clear of the logo's inlays -- a part of the logo in the card's own colour is
+the card, and the hole may go through it.  A rounded rectangle with no room
+grows at that end to make some.  When there is still no room, it becomes a tab
+rather than a hole through the logo, and the readout says so.
+
+## The sticker, and the back
+
+A round NTAG sticker -- the biggest of 25, 20, 15 and 12 mm that fits, or the
+one you choose -- sits in a pocket at the roomiest point of the card, in the
+middle of the 3 mm thickness.  By default the card is two halves with half
+the pocket in each, glued together with the sticker between them (above).
+*Sealed in* is the pet tag's pocket exactly: one part, the print pauses once
+just above the pocket, you drop the sticker in and resume, and it is sealed;
+the 3MF carries that pause (M601).  Either way every colour is on its own
+filament, so the slicer opens it ready to print.
+
+The back carries the contactless arcs right over the sticker, in the logo's
+first colour, so whoever is holding the card knows where to put their phone --
+or a QR code for the same link, for phones that do not tap, or nothing.  The
+readout counts the link's bytes against an NTAG213.  Nothing here writes the
+sticker; do that with a phone once the card is printed.
+
+---
+
 # NFC fobs
+
+> **Archived.**  The [NFC logo card](#nfc-logo-cards) replaced the fob in the
+> app, which now refuses to build one.  Nothing has been deleted: `src/cards.py`
+> and `python3 src/gen_cards.py` build fobs exactly as described below, and the
+> page's fob controls are still in `public/index.html`, just never shown.
 
 Five fields in, a keyring fob out: your details on the front, laid out by one
 of three layouts; a pocket for an NFC tag and the contactless arcs on the back.
@@ -176,7 +323,7 @@ put on a network.
 
 ### The shape icons
 
-The five tiles at the top of the form show the products themselves: a fob,
+The tiles at the top of the form show the products themselves: the logo card,
 a name keyring, the pet tag on its split ring, a lit sign and a stencil.  Each
 is built by its own generator, rendered with the pet tag product shot's
 three.js lighting, and saved as a strip of 24 frames swaying either side of
@@ -186,6 +333,7 @@ reduced motion.  No 3D engine runs for them.
 
 ```
 python3 src/gen_tile_icons.py      # needs Node and Playwright; the images are committed
+python3 src/gen_tile_icons.py card # just the tiles named
 ```
 
 Change a product's look or colours in `ICONS` in that script and re-run it.
@@ -336,8 +484,8 @@ and says so instead.
 
 ### The archived business card
 
-The wallet-sized card is **archived**: the app does not offer it any more and a
-request for one comes back with an error saying so.  Nothing about it has been
+The wallet-sized rectangle is **archived**, replaced in the app by the
+[NFC logo card](#nfc-logo-cards) -- the app's `card` shape is that now.  Nothing about it has been
 deleted -- `CARD` and every layout that serves it are still in `src/cards.py`,
 and the command line still builds one:
 

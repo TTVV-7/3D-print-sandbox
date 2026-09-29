@@ -1,8 +1,9 @@
 """The shape tiles' 3D icons: each product, rendered, as a strip of frames.
 
     python3 src/gen_tile_icons.py          # writes public/assets/tiles/*.webp
+    python3 src/gen_tile_icons.py card     # just the ones named
 
-Each icon is the real thing -- the fob, the keyring, the pet tag on its split
+Each icon is the real thing -- the logo card, the fob, the keyring, the pet tag on its split
 ring, the sign, the stencil -- built by its own generator, lit the way the
 pet tag's product shot is, and rendered at FRAMES angles as it sways.  The
 page shows the first frame as the icon, and on hover steps through the rest
@@ -27,6 +28,7 @@ import trimesh
 from PIL import Image
 
 import cards
+import logocard
 import nametag
 import pettag
 import signbox
@@ -48,6 +50,10 @@ SWAY = 0.55          # radians either side of straight on
 INK, INK_LIGHT, PAPER, FLAME = "#0c1a2e", "#1f3a5f", "#f5f2ec", "#ff5b1f"
 
 ICONS = {
+    # The sample logo on its ink body, with a hole in its corner.
+    "card":    dict(build=lambda: logocard.build(None, ring="hole", ring_at="top-right",
+                                                         fit="sealed"),
+                    colours=(INK, INK_LIGHT, FLAME, PAPER)),
     "fob":     dict(build=lambda: cards.build("fob", name="Dino",
                                               company="Bluewater Realty",
                                               phone="(555) 214-8890", tag_mode="pocket"),
@@ -92,11 +98,13 @@ def glb(parts, info, colours, glow=(), ring=False):
     return buf.getvalue()
 
 
-def main():
+def main(only=()):
     OUT.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         jobs = []
         for name, icon in ICONS.items():
+            if only and name not in only:
+                continue
             parts, info = icon["build"]()
             path = Path(tmp) / f"{name}.glb"
             path.write_bytes(glb(parts, info, icon["colours"], icon.get("glow", ()),
@@ -120,4 +128,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import sys
+    main(sys.argv[1:])

@@ -1,0 +1,692 @@
+"""The NFC business card, remade: a company's logo *is* the card.
+
+    parts, info = logocard.build(open("logo.svg").read())
+    parts, info = logocard.build(png_bytes, size=80, ring="hole", ring_at="top-right")
+
+Hand it the logo -- an SVG, or a PNG / JPEG / WebP -- and the card comes out
+in the logo's own outline and the logo's own colours, with an NFC sticker
+sealed inside it and a way onto a keyring.
+
+**The shape.**  Every colour of the logo is traced and merged into one
+silhouette, and the card is that silhouette grown by `border` mm of plain
+body all round: a die-cut sticker's outline, in plastic.  Letters and marks
+that stand apart are bridged together until the whole thing is one piece, and
+the holes inside it -- the middle of an O -- are filled, so the card is solid
+and there is room for the chip.  A wordmark too thin for that can sit on a
+rounded rectangle or a disc instead (`backing`).
+
+**The colours.**  Each colour in the logo is an inlay FACE mm deep in the
+front, flush with the body, the way every other part in this repo does its
+colour: the printer changes filament only in the last three layers.  A
+four-head printer is one head for the body and three for the logo, so a logo
+with more colours than that has its closest colours merged; one that matches
+the body colour -- white lettering on a white card -- needs no inlay at all
+and costs no head.  The colours reported back are the logo's own, so the app
+can start the colour pickers on them.
+
+**The keyring.**  A tab with a hole in it, standing off the outline at the
+corner you pick, or a hole punched through the card itself in that corner,
+kept clear of the artwork.  If there is no room for a hole clear of the logo
+it becomes a tab rather than a hole through the logo.
+
+**The chip.**  A round NTAG sticker in a pocket in the middle of the
+thickness, at the roomiest point of the card.  By default the card prints as
+two halves, split through the middle with half the pocket in each and pins to
+line them up, and the sticker is glued in between; or it prints as one part
+that pauses once over the pocket for the sticker to be dropped in and sealed
+(pettag's pocket, exactly).  The back carries the contactless arcs right over it, so whoever
+is holding the card knows where to put their phone -- or a QR code for the
+same link, for phones that do not tap.
+
+The parts are the same shape as cards.build()'s, so the plate, the 3MF, the
+STL and the app's viewer all take them unchanged.
+"""
+from pathlib import Path
+
+import numpy as np
+from shapely import affinity
+from shapely.geometry import Point, Polygon
+from shapely.ops import polylabel, unary_union
+
+import cards
+import pettag
+import trace_image
+import trace_svg
+
+SAMPLE = Path(__file__).resolve().parent / "sample_logo.svg"
+
+# Longest side of the finished card, tab aside.  A business card is 85 mm; a
+# logo card reads as a card from about 60 and still fits a wallet at 85.
+SIZE = 70.0
+SIZE_MIN, SIZE_MAX = 30.0, 150.0
+
+# Thick enough to seal a 0.5 mm sticker between two faces with solid plastic
+# either side (pettag.chip_pocket needs 2.4 mm), and to feel like a card
+# rather than a sticker.
+THICK = 3.0
+
+# Plain body round the logo.  Also what bridges the gaps: two marks closer
+# than twice this come out joined without anything else being done.
+BORDER = 2.0
+
+FACE = cards.FACE
+LAYER = pettag.LAYER
+
+BACKINGS = ("outline", "rounded", "circle")
+RINGS = ("tab", "hole", "none")
+CORNERS = {
+    "top-left": (-1.0, 1.0), "top": (0.0, 1.0), "top-right": (1.0, 1.0),
+    "left": (-1.0, 0.0), "right": (1.0, 0.0),
+    "bottom-left": (-1.0, -1.0), "bottom-right": (1.0, -1.0),
+}
+RING_D = 5.0             # a split ring's wire goes through 4; 5 is easy
+RING_WALL = 2.4          # plastic round the hole, where the pull is
+CLEAR = 0.8              # a hole keeps this far off the artwork
+CORNER_IN = 5.0          # and sits no further than this past its plastic from the edge
+
+# The most any colour of the logo stands off the face.
+RISE_MAX = 3.0
+
+# Colour.  Four heads on the printer: the body and up to three for the logo.
+INLAYS = 3
+INLAY_SLOTS = ("primary", "secondary", "pattern")     # by area, largest first
+# A logo colour this close to the body colour (RGB, 0-255) is the body.
+FOLD = 40.0
+
+# How the sticker goes in: sealed by a pause mid-print, or glued between two
+# halves.  The halves are keyed by pins on the glue line, cards.PIN's size.
+FITS = ("sealed", "halves")
+PIN = cards.PIN
+
+# Chips tried, largest first, when none is named.  A bigger coil reads from
+# further off, so the card gets the biggest one it has room for.
+CHIPS = (25.0, 20.0, 15.0, 12.0)
+# The mark on the back, as a share of the chip it points at, and its ceiling.
+MARK = 0.75
+MARK_MAX = 16.0
+
+
+def _rgb(hexc):
+    return np.array([int(hexc[i:i + 2], 16) for i in (1, 3, 5)], dtype=float)
+
+
+def _flat(geom):
+    if geom is None or geom.is_empty:
+        return []
+    return [g for g in getattr(geom, "geoms", [geom]) if g.geom_type == "Polygon" and g.area > 0]
+
+
+def read_art(art, colours=INLAYS + 1, keep_background=False, report=None):
+    """[(hex, geometry)] for whatever was handed in: SVG text, a path to an
+    SVG, image bytes or an image data: URL.  Nothing at all is the sample.
+    A background taken off it is noted in `report`."""
+    kw = dict(keep_background=keep_background, report=report)
+    if not art:
+        return trace_svg.painted(SAMPLE.read_text(), **kw)
+    if isinstance(art, str) and art.lstrip().startswith("<"):
+        return trace_svg.painted(art, **kw)
+    if isinstance(art, str) and art.startswith("data:image/svg"):
+        import base64
+        import urllib.parse
+        head, _, body = art.partition(",")
+        text = base64.b64decode(body).decode() if ";base64" in head else urllib.parse.unquote(body)
+        return trace_svg.painted(text, **kw)
+    if isinstance(art, str) and not art.startswith("data:") and Path(art).is_file():
+        if art.lower().endswith(".svg"):
+            return trace_svg.painted(Path(art).read_text(), **kw)
+        art = Path(art).read_bytes()
+    return trace_image.painted(art, colours=colours, **kw)
+
+
+INK, PAPER = "#0c1a2e", "#ffffff"
+
+
+def body_for(regions, background):
+    """The body colour a logo would choose for itself: the background it was
+    drawn on, if it came on one; otherwise white, unless the logo is mostly
+    light, in which case ink -- a white logo on a white card is a blank."""
+    if background:
+        return background
+    big = max(regions, key=lambda r: r[1].area)[0]
+    r, g, b = _rgb(big) / 255.0
+    return INK if 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.75 else PAPER
+
+
+# Anything of an inlay narrower than twice this, or smaller than SPECK mm^2,
+# is below what a nozzle can put down: slivers where two traced colours meet,
+# the anti-aliased crumbs of a raster, a counter too small to stay open.
+SLIVER = 0.12
+SPECK = 0.3
+
+
+def solid(polys, z0, t):
+    """Separate polygons extruded side by side.  pettag.solid() merges them
+    first; these come out of tidy() or _flat() already apart, and merging a
+    traced illustration's thousands of pieces again costs seconds."""
+    meshes = cards.prisms(polys, z0, t)
+    return meshes[0] if len(meshes) == 1 else cards.trimesh.util.concatenate(meshes)
+
+
+def tidy(g):
+    """An inlay's polygons with the unprintable crumbs taken off it."""
+    g = g.buffer(-SLIVER, quad_segs=8).buffer(SLIVER, quad_segs=8)
+    out = []
+    for p in _flat(g):
+        if p.area < SPECK:
+            continue
+        holes = [r for r in p.interiors if Polygon(r).area >= SPECK]
+        out.append(Polygon(p.exterior, holes))
+    return out
+
+
+def sort_colours(regions, body_hex, most=INLAYS):
+    """Which logo colour goes in which slot.
+
+    Returns (inlays, folded): `inlays` is [(slot, hex, geometry)], largest
+    first; `folded` the logo colours that became the body.  Colours near the
+    body colour fold into it; past `most`, the two closest colours left are
+    merged -- into the larger one's colour -- until they fit.
+    """
+    body = _rgb(body_hex)
+    keep, folded = [], []
+    for hexc, g in regions:
+        (folded if np.linalg.norm(_rgb(hexc) - body) < FOLD else keep).append([hexc, g])
+    while len(keep) > most:
+        best = None
+        for i in range(len(keep)):
+            for j in range(i + 1, len(keep)):
+                d = np.linalg.norm(_rgb(keep[i][0]) - _rgb(keep[j][0]))
+                if best is None or d < best[0]:
+                    best = (d, i, j)
+        _, i, j = best
+        big, small = (i, j) if keep[i][1].area >= keep[j][1].area else (j, i)
+        keep[big][1] = keep[big][1].union(keep[small][1])
+        del keep[small]
+    keep.sort(key=lambda r: -r[1].area)
+    return ([(INLAY_SLOTS[i], h, g) for i, (h, g) in enumerate(keep)],
+            [h for h, _ in folded])
+
+
+def silhouette(art, border, backing, fill_holes=True):
+    """The card's outline round `art` (the logo's union, in mm).  Returns
+    (outline, bridged): how far apart pieces were bridged, in mm, 0 if they
+    joined on their own."""
+    if backing == "rounded":
+        x0, y0, x1, y1 = art.bounds
+        w, h = x1 - x0 + 2 * border, y1 - y0 + 2 * border
+        return cards.rounded_rect(w, h, min(w, h) * 0.18, (x0 + x1) / 2, (y0 + y1) / 2), 0.0
+    if backing == "circle":
+        from shapely import minimum_bounding_circle
+        c = minimum_bounding_circle(art)
+        centre, r = c.centroid, np.sqrt(c.area / np.pi)
+        return Point(centre.x, centre.y).buffer(r + border, quad_segs=64), 0.0
+    if backing != "outline":
+        raise ValueError(f"no such backing: {backing} -- {', '.join(BACKINGS)}")
+
+    def fill(g):
+        return unary_union([Polygon(p.exterior) for p in _flat(g)]) if fill_holes else g
+
+    # Grow, then close gaps a little wider each time, until it is one piece.
+    base = art.buffer(border, quad_segs=16)
+    for gap in (0.0, 1.0, 2.0, 3.5, 5.0, 8.0, 12.0):
+        shape = base if not gap else base.buffer(gap, quad_segs=16).buffer(-gap, quad_segs=16)
+        shape = fill(shape)
+        if len(_flat(shape)) == 1:
+            # Round off any corner the grow left sharp -- a point snaps --
+            # unless that would part a thin neck.
+            smooth = shape.buffer(-0.6, quad_segs=16).buffer(0.6, quad_segs=16)
+            return (smooth if len(_flat(smooth)) == 1 else _flat(shape)[0]), gap
+    return fill(base.convex_hull), 99.0
+
+
+def fit_art(regions, size, border, backing, fill_holes):
+    """Scale the logo so the finished card's longest side is `size` mm.
+    Returns (regions in mm centred on the origin, outline, bridged)."""
+    every = unary_union([g for _, g in regions])
+    x0, y0, x1, y1 = every.bounds
+    cx, cy, long = (x0 + x1) / 2, (y0 + y1) / 2, max(x1 - x0, y1 - y0)
+    target = max(4.0, size - 2 * border)
+    for _ in range(4):
+        k = target / long
+        place = lambda g: affinity.scale(affinity.translate(g, -cx, -cy), k, k, origin=(0, 0))
+        art = place(every)
+        outline, bridged = silhouette(art, border, backing, fill_holes)
+        bx0, by0, bx1, by1 = outline.bounds
+        got = max(bx1 - bx0, by1 - by0)
+        if abs(got - size) < 0.05:
+            break
+        target *= size / got
+    # Points closer than a fiftieth of a millimetre are finer than any
+    # printer resolves; dropping them keeps a traced illustration's meshes,
+    # and every boolean on them, a fraction of the size.
+    return ([(h, place(g).simplify(0.02, preserve_topology=True)) for h, g in regions],
+            art, outline, bridged)
+
+
+def grow_end(outline, towards, by):
+    """A rounded rectangle `by` mm longer at the end `towards` points at --
+    the end along its long side, for a corner."""
+    x0, y0, x1, y1 = outline.bounds
+    dx, dy = towards
+    if dx and (x1 - x0 >= y1 - y0 or not dy):
+        x0, x1 = (x0 - by, x1) if dx < 0 else (x0, x1 + by)
+    else:
+        y0, y1 = (y0 - by, y1) if dy < 0 else (y0, y1 + by)
+    w, h = x1 - x0, y1 - y0
+    return cards.rounded_rect(w, h, min(w, h) * 0.18, (x0 + x1) / 2, (y0 + y1) / 2)
+
+
+def keyring(outline, art, how, where, d):
+    """(outline with its tab, the hole, what actually went on) for a keyring
+    hole at corner `where`: a tab standing off the outline, or a hole in the
+    card clear of the artwork -- which becomes a tab when there is no room."""
+    if how == "none" or d <= 0.5:
+        return outline, None, "none"
+    v = np.array(CORNERS[where])
+    v = v / np.linalg.norm(v)
+    r_hole, r_keep = d / 2.0, d / 2.0 + RING_WALL
+    if how == "hole":
+        room = outline.buffer(-r_keep, quad_segs=16).difference(
+            art.buffer(r_hole + CLEAR, quad_segs=16))
+        pts = [c for p in _flat(room) for c in p.exterior.coords]
+        # It has to be *in the corner*: no further in from the card's edge
+        # that way than the plastic round it plus a few millimetres.  A gap
+        # in the middle of the logo is room, but not a corner.
+        edge = max(c[0] * v[0] + c[1] * v[1] for c in outline.exterior.coords)
+        if pts:
+            best = max(pts, key=lambda c: c[0] * v[0] + c[1] * v[1])
+            if best[0] * v[0] + best[1] * v[1] >= edge - r_keep - CORNER_IN:
+                return outline, Point(best).buffer(r_hole, quad_segs=32), "hole"
+    # A tab: a disc on the outline's furthest point that way, sunk in so the
+    # hole's inner rim is a millimetre inside the body, moved on out if that
+    # would cut into the logo.
+    pts = np.array(outline.exterior.coords)
+    tip = pts[np.argmax(pts @ v)]
+    step = r_hole - 1.0
+    while True:
+        centre = tip + v * step
+        hole = Point(centre).buffer(r_hole, quad_segs=32)
+        if not hole.intersects(art.buffer(CLEAR)) or step > r_keep + 6:
+            break
+        step += 0.25
+    disc = Point(centre).buffer(r_keep, quad_segs=32)
+    grown = unary_union([outline, disc]).buffer(1.2, quad_segs=16).buffer(-1.2, quad_segs=16)
+    return grown, hole, "tab" if how == "tab" else "tab (no room for a hole clear of the logo)"
+
+
+def build(art=None, size=SIZE, thick=THICK, border=BORDER, backing="outline",
+          fill_holes=True, ring="tab", ring_at="top-left", ring_d=RING_D,
+          colours=cards.COLOURS, max_colours=INLAYS, keep_background=False,
+          rise=0.0, nfc=True, chip_d=None, chip_t=pettag.CHIP_T,
+          back="arcs", link="", both=False, rises=None, fit="halves", label=""):
+    """One logo card, as printable parts plus the numbers worth knowing.
+
+    Returns ([part], info) in cards.build()'s shape.  info["art"] lists the
+    logo's colours and the slot each went to, so a front end can start its
+    colour pickers on them.
+
+    `both` puts the logo on the back as well, right behind the front one, in
+    the same colours: turned over, the card shows the logo's mirror image,
+    and the outline stays the logo's own.  The back then has no room for the
+    tap mark or a QR code, and goes without.
+
+    `rises` gives each logo colour its own height off the face, by slot --
+    {"primary": 1.2, "secondary": 0.4} -- so a logo can be stepped: the
+    lettering standing above its field, the field above the card.  A slot
+    it leaves out stands at `rise`.
+
+    `fit` is how the NFC sticker goes in.  "sealed": one part, and the print
+    pauses once over the sticker's pocket to drop it in.  "halves": two
+    parts, the card split through the middle of its thickness with half the
+    cavity in each and three pins on the glue line so they go together one
+    way; the sticker is glued in between, and nothing pauses.
+    """
+    if backing not in BACKINGS:
+        raise ValueError(f"no such backing: {backing} -- {', '.join(BACKINGS)}")
+    if ring not in RINGS:
+        raise ValueError(f"no such keyring fitting: {ring} -- {', '.join(RINGS)}")
+    if ring_at not in CORNERS:
+        raise ValueError(f"no such corner: {ring_at} -- {', '.join(CORNERS)}")
+    if fit not in FITS:
+        raise ValueError(f"no such sticker fitting: {fit} -- {', '.join(FITS)}")
+    if back not in ("arcs", "qr", "none"):
+        raise ValueError(f"no such back: {back} -- arcs, qr or none")
+    size = min(SIZE_MAX, max(SIZE_MIN, float(size)))
+    thick = max(2.0, float(thick))
+    border = max(0.0, float(border))
+    rise = max(0.0, float(rise))
+    rises = {k: min(RISE_MAX, max(0.0, float(v))) for k, v in (rises or {}).items()
+             if k in INLAY_SLOTS}
+    max_colours = min(INLAYS, max(1, int(max_colours)))
+    link = (link or "").strip()
+
+    seen = {}
+    regions = read_art(art, colours=max_colours + 1, keep_background=keep_background,
+                       report=seen)
+    # The sample is drawn to sit on ink, the colour the page starts in.
+    suggest = INK if not art else body_for(regions, seen.get("background"))
+    regions, art_2d, outline, bridged = fit_art(regions, size, border, backing, fill_holes)
+    inlays, folded = sort_colours(regions, colours[0], max_colours)
+    # The hole keeps clear of what shows: the inlays.  A part of the logo in
+    # the card's own colour is the card, and a hole may go through it.
+    ink = unary_union([g for _, _, g in inlays]) if inlays else Polygon()
+    outline, hole, ring_got = keyring(outline, ink, ring, ring_at, float(ring_d))
+    if ring == "hole" and ring_got != "hole" and backing == "rounded":
+        # A rectangle with no room in its corner grows at that end until
+        # there is: a keyring tag's shape, rather than a tab off a card.
+        outline = grow_end(outline, CORNERS[ring_at], float(ring_d) + 2 * RING_WALL)
+        outline, hole, ring_got = keyring(outline, ink, ring, ring_at, float(ring_d))
+    body_2d = outline.difference(hole) if hole is not None else outline
+
+    # The front: each logo colour, clipped to the card and kept off the hole.
+    # Pockets go a little past the face so the cut is clean; the inlays sit a
+    # hundredth into the floor so the parts overlap rather than kiss.
+    keep_off = hole.buffer(0.6) if hole is not None else None
+    body = cards.prisms([body_2d], 0.0, thick)[0]
+    cutters, groups_ = [], []
+    report = []
+    back_logo = False
+    for slot, hexc, g in inlays:
+        g = g.intersection(outline.buffer(-0.3))
+        if keep_off is not None:
+            g = g.difference(keep_off)
+        polys = tidy(g)
+        if not polys:
+            continue
+        up = rises.get(slot, rise)
+        if up > 0:
+            mesh = solid(polys, thick - FACE - 0.01, FACE + up + 0.01)
+        else:
+            mesh = solid(polys, thick - FACE - 0.01, FACE + 0.01)
+        cutters.append(solid(polys, thick - FACE, FACE + 1.0))
+        groups_.append(dict(slot=slot, element="logo", face="front", mesh=mesh))
+        report.append(dict(slot=slot, hex=hexc, area=round(sum(p.area for p in polys), 1),
+                           detail=round(float(cards.finest(polys)), 2), rise=round(up, 2)))
+        if both:
+            # The same colour on the back, right behind the front: from
+            # behind, the logo's mirror image, filling the same outline.
+            # Always flush -- the back is the face on the bed, and relief
+            # there would need supports.  Same slots, so no extra head.
+            under = polys
+            cutters.append(solid(under, -1.0, FACE + 1.0))
+            groups_.append(dict(slot=slot, element="logo", face="back",
+                                mesh=solid(under, 0.0, FACE + 0.01)))
+            back_logo = True
+
+    # The chip, at the roomiest point of the card, clear of the ring.
+    chip = None
+    if nfc:
+        keep = [hole.buffer(RING_WALL)] if hole is not None else []
+        tries = [float(chip_d)] if chip_d else list(CHIPS)
+        for i, d in enumerate(tries):
+            try:
+                pocket, z0, z1 = pettag.chip_pocket(body_2d, keep, d, float(chip_t), thick)
+                chip_d = d
+                break
+            except ValueError as exc:
+                if "too thin" in str(exc) or i == len(tries) - 1:
+                    hint = ("" if backing != "outline" else
+                            " -- or put a rounded rectangle or a disc behind the logo")
+                    raise ValueError(str(exc).replace("tag", "card") + hint) from None
+        if fit == "halves":
+            # Straddling the glue line, half the depth in each half.
+            depth = z1 - z0
+            z0, z1 = thick / 2.0 - depth / 2.0, thick / 2.0 + depth / 2.0
+        cutters.append(cards.prisms([pocket], z0, z1 - z0)[0])
+        uri = link
+        sealed = fit == "sealed"
+        chip = dict(d=float(chip_d), t=float(chip_t), fit=fit,
+                    pocket=round(2 * (float(chip_d) / 2 + pettag.CHIP_SLACK), 2),
+                    z0=round(z0, 2), z1=round(z1, 2),
+                    pause_z=round(z1, 2) if sealed else None,
+                    resume_z=round(z1 + LAYER, 2) if sealed else None,
+                    centre=[round(pocket.centroid.x, 2), round(pocket.centroid.y, 2)],
+                    uri=uri, bytes=cards_ndef(uri) if uri else None,
+                    fits=bool(uri) and cards_ndef(uri) <= pettag.NTAG213)
+
+    # The back is read turned over left to right, so whatever goes on it is
+    # drawn as seen from behind and then mirrored into the card's coordinates.
+    back_polys, qr = [], None
+    mark_slot = inlays[0][0] if inlays else "primary"
+    if back_logo:
+        pass                    # the back is the logo's; nothing goes over it
+    elif back == "qr" and link:
+        rows = cards.qr_matrix(link)
+        n = len(rows) + 2 * cards.QR_QUIET
+        room = body_2d.buffer(-1.5, quad_segs=16)
+        if hole is not None:
+            room = room.difference(hole.buffer(RING_WALL))
+        room = max(_flat(room), key=lambda p: p.area, default=None)
+        if room is not None:
+            c = polylabel(room, tolerance=0.1)
+            module = 2 * room.exterior.distance(c) / np.sqrt(2.0) / n
+            if module >= cards.QR_MIN_MODULE:
+                back_polys = [affinity.scale(affinity.translate(p, c.x, c.y), -1, 1,
+                                             origin=(c.x, 0))
+                              for p in cards.qr_polys(rows, module)]
+                qr = dict(modules=len(rows), module=round(module, 2),
+                          size=round(module * len(rows), 2))
+    elif back == "arcs" and chip:
+        # Right behind the chip: from the back, the chip is at -x.
+        cx, cy = chip["centre"]
+        back_polys = [affinity.scale(affinity.translate(p, -cx, cy), -1, 1, origin=(0, 0))
+                      for p in cards.contactless(min(MARK_MAX, chip["d"] * MARK))]
+    if back_polys:
+        back_polys = _flat(unary_union(back_polys).intersection(body_2d.buffer(-0.8)))
+    if back_polys:
+        cutters.append(solid(back_polys, -1.0, FACE + 1.0))
+        groups_.append(dict(slot=mark_slot, element="qr" if back == "qr" else "arcs",
+                            face="back", mesh=solid(back_polys, 0.0, FACE + 0.01)))
+
+    if cutters:
+        body = cards.boolean("difference", [body, *cutters])
+
+    # Two halves are for gluing a sticker between; with no sticker there is
+    # nothing to split the card for.
+    halves = fit == "halves" and chip is not None
+    pins = []
+    if halves:
+        blocked = [hole.buffer(RING_WALL)] if hole is not None else []
+        if chip:
+            blocked.append(Point(*chip["centre"]).buffer(chip["pocket"] / 2.0))
+        pins = pin_spots(body_2d, unary_union(blocked) if blocked else Polygon())
+        parts = split(body, groups_, thick / 2.0, pins, thick, label)
+    else:
+        groups_.insert(0, dict(slot="body", element="body", face="body", mesh=body))
+        part = dict(name="", label=label, card=0, groups=groups_, assembled=np.eye(4))
+        parts = [finish(part)]
+
+    x0, y0, x1, y1 = body_2d.bounds
+    detail = min((r["detail"] for r in report), default=0.0)
+    thin = []
+    if report and detail < cards.MIN_STROKE:
+        thin.append("logo detail")
+    if back == "qr" and link and not qr:
+        thin.append("qr")
+    colour_slots = sorted({g["slot"] for g in groups_} | {"body"}, key=cards.SLOTS.index)
+    total = thick + max([r["rise"] for r in report] or [0.0])
+    bands = [[0.0, round(FACE, 2)]] if back_polys or back_logo else []
+    bands.append([round(thick - FACE, 2), round(total, 2)])
+    info = dict(
+        kind="card", label=label, front_up=not halves,
+        w=round(x1 - x0, 2), h=round(y1 - y0, 2), thick=round(thick, 2),
+        rise=round(max([r["rise"] for r in report] or [0.0]), 2),
+        stepped=len({r["rise"] for r in report}) > 1,
+        total_z=round(total, 2), size=round(size, 1),
+        border=round(border, 2), backing=backing, bridged=bridged,
+        both=back_logo,
+        art=report, folded=folded, body=colours[0], suggest_body=suggest,
+        source="svg" if (not art or (isinstance(art, str) and (art.lstrip().startswith("<")
+                         or art.startswith("data:image/svg") or art.lower().endswith(".svg"))))
+        else "image",
+        sample=not art,
+        ring=ring_got, ring_d=float(ring_d) if hole is not None else None,
+        ring_at=ring_at if hole is not None else None,
+        hole=[round(hole.centroid.x, 3), round(hole.centroid.y, 3), float(ring_d)]
+        if hole is not None else None,
+        back="logo" if back_logo else back if back_polys else "none", qr=qr, link=link,
+        stroke=round(float(detail), 2), nozzle=cards.nozzle_for(detail) if report else None,
+        slots=colour_slots,
+        part_slots={(p["name"] or "card"): sorted(p["slots"], key=cards.SLOTS.index)
+                    for p in parts},
+        parts=[p["name"] or "card" for p in parts], pins=len(pins),
+        part_thick=round(max(float(p["mesh"].bounds[1][2]) for p in parts), 2),
+        assembled=round(total, 2),
+        pocket=[chip["pocket"], chip["pocket"], round(chip["z1"] - chip["z0"], 2)]
+        if chip else [0.0, 0.0, 0.0],
+        tag_mode="split" if halves else ("embed" if chip else "none"),
+        # where the preview draws the sticker: in the front half's own
+        # coordinates, on its glue face
+        joint=[chip["centre"][0], chip["centre"][1], 0.0] if halves and chip else None,
+        tag=[chip["d"], chip["d"], chip["t"]] if chip else [0, 0, 0],
+        colour_bands=bands, colour_z=round(FACE, 2),
+        # the colours overlap by a hundredth of a millimetre where they meet,
+        # which the sum counts twice and nobody would weigh
+        volume=round(sum(m.volume for p in parts for m in p["slots"].values()) / 1000.0, 2),
+        watertight=all(m.is_watertight and m.is_winding_consistent
+                       for p in parts for m in p["slots"].values()),
+        thin=thin, face=FACE, chamfer=0.0, layout=None, look=None,
+        nfc=chip, pause_z=chip["pause_z"] if chip else None,
+    )
+    return parts, info
+
+
+def finish(part):
+    """A part's colour slots gathered: what the 3MF takes, one mesh a colour.
+
+    part["mesh"] is the slots side by side, not welded: enough for the plate
+    layout, the size and the volume, and welding a traced illustration's
+    colours into one solid is the slowest thing in the build.  weld() does
+    it, for the one download that wants a single solid -- the STL."""
+    part["slots"] = cards.slot_meshes(part)
+    solids = [part["slots"][s] for s in cards.SLOTS if s in part["slots"]]
+    part["mesh"] = solids[0] if len(solids) == 1 else cards.trimesh.util.concatenate(solids)
+    return part
+
+
+def weld(parts):
+    """The parts with each one's colours welded into a single solid."""
+    out = []
+    for part in parts:
+        solids = [part["slots"][s] for s in cards.SLOTS if s in part["slots"]]
+        mesh = solids[0] if len(solids) == 1 else cards.boolean("union", solids)
+        out.append({**part, "mesh": mesh})
+    return out
+
+
+def pin_spots(body_2d, blocked):
+    """Three pin positions on the glue line, spread as far apart as the card
+    allows and clear of the edge, the sticker and the keyring hole.  Three
+    rather than four so they only fit one way; fewer if the card has no room,
+    which glues up flat no worse."""
+    r = PIN["d"] / 2.0
+    room = body_2d.buffer(-(r + 1.4), quad_segs=8).difference(blocked.buffer(r + 1.2))
+    pts = [c for g in _flat(room) for ring in [g.exterior] for c in ring.coords[:-1]]
+    if not pts:
+        return []
+    pts = np.array(pts)
+    centre = np.array(body_2d.centroid.coords[0])
+    chosen = [pts[np.argmax(np.linalg.norm(pts - centre, axis=1))]]
+    while len(chosen) < 3:
+        d = np.min([np.linalg.norm(pts - c, axis=1) for c in chosen], axis=0)
+        if d.max() < 4 * r:
+            break
+        chosen.append(pts[np.argmax(d)])
+    return [tuple(map(float, c)) for c in chosen]
+
+
+def split(body, groups_, z_mid, pins, thick, label):
+    """The card cut in two at `z_mid`: [front half, back half].
+
+    Neither half is turned over.  The back half prints as it lies, back face
+    on the bed and glue face up with the pins standing on it; the front half
+    drops onto its glue face, front up, with the pins' holes in its underside
+    -- so relief on the front prints on top, where it needs no support, and
+    each half's colours are in its own few layers against the bed or at the
+    top.  Each part's `assembled` puts it back into the card as the viewer
+    shows a split body: face down, the back half on top, the way the fob's
+    halves go together.
+    """
+    big = cards.rounded_rect(1e3, 1e3, 0.0)
+    lo = cards.prisms([big], -1.0, z_mid + 1.0)[0]
+    hi = cards.prisms([big], z_mid, thick + 10.0)[0]
+    studs = [Point(c).buffer(PIN["d"] / 2.0, quad_segs=16) for c in pins]
+    bores = [Point(c).buffer(PIN["d"] / 2.0 + PIN["clearance"], quad_segs=16) for c in pins]
+
+    back = cards.boolean("intersection", [body, lo])
+    if studs:
+        back = cards.boolean("union", [back, *cards.prisms(studs, z_mid - 0.3,
+                                                             PIN["height"] + 0.3)])
+    front = cards.boolean("intersection", [body, hi])
+    if bores:
+        front = cards.boolean("difference", [front, *cards.prisms(
+            bores, z_mid - 0.01, PIN["height"] + 0.16)])
+
+    import trimesh
+    down = trimesh.transformations.translation_matrix((0.0, 0.0, -z_mid))
+    # The card as the viewer holds a split body: turned face down, sitting on z=0.
+    view = trimesh.transformations.translation_matrix((0.0, 0.0, thick)) @ \
+        trimesh.transformations.rotation_matrix(np.pi, [0, 1, 0])
+    parts = []
+    for name, slab, face in (("front", front, "front"), ("back", back, "back")):
+        gs = [dict(slot="body", element="body", face="body", mesh=slab)]
+        gs += [dict(g, mesh=g["mesh"].copy()) for g in groups_ if g["face"] == face]
+        move = down if name == "front" else np.eye(4)
+        for g in gs:
+            g["mesh"].apply_transform(move)
+        parts.append(finish(dict(name=name, label=label, card=0, groups=gs,
+                                 assembled=view @ np.linalg.inv(move))))
+    return parts
+
+
+PREFIXES = ("https://www.", "http://www.", "https://", "http://", "tel:", "mailto:")
+
+
+def cards_ndef(uri):
+    """Bytes a one-record NDEF URI message takes on the chip: the TLV
+    wrapper, the record header, a one-byte code for a common prefix, the rest
+    and the terminator -- the same sum the page does for the fob's link."""
+    rest = next((uri[len(p):] for p in PREFIXES if uri.startswith(p)), uri)
+    return 8 + len(rest.encode())
+
+
+if __name__ == "__main__":
+    import argparse
+    import sys
+
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("logo", nargs="?", help="an SVG, PNG, JPEG or WebP (default: the sample)")
+    ap.add_argument("-o", "--out", default="logo_card.3mf", help=".3mf or .stl")
+    ap.add_argument("--size", type=float, default=SIZE)
+    ap.add_argument("--border", type=float, default=BORDER)
+    ap.add_argument("--backing", choices=BACKINGS, default="outline")
+    ap.add_argument("--ring", choices=RINGS, default="tab")
+    ap.add_argument("--ring-at", choices=list(CORNERS), default="top-left")
+    ap.add_argument("--body", default="#f5f2ec", help="body colour, #rrggbb")
+    ap.add_argument("--link", default="")
+    ap.add_argument("--back", choices=("arcs", "qr", "none"), default="arcs")
+    ap.add_argument("--no-nfc", action="store_true")
+    ap.add_argument("--both", action="store_true", help="the logo on the back too")
+    ap.add_argument("--fit", choices=FITS, default="halves",
+                    help="the sticker glued between two halves, or sealed in by a pause")
+    ap.add_argument("--rises", default="", help="each logo colour's height, largest colour "
+                    "first, in mm: 0,1.2 steps the second colour up 1.2 mm")
+    a = ap.parse_args()
+    body = (a.body,) + tuple(cards.COLOURS[1:])
+    parts, info = build(a.logo, size=a.size, border=a.border, backing=a.backing,
+                        ring=a.ring, ring_at=a.ring_at, colours=body, link=a.link,
+                        back=a.back, nfc=not a.no_nfc, both=a.both, fit=a.fit,
+                        rises=dict(zip(INLAY_SLOTS, map(float, filter(None,
+                                                            a.rises.split(",")))))
+                        if a.rises else None)
+    palette = list(body)
+    for r in info["art"]:
+        palette[cards.SLOTS.index(r["slot"])] = r["hex"]
+    if a.out.endswith(".stl"):
+        cards.plate(weld(parts)).export(a.out)
+    else:
+        Path(a.out).write_bytes(cards.export_3mf(parts, tuple(palette)))
+    print(f"{a.out}: {info['w']} x {info['h']} x {info['total_z']} mm, "
+          f"{len(info['slots'])} colours, ring {info['ring']}, "
+          f"chip {info['nfc']['d'] if info['nfc'] else 'none'}", file=sys.stderr)

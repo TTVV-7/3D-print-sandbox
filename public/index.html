@@ -220,6 +220,13 @@
     background: var(--bg-default); border: 1px solid var(--border-default);
     border-radius: var(--radius-200); color: var(--text-default);
   }
+  #building_note {
+    position: absolute; left: 50%; top: calc(50% + 78px); transform: translateX(-50%);
+    width: 300px; max-width: calc(100% - 32px); margin: 0; text-align: center; pointer-events: none;
+    font-size: 12px; line-height: 1.4; color: var(--text-secondary); box-sizing: border-box;
+    padding: var(--space-200) var(--space-300); background: var(--bg-default);
+    border: 1px solid var(--border-default); border-radius: var(--radius-200);
+  }
   #building p {
     position: absolute; left: 0; right: 0; bottom: var(--space-300); margin: 0; text-align: center;
     font-size: 12px; font-weight: 600; letter-spacing: .1em; color: var(--text-secondary);
@@ -423,7 +430,7 @@
 <body>
 <aside>
   <div>
-    <h1>Fobs, keyrings, pet tags, signs</h1>
+    <h1>Logo cards, keyrings, pet tags, signs</h1>
     <p class="sub">Pick a shape, fill it in, take the file away.</p>
     <p class="sub" style="margin-top:var(--space-200)"><a href="/case"
        style="color:var(--text-secondary)">Phone cases &rarr;</a></p>
@@ -432,9 +439,9 @@
   <section>
     <h2>1 &middot; Shape</h2>
     <div class="tiles" data-light="kind">
-      <button type="button" class="tile" data-kind="fob" aria-pressed="true">
-        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/fob.webp)"></span>
-        <div><b>Keyring fob</b><span>62 &times; 34 mm, tag inside</span></div>
+      <button type="button" class="tile" data-kind="card" aria-pressed="true">
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/card.webp)"></span>
+        <div><b>NFC logo card</b><span>your logo is the shape, in its own colours</span></div>
       </button>
       <button type="button" class="tile" data-kind="name" aria-pressed="false">
         <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/name.webp)"></span>
@@ -453,16 +460,30 @@
         <div><b>Stencil</b><span>a plate with the word cut through it</span></div>
       </button>
     </div>
-    <input type="hidden" id="kind" value="fob">
-    <p class="hint" id="shape_note">The fob is the one that lives on a keyring, with an NFC tag
-       sealed inside it.</p>
+    <input type="hidden" id="kind" value="card">
+    <p class="hint" id="shape_note">The business card, remade: your logo is the shape of it, in the
+       logo's own colours, with an NFC sticker sealed inside and a hole for a keyring.</p>
   </section>
 
   <section>
     <h2 id="who">2 &middot; Who you are</h2>
-    <label class="field" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Dino" autocomplete="off"></label>
+    <label class="field" data-for="fob name pet stencil sign" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Dino" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
+    <label class="field" data-for="card" data-light="art_file"><span>Logo</span><input type="file" id="art_file" accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp"></label>
+    <p class="hint" data-for="card" id="art_note">An SVG is best &mdash; its shapes come through exactly. A PNG,
+       JPEG or WebP works too: it is traced, its background taken away, and its colours boiled down
+       to the few flat ones the logo is really drawn in. Until you pick one, the card shows a
+       made-up sample. A simple logo builds in a second; a detailed illustration, with hundreds of
+       shapes, can take up to a minute each time something changes.</p>
+    <label class="check" data-for="card" data-light="card_bg"><input type="checkbox" id="card_bg"><span>Keep the background it was drawn on</span></label>
+    <p class="hint" data-for="card">Off, the rectangle or white page a logo is so often exported on is taken
+       away and the card follows the logo itself. On, the background is part of the logo &mdash; for
+       an app icon or a badge whose square is the point.</p>
+    <label class="check" data-for="card" data-light="card_both"><input type="checkbox" id="card_both"><span>Logo on both sides</span></label>
+    <p class="hint" data-for="card">The logo on the back as well, right behind the front one and in the same
+       filaments &mdash; no extra head. Turn the card over and you see its mirror image, filling exactly
+       the same outline. The back then has no room for the tap mark or a QR code.</p>
     <label class="field" data-for="fob pet" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
     <label class="field" data-for="fob" data-light="email"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
     <p class="hint" data-for="fob">Name, company, title, phone and email are the five every guide to business
@@ -499,6 +520,60 @@
 
   <section>
     <h2>3 &middot; How it looks</h2>
+    <div class="field" data-for="card" data-light="card_size"><span>Size</span>
+      <div class="slider"><input type="range" id="card_size" min="40" max="120" step="1" value="70"><output id="card_size_v">70 mm</output></div>
+    </div>
+    <p class="hint" data-for="card">The longest side of the card, not counting the keyring tab. A
+       business card is 85 mm across; 60 to 80 still reads as a card and fits a wallet.</p>
+    <label class="field" data-for="card" data-light="card_backing"><span>Shape</span>
+      <select id="card_backing">
+        <option value="outline">Follows the logo</option>
+        <option value="rounded">Rounded rectangle</option>
+        <option value="circle">Disc</option>
+      </select>
+    </label>
+    <div class="field" data-for="card" data-light="card_border"><span>Border round the logo</span>
+      <div class="slider"><input type="range" id="card_border" min="0" max="6" step="0.5" value="2"><output id="card_border_v">2 mm</output></div>
+    </div>
+    <p class="hint" data-for="card">Follows the logo: every colour in it is traced and merged, grown by the
+       border and cut out along that line, like a die-cut sticker. Pieces that stand apart are bridged
+       until it is one card. A long thin wordmark may leave no room for the chip &mdash; give it a
+       rounded rectangle or a disc behind it instead.</p>
+    <label class="check" data-for="card" data-light="card_holes"><input type="checkbox" id="card_holes" checked><span>Fill in the holes inside the logo</span></label>
+    <label class="field" data-for="card" data-light="card_colours"><span>Logo colours</span>
+      <select id="card_colours">
+        <option value="3">Up to three</option>
+        <option value="2">Up to two</option>
+        <option value="1">One</option>
+      </select>
+    </label>
+    <p class="hint" data-for="card">Each colour of the logo is its own filament, inlaid 0.6 mm into the front
+       and flush with it. A four-head printer has one head for the card and three for the logo, so a
+       logo with more colours has its closest ones merged. A logo colour that matches the card's own
+       &mdash; white lettering on a white card &mdash; is simply the card showing through, and costs no
+       head at all.</p>
+    <label class="field" data-for="card" data-light="card_ring"><span>Keyring</span>
+      <select id="card_ring">
+        <option value="tab">Tab with a hole, off the edge</option>
+        <option value="hole">Hole in the corner of the card</option>
+        <option value="none">None</option>
+      </select>
+    </label>
+    <label class="field" data-for="card" data-light="card_at"><span>Where</span>
+      <select id="card_at">
+        <option value="top-left">Top left</option>
+        <option value="top">Top</option>
+        <option value="top-right">Top right</option>
+        <option value="left">Left</option>
+        <option value="right">Right</option>
+        <option value="bottom-left">Bottom left</option>
+        <option value="bottom-right">Bottom right</option>
+      </select>
+    </label>
+    <p class="hint" data-for="card">A tab stands off the outline at that corner, like a keyring fob's. A hole
+       goes through the card itself, as far into the corner as it will go while staying clear of the
+       logo &mdash; and when there is no room for that, it becomes a tab rather than a hole through
+       your logo. The readout says which you got.</p>
     <label class="field" data-for="sign" data-light="sign_shape"><span>Box shape</span>
       <select id="sign_shape">
         <option value="letters">Follows the letters</option>
@@ -673,7 +748,7 @@
       <div class="slider"><input type="range" id="cap" min="8" max="26" step="0.5" value="14"><output id="cap_v">14 mm</output></div>
     </div>
     <p class="hint" data-for="name" id="cap_note"></p>
-    <div class="field" data-for="name pet" data-light="ring_d" id="ring_field" data-style="hanging"><span>Ring hole</span>
+    <div class="field" data-for="name pet card" data-light="ring_d" id="ring_field" data-style="hanging"><span>Ring hole</span>
       <div class="slider"><input type="range" id="ring_d" min="0" max="9" step="0.5" value="5"><output id="ring_v">5 mm</output></div>
     </div>
     <p class="hint" data-for="name">A 5 mm hole takes a split ring or a lobster clasp. Nothing at all
@@ -718,6 +793,10 @@
        half as it prints &mdash; so a multi-material printer does all its changes in three layers
        and the rest of the part in the body colour. Primary is the name, phone and logo;
        secondary the quieter lines and the tap wording.</p>
+    <p class="hint" data-for="card">The card's own colour, and one for each colour of the logo. A new logo
+       starts them on its own colours &mdash; and the card on the background it came on, or white
+       &mdash; each moved to the nearest spool on the shelf, so what you see is what can be printed.
+       Change any of them; the back's tap mark is in the first logo colour.</p>
     <p class="hint" data-for="name">Body is the outline and Primary the letters on top of it. The other
        two are not used by a keyring.</p>
     <p class="hint" data-for="pet">Body is the tag. Primary is the name on the front, Secondary the phone
@@ -731,15 +810,76 @@
        lettering <i>and</i> the diffuser behind it, and it wants a translucent or a white filament
        &mdash; they are one piece, and they are the only thing the light comes through. The other two
        are not used.</p>
-    <div class="field" data-light="rise"><span>Relief</span>
+    <div class="field" data-light="rise" id="rise_field"><span>Relief</span>
       <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
     </div>
+    <label class="check" data-for="card" data-light="card_stepped"><input type="checkbox" id="card_stepped"><span>A different height for each colour</span></label>
+    <div id="card_steps" hidden>
+      <div class="field" data-light="c2" data-slot="primary"><span id="card_rise_primary_l">Logo colour 1</span>
+        <div class="slider"><input type="range" id="card_rise_primary" min="0" max="3" step="0.2" value="0.4"><output id="card_rise_primary_v">0.4 mm</output></div>
+      </div>
+      <div class="field" data-light="c3" data-slot="secondary"><span id="card_rise_secondary_l">Logo colour 2</span>
+        <div class="slider"><input type="range" id="card_rise_secondary" min="0" max="3" step="0.2" value="1.2"><output id="card_rise_secondary_v">1.2 mm</output></div>
+      </div>
+      <div class="field" data-light="c1" data-slot="pattern"><span id="card_rise_pattern_l">Logo colour 3</span>
+        <div class="slider"><input type="range" id="card_rise_pattern" min="0" max="3" step="0.2" value="2"><output id="card_rise_pattern_v">2.0 mm</output></div>
+      </div>
+    </div>
+    <p class="hint" data-for="card">Stands each colour of the logo at its own height off the card, so the logo
+       is stepped like a badge &mdash; lettering above the field it sits on, the field above the card.
+       0 is flush. The biggest colour starts lowest and the finer ones higher; set them however the
+       logo reads best. Only the front steps: the back prints on the bed and stays flush.</p>
     <p class="hint" data-for="pet">Flush is the default and the one to sell: the lettering is inlaid 0.6 mm
        into the tag, so there is nothing standing up to wear off against a collar. Raised is for the
        look, and only the front can be raised &mdash; the back prints face down.</p>
+    <p class="hint" data-for="card">Flush is a smooth card with the logo inlaid level with it. Raised stands
+       the logo off the face &mdash; you can feel it &mdash; at the cost of a colour change on every
+       layer of the relief.</p>
     <p class="hint" data-for="fob">How far the lettering stands off the face. Flush is a smooth fob with every
        colour in the face layer. 1.2 mm you can feel with a thumb, at the cost of a colour change
        on every layer of the relief.</p>
+  </section>
+
+  <section data-for="card">
+    <h2>4 &middot; The tap side</h2>
+    <label class="check" data-light="card_nfc"><input type="checkbox" id="card_nfc" checked><span>NFC sticker inside</span></label>
+    <label class="field" data-light="card_fit" id="card_fit_field"><span>How it goes in</span>
+      <select id="card_fit">
+        <option value="halves">Two halves &mdash; sticker glued between them</option>
+        <option value="sealed">Sealed in &mdash; pause the print, drop it in</option>
+      </select>
+    </label>
+    <p class="hint" id="card_fit_note">Two parts on one plate, the card split through the middle of its
+       thickness with half the sticker's cavity in each, and three pins on the glue line so they only go
+       together one way. No pause: print both, put the sticker in the cavity, glue the flat round it and
+       clamp. Use Pulled apart above the preview to see the sticker between them.</p>
+    <label class="field" data-light="card_chip" id="card_chip_field"><span>Sticker</span>
+      <select id="card_chip">
+        <option value="0">The biggest that fits</option>
+        <option value="30">30 mm round</option>
+        <option value="25">25 mm round</option>
+        <option value="20">20 mm round</option>
+        <option value="15">15 mm round</option>
+        <option value="12">12 mm round</option>
+      </select>
+    </label>
+    <p class="hint">A round NTAG sticker in a pocket in the middle of the card, at its roomiest point.
+       The print stops once, just above the pocket: drop the sticker in and resume, and it is sealed
+       inside for good &mdash; nothing to peel, nothing showing. The 3MF carries the pause, and the
+       readout says the height. A bigger sticker reads from further off.</p>
+    <label class="field" data-light="card_link"><span>Link</span><input type="text" id="card_link" value="" autocomplete="off" placeholder="https://..."></label>
+    <p class="hint" id="card_linkfit">What a phone opens when it taps the card &mdash; your site, a booking
+       page, a vCard. Nothing here writes the sticker; that is a phone job (NFC Tools and the like),
+       once the card is printed. A link you control can be re-pointed later without reprinting.</p>
+    <label class="field" data-light="card_back"><span>On the back</span>
+      <select id="card_back">
+        <option value="arcs">The tap mark, over the sticker</option>
+        <option value="qr">A QR code for the link</option>
+        <option value="none">Nothing</option>
+      </select>
+    </label>
+    <p class="hint">The tap mark tells whoever is holding the card where to put their phone. The QR code
+       is the same link for phones that do not tap; it needs the link above.</p>
   </section>
 
   <section data-for="fob">
@@ -773,7 +913,7 @@
        code, and a coarser code prints on a bigger nozzle.</p>
   </section>
 
-  <section>
+  <section data-for="fob name pet stencil sign">
     <h2 data-for="fob">5 &middot; A batch of them</h2>
     <h2 data-for="name pet stencil sign">4 &middot; A batch of them</h2>
     <label class="field"><span>One person per line</span>
@@ -818,6 +958,8 @@
       <div class="longfazers"><span></span><span></span><span></span><span></span></div>
       <p>BUILDING</p>
     </div>
+    <p id="building_note" hidden>Complex logos can take more time &mdash; a detailed illustration
+       up to a minute.</p>
     <div id="buttons">
       <button class="button subtle" id="flip"><svg viewBox="0 0 16 16"><path d="M2 8a6 6 0 0 1 10.4-4.1M14 8a6 6 0 0 1-10.4 4.1"/><path d="M12.5 1v3h-3M3.5 15v-3h3"/></svg>Flip</button>
       <button class="button neutral" id="save_stl" disabled>STL</button>
@@ -836,10 +978,18 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "plate_w", "plate_h", "margin", "bridge", "thick",
                 "depth", "wall", "diffuse", "cable", "mount", "sign_shape", "cable_side",
                 "pet_style", "pet_shape", "pet_size", "pet_sides", "pet_note",
-                "pet_collar", "pet_slot", "pet_link", "pet_chip"];
+                "pet_collar", "pet_slot", "pet_link", "pet_chip",
+                "card_size", "card_border", "card_backing", "card_colours", "card_ring",
+                "card_at", "card_chip", "card_back", "card_link", "card_fit"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 let logoText = "", designText = "", stencilSvg = "";
+/* The logo card's logo: SVG text, or an image as a data: URL.  `artFresh` is
+   "body" when a new one arrives, so the next build starts the card's colour
+   and the logo's on it; "slots" when that build moved the card's colour and
+   the one after it has to hand out the logo's colours again. */
+let artData = "", artName = "", artFresh = "body";
+const STEP_SLOTS = ["primary", "secondary", "pattern"];
 const specs = $("specs");
 
 /* The looks, as src/looks.py has them -- a layout, a pattern and four colours:
@@ -1323,6 +1473,9 @@ function setMode(next, snap) {
     b.setAttribute("aria-pressed", String(b.dataset.mode === mode));
   liftTo = mode === "apart" ? (parts[0] ? parts[0].lift : 14) : 0;
   [yawTo, pitchTo] = CAMERA[mode];
+  // A sealed logo card comes apart upwards, at the pause: look down into
+  // the open pocket rather than up at the bottom of it.
+  if (mode === "apart" && info && info.kind === "card" && info.front_up) [yawTo, pitchTo] = [0, -0.75];
   if (mode === "glued") yawTo = frontYaw;
   frameView();
   if (snap) { lift = liftTo; yaw = yawTo; pitch = pitchTo; focus = [...focusTo]; dist = distTo; }
@@ -1335,6 +1488,22 @@ function setMode(next, snap) {
 const HUD_IDLE = "drag to turn \u00b7 scroll to zoom";
 const LIGHTS = {
   kind:        { all: true, label: "the whole part" },
+  art_file:    { el: ["logo"], label: "the logo" },
+  card_bg:     { all: true, label: "the whole card" },
+  card_size:   { all: true, label: "the whole card" },
+  card_backing:{ el: ["body"], label: "the card's shape" },
+  card_border: { el: ["body"], label: "the border round the logo" },
+  card_holes:  { el: ["body"], label: "the card's shape" },
+  card_colours:{ el: ["logo"], label: "the logo's colours" },
+  card_ring:   { el: ["body"], label: "the card the keyring goes through" },
+  card_at:     { el: ["body"], label: "the card the keyring goes through" },
+  card_nfc:    { el: ["tag"], mode: "apart", label: "the NFC sticker" },
+  card_chip:   { el: ["tag"], mode: "apart", label: "the NFC sticker" },
+  card_link:   { el: ["qr"], label: "the QR code" },
+  card_back:   { face: "back", label: "the back" },
+  card_fit:    { el: ["tag"], mode: "apart", label: "the sticker between the halves" },
+  card_both:   { face: "back", label: "the logo on the back" },
+  card_stepped:{ el: ["logo"], label: "the logo" },
   name:        { el: ["name"], label: "the name" },
   company:     { el: ["company"], label: "the company" },
   role:        { el: ["role"], label: "the title" },
@@ -1535,6 +1704,7 @@ function checkLink() {
 
 function readout() {
   const line = (k, v) => `<span>${k} <b>${v}</b></span>`;
+  if (info.kind === "card") return cardReadout(line);
   if (info.kind === "name") return wordReadout(line);
   if (info.kind === "pet") return petReadout(line);
   if (info.kind === "stencil") return cutReadout(line);
@@ -1632,6 +1802,56 @@ function petReadout(line) {
     info.qr && info.qr.module < 0.8
       ? `<span class="warn">QR modules under 0.8 mm scan poorly off a print &mdash; a bigger tag,
          a shorter link, or leave the code off.</span>` : "",
+  ].join("");
+}
+
+/* The logo card: what came out of the logo, where the keyring went, and the
+   one pause that seals the sticker in. */
+const far = (a, b) => Math.hypot(...[1, 3, 5].map(i =>
+  parseInt(a.substr(i, 2), 16) - parseInt(b.substr(i, 2), 16))) > 70;
+function cardReadout(line) {
+  const names = Object.fromEntries(slotRows());
+  const swatch = hex => `<i style="display:inline-block;width:10px;height:10px;border-radius:2px;` +
+                        `background:${hex};vertical-align:-1px;margin-right:3px"></i>`;
+  const grams = info.volume * (spoolMaterial("c0").startsWith("PETG") ? 1.27 : 1.24);
+  const art = info.art.map(a => `${swatch(a.hex)}${a.hex} as ${(names[SLOT_IDS[a.slot]] || a.slot).toLowerCase()}`);
+  const n = info.nfc;
+  specs.innerHTML = [
+    line("size", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.total_z)} mm`),
+    line("logo", `${info.sample ? "the sample &mdash; pick yours above" : `an ${info.source === "svg" ? "SVG" : "image, traced"}`}`),
+    art.length ? line("colours", art.join(" &middot; ")) : "",
+    info.folded.length ? line("same as the card", info.folded.map(h => `${swatch(h)}${h}`).join(" ") + " &mdash; no inlay needed") : "",
+    info.bridged ? line("bridged", info.bridged > 50 ? "the pieces were too far apart, so the card is their outline"
+                                                     : `pieces up to ${mm(info.bridged)} mm apart joined into one card`) : "",
+    info.both ? line("back", "the logo again, mirrored, right behind the front") : "",
+    info.stepped ? line("heights", info.art.map(a => `${swatch(a.hex)}${a.rise ? mm(a.rise) + " mm" : "flush"}`).join(" &middot; ")) : "",
+    info.ring !== "none" ? line("keyring", `${info.ring}, ${mm(info.ring_d)} mm, ${info.ring_at.replace("-", " ")}`) : "",
+    line("weighs", `${grams.toFixed(1)} g (${info.volume.toFixed(2)} cm&sup3;)`),
+    line("colours change", (info.colour_bands.length > 1 ? "in the first and last 3 layers" : "in the last 3 layers") +
+                           (info.rise ? ` and through the ${mm(info.rise)} mm of relief` : "")),
+    info.nozzle ? line("finest detail", `${mm(info.stroke)} mm &mdash; ${info.nozzle} mm nozzle or finer`) : "",
+    headsLine(line),
+    info.parts.length > 1 ? line("two halves", `front ${mm(info.thick / 2 + info.rise)} mm and back ${mm(info.thick / 2)} mm, ` +
+                                 `${info.pins} pin${info.pins === 1 ? "" : "s"}, ${mm(info.assembled)} mm glued up`) : "",
+    n && n.fit === "halves" ? line("nfc sticker", `${n.d} mm round, in a ${mm(n.pocket)} mm cavity split across the glue line &mdash; no pause`) : "",
+    n && n.fit !== "halves" ? line("nfc sticker", `${n.d} mm round, sealed ${mm(n.z0)}&ndash;${mm(n.z1)} mm up`) : "",
+    n && n.pause_z ? line("pause", `after the layer at ${mm(n.pause_z)} mm, drop the sticker in, resume at ${mm(n.resume_z)} (0.2 mm layers; the 3MF has it)`) : "",
+    n && n.uri ? line("write to the sticker", `<code>${n.uri}</code> &mdash; ${n.bytes} bytes, ` +
+      (n.fits ? "fits an NTAG213" : `<span class="err">too long for an NTAG213 &mdash; use an NTAG215 or a shorter link</span>`)) : "",
+    n && !n.uri ? `<span class="warn">no link yet &mdash; fill in the link box to see what the sticker needs</span>` : "",
+    info.qr ? line("qr", `${info.qr.modules} modules at ${info.qr.module} mm, ${mm(info.qr.size)} mm square`) : "",
+    info.qr && info.qr.module < 0.8
+      ? `<span class="warn">QR modules under 0.8 mm scan poorly off a print &mdash; a bigger card or a
+         shorter link</span>` : "",
+    ...info.art.filter(a => SPOOLS.length && far(a.hex, $(SLOT_IDS[a.slot]).value)).map(a =>
+      `<span class="warn">nothing on the ${spoolMaterial(SLOT_IDS[a.slot])} shelf is close to ${swatch(a.hex)}${a.hex}
+       &mdash; it is printing as ${spoolName(SLOT_IDS[a.slot]) || $(SLOT_IDS[a.slot]).value}. Another
+       material may have it.</span>`),
+    info.thin.includes("qr") ? `<span class="warn">no room for a QR code that prints &mdash; a bigger card, or a shorter link</span>` : "",
+    $("card_back").value === "qr" && !info.link ? `<span class="warn">a QR code needs the link box filled in</span>` : "",
+    info.thin.includes("logo detail")
+      ? `<span class="warn">parts of the logo are under 0.8 mm &mdash; a bigger card, or fewer colours</span>` : "",
+    !info.nfc && $("card_nfc").checked ? `<span class="warn">no sticker fits this card</span>` : "",
   ].join("");
 }
 
@@ -1783,6 +2003,14 @@ function formParams() {
   params.outline = $("outline").checked;
   params.pet_border = $("pet_border").checked;
   params.pet_nfc = $("pet_nfc").checked;
+  params.card_bg = $("card_bg").checked;
+  params.card_holes = $("card_holes").checked;
+  params.card_nfc = $("card_nfc").checked;
+  params.card_both = $("card_both").checked;
+  params.card_rises = $("card_stepped").checked
+    ? Object.fromEntries(STEP_SLOTS.map(slot => [slot, +$(`card_rise_${slot}`).value])) : null;
+  params.art = $("kind").value === "card" ? artData : "";
+  if ($("kind").value === "card") params.batch = "";    // one design, one card
   params.gzip = CAN_INFLATE;
   params.qr = $("qr").checked;
   if (!params.qr) params.link = "";               // the link only shapes the part as a code
@@ -1797,6 +2025,7 @@ async function rebuild() {
   const params = formParams();
   const mine = ++seq;
   $("building").hidden = false;
+  $("building_note").hidden = $("kind").value !== "card";
   try {
     const res = await fetch("/api/model", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -1808,27 +2037,52 @@ async function rebuild() {
       $("save").disabled = $("save_stl").disabled = true;
       return;
     }
-    const wasSplit = info && info.parts.length > 1;
+    // Split: more than one part, or a sticker sealed inside one that the
+    // preview can show going in.
+    const splitOf = i => !!i && (i.parts.length > 1 || (i.preview || []).some(p => p.tag));
+    const wasSplit = splitOf(info);
     info = JSON.parse(res.headers.get("X-Card-Info"));
     stl = await body(res);
-    const split = info.parts.length > 1;
+    const split = splitOf(info);
+    if (info.kind === "card")
+      $("modes").querySelectorAll("button").forEach((b, i) => {
+        b.textContent = (info.parts.length > 1 ? ["Glued up", "Pulled apart", "On the plate"]
+                                               : ["Finished", "At the pause", "On the plate"])[i];
+      });
     $("modes").hidden = !split;
     if (!split) mode = "glued";
     if (gl) {
       upload(stl);
       setMode(mode, wasSplit !== split || !parts.length);
     }
+    if (info.kind === "card" && artFresh) takeLogoColours(params.colours[0], artFresh === "body");
+    else if (info.kind === "card") spoolsChosen();     // as many rows as the logo has colours
+    if (info.kind === "card") stepsShown();
     readout();
     $("save").disabled = $("save_stl").disabled = false;
     if (product) loadProduct();
   } catch (e) {
     specs.innerHTML = `<span class="err">${e.message} &mdash; is src/app.py still running?</span>`;
   } finally {
-    if (mine === seq) $("building").hidden = true;
+    if (mine === seq) $("building").hidden = $("building_note").hidden = true;
   }
 }
 
 const queue = () => { clearTimeout(pending); pending = setTimeout(rebuild, 300); };
+
+/* A new logo: start the card on the colour it suggests -- the background it
+   came on, or white -- and each logo slot on the logo's own colour, moved to
+   the nearest spool on the shelf.  The body colour decides which logo colours
+   fold into it, and so which colour lands in which slot: if it moved, build
+   again and hand the logo's colours out afresh from that build. */
+function takeLogoColours(sentBody, body) {
+  artFresh = false;
+  if (body) $("c0").value = info.suggest_body;
+  for (const a of info.art) $(SLOT_IDS[a.slot]).value = a.hex;
+  spoolsChosen(true);
+  if ($("c0").value.toLowerCase() !== sentBody.toLowerCase()) { artFresh = "slots"; queue(); }
+  else recolour();
+}
 
 /* A control lights up what it makes: the focused one wins, and the hovered
    one fills in while nothing has focus. */
@@ -1853,6 +2107,83 @@ aside.addEventListener("pointerover", e => {
 aside.addEventListener("pointerleave", () => { hoverKey = null; setLight(focusedKey); });
 
 $("link").addEventListener("input", checkLink);
+$("card_link").addEventListener("input", checkCardLink);
+for (const id of ["card_bg", "card_holes", "card_nfc", "card_both", "card_stepped"])
+  $(id).addEventListener("change", () => { stepsShown(); queue(); });
+for (const slot of STEP_SLOTS)
+  $(`card_rise_${slot}`).addEventListener("input", e => {
+    $(`card_rise_${slot}_v`).textContent = +e.target.value ? `${(+e.target.value).toFixed(1)} mm` : "flush";
+    queue();
+  });
+
+/* The logo card's own height controls: one slider per colour the logo has,
+   named as the colour rows are, in place of the one relief slider; and the
+   back's mark gives way to the logo when the logo is on both sides. */
+function stepsShown() {
+  const card = $("kind").value === "card", stepped = card && $("card_stepped").checked;
+  $("card_steps").hidden = !stepped;
+  $("rise_field").hidden = stepped;
+  $("card_back").disabled = $("card_both").checked;
+  const names = Object.fromEntries(slotRows());
+  for (const row of $("card_steps").querySelectorAll("[data-slot]")) {
+    const slot = row.dataset.slot;
+    row.hidden = !!(info && info.kind === "card" && !info.slots.includes(slot));
+    $(`card_rise_${slot}_l`).textContent = `${names[SLOT_IDS[slot]] || slot} height`;
+  }
+}
+$("card_nfc").addEventListener("change", () => {
+  $("card_chip_field").hidden = $("card_fit_field").hidden = !$("card_nfc").checked;
+});
+const CARD_FIT_NOTES = {
+  sealed: "One part. The print stops once, just above the sticker's pocket: drop the sticker in " +
+          "and resume, and it is sealed inside for good. The 3MF carries the pause. At the pause, " +
+          "above the preview, shows the card cut there with the sticker going in.",
+  halves: "Two parts on one plate, the card split through the middle of its thickness with half " +
+          "the sticker's cavity in each, and three pins on the glue line so they only go together " +
+          "one way. No pause: print both, put the sticker in the cavity, glue the flat round it and " +
+          "clamp. Use Pulled apart above the preview to see the sticker between them.",
+};
+$("card_fit").addEventListener("change", () => { $("card_fit_note").textContent = CARD_FIT_NOTES[$("card_fit").value]; });
+$("art_file").addEventListener("change", async () => {
+  const f = $("art_file").files[0];
+  if (!f) return;
+  try {
+    artData = /svg/.test(f.type) || /\.svg$/i.test(f.name) ? await f.text() : await shrink(f);
+  } catch (e) {
+    specs.innerHTML = `<span class="err">${f.name} could not be read &mdash; ${e.message}</span>`;
+    return;
+  }
+  artName = f.name.replace(/\.[^.]+$/, "");
+  artFresh = "body";
+  $("art_note").textContent = `${f.name}, ${(f.size / 1024).toFixed(0)} kB. Pick another to replace it.`;
+  queue();
+});
+
+/* An image goes to the server no bigger than it can use: the tracer works at
+   480 pixels, so 960 is plenty, and it keeps a phone photo under the size a
+   hosted function takes in one request. */
+async function shrink(file) {
+  const img = await createImageBitmap(file);
+  const k = Math.min(1, 960 / Math.max(img.width, img.height));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(img.width * k));
+  c.height = Math.max(1, Math.round(img.height * k));
+  c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+  return c.toDataURL("image/png");
+}
+
+const CARD_LINK_NOTE = $("card_linkfit").innerHTML;
+function checkCardLink() {
+  const url = $("card_link").value.trim();
+  const el = $("card_linkfit");
+  if (!url) { el.className = "hint"; el.innerHTML = CARD_LINK_NOTE; return; }
+  const n = ndefBytes(url);
+  const fits = Object.entries(TAGS).filter(([, cap]) => n <= cap);
+  el.className = fits.length ? "hint ok" : "hint bad";
+  el.innerHTML = fits.length
+    ? `<b>${n} bytes</b> &mdash; fits ${list(fits.map(([k, cap]) => `${k} (${cap - n} spare)`))}.`
+    : `<b>${n} bytes</b> &mdash; too long for every NTAG. Use a short link.`;
+}
 for (const f of FIELDS) $(f).addEventListener("input", queue);
 $("qr").addEventListener("change", queue);
 $("placeholder").addEventListener("change", queue);
@@ -1883,7 +2214,8 @@ $("stencil_svg").addEventListener("change", async () => {
 });
 for (const [id, unit] of [["plate_w", "mm"], ["plate_h", "mm"], ["margin", "mm"],
                           ["thick", "mm"], ["bridge", "mm"], ["depth", "mm"],
-                          ["wall", "mm"], ["diffuse", "mm"], ["cable", "mm"]])
+                          ["wall", "mm"], ["diffuse", "mm"], ["cable", "mm"],
+                          ["card_size", "mm"], ["card_border", "mm"]])
   $(id).addEventListener("input", () => {
     $(`${id}_v`).textContent = (["bridge", "cable"].includes(id) && +$(id).value === 0)
       ? "none" : `${$(id).value} ${unit}`;
@@ -1905,6 +2237,7 @@ const QMARK = `<svg viewBox="0 0 320 512" aria-hidden="true"><path d="M80 160c0-
   32 32s32-14.3 32-32zm80 320a40 40 0 1 0 0-80 40 40 0 1 0 0 80z"/></svg>`;
 document.querySelectorAll("p.hint").forEach((hint, i) => {
   if (hint.id === "linkfit") return;   // a live byte count, not a description
+  if (hint.id === "card_linkfit") return;
   hint.id = hint.id || `hint_${i}`;
   const box = document.createElement("div"), fold = document.createElement("div"),
         mark = document.createElement("button");
@@ -1947,6 +2280,7 @@ document.querySelectorAll("p.hint").forEach((hint, i) => {
 let SPOOLS = [], HEADS = 4;
 const slotMat = { c0: "", c1: "", c2: "", c3: "" };
 const SLOT_LABELS = {
+  card:    [["c0", "Card"], ["c2", "Logo colour 1"], ["c3", "Logo colour 2"], ["c1", "Logo colour 3"]],
   fob:     [["c0", "Body"], ["c1", "Pattern"], ["c2", "Primary"], ["c3", "Secondary"]],
   name:    [["c0", "Outline"], ["c2", "Letters"]],
   pet:     [["c0", "Tag"], ["c2", "Name"], ["c3", "Phone and QR code"], ["c1", "Border"]],
@@ -1963,6 +2297,9 @@ const materials = () => [...new Set(SPOOLS.map(x => x.material))];
 function slotRows() {
   const kind = $("kind").value;
   let rows = SLOT_LABELS[kind] || SLOT_LABELS.fob;
+  // A logo card uses as many colours as the logo has, once it has been read.
+  if (kind === "card" && info && info.kind === "card")
+    rows = rows.filter(([id]) => id === "c0" || info.slots.some(s => SLOT_IDS[s] === id));
   if (kind === "pet") {
     const sides = $("pet_style").value === "slide" ? "one" : $("pet_sides").value;
     const back = sides === "two" || sides === "name" || $("pet_link").value.trim();
@@ -2070,7 +2407,12 @@ function materialFor() {
     slotMat.c0 = tpu;
     $("material").value = tpu === petg ? tpu : "";
     spoolsChosen(true);
-  } else allIn(kind === "pet" ? first("PETG", "PLA") : first("PLA"));
+  } else allIn(kind === "pet" ? first("PETG", "PLA")
+               // a logo wants the shelf with the most colours on it
+               : kind === "card" ? materials().reduce((a, b) =>
+                   SPOOLS.filter(x => x.material === b).length >
+                   SPOOLS.filter(x => x.material === a).length ? b : a)
+               : first("PLA"));
 }
 $("material").addEventListener("change", () => { if ($("material").value) allIn($("material").value); });
 for (const id of COLOURS) $(id).addEventListener("input", () => { spoolsChosen(); if (product) queueProduct(); });
@@ -2115,6 +2457,7 @@ function shapeChosen() {
   // The chip's size is only a question once there is a chip.
   if (kind === "pet") $("pet_chip_field").hidden = !$("pet_nfc").checked;
   $("shape_note").textContent = {
+    card: "The business card, remade: your logo is the shape of it, in the logo's own colours, with an NFC sticker sealed inside and a keyring hole or tab in the corner you pick. Upload an SVG, PNG or JPEG below.",
     fob: "The one that lives on a keyring, with an NFC tag sealed inside it. It grows if the tag or the QR code needs more room than 62 \u00d7 34 mm leaves them \u2014 but all five lines on a fob come out small, so leave the title or the email off it.",
     pet: "A collar tag: the pet's name on the front and the phone number \u2014 and a QR code, if you want one \u2014 on the back. Every letter is inlaid flush, so nothing wears off, and all the colour changes happen in the first and last three layers.",
     name: "No plate and no tag: the name itself is the object. It comes out as wide as the word is long, so a short one is a keyring and a long one is a luggage tag.",
@@ -2125,9 +2468,10 @@ function shapeChosen() {
   // words to cut or to light on a stencil or a sign.
   $("name_label").textContent = { stencil: "Words", sign: "Words", name: "Name",
                                   pet: "Pet's name" }[kind] || "Name";
-  $("who").innerHTML = "2 \u00b7 " + ({ stencil: "What it says", sign: "What it says",
+  $("who").innerHTML = "2 \u00b7 " + ({ card: "Your logo", stencil: "What it says", sign: "What it says",
                                       name: "The word", pet: "What it says" }[kind] || "Who you are");
   spoolsChosen();
+  stepsShown();
   // The stencil's two plate sliders are the sign's face.
   $("plate_label").textContent = kind !== "sign" ? "Plate"
     : $("sign_shape").value === "letters" ? "Most room for the word" : "Face";
@@ -2142,11 +2486,12 @@ function shapeChosen() {
 }
 /* Each shape's starting face: the script for a pet's name, the plain sans for
    the rest, whose strokes a stencil's bridges and a sign's light prefer. */
-const KIND_FONT = { fob: "sans", name: "sans", pet: "script", sign: "sans", stencil: "sans" };
+const KIND_FONT = { card: "sans", fob: "sans", name: "sans", pet: "script", sign: "sans", stencil: "sans" };
 
 /* Each shape's starting colours: body, pattern, primary, secondary. */
 const INK = "#0c1a2e", INK_LIGHT = "#1f3a5f", PAPER = "#f5f2ec", FLAME = "#ff5b1f";
 const KIND_COLOURS = {
+  card:    [INK, INK_LIGHT, PAPER, FLAME],
   fob:     [INK, INK_LIGHT, PAPER, FLAME],
   name:    [INK, INK, FLAME, FLAME],
   pet:     [INK, FLAME, PAPER, FLAME],
@@ -2175,6 +2520,8 @@ for (const tile of document.querySelectorAll(".tile"))
     // paper-white through ink.
     const start = KIND_COLOURS[tile.dataset.kind];
     if (start) start.forEach((c, i) => { $(COLOURS[i]).value = c; });
+    // Back on the card, its colours are the logo's again.
+    if (tile.dataset.kind === "card") artFresh = "body";
     if (tile.dataset.kind === "fob") $("preset").value = "printyours";
     materialFor();
     queue();
@@ -2207,7 +2554,8 @@ $("tag_mode").addEventListener("change", () => { $("mode_note").textContent = MO
 for (const id of COLOURS)
   $(id).addEventListener("input", () => {
     $("preset").value = "custom";
-    if (logoText || designText) queue(); else recolour();
+    if ($("kind").value === "card" ? id === "c0" : (logoText || designText)) queue();
+    else recolour();
   });
 $("preset").addEventListener("change", () => {
   const p = PRESETS[$("preset").value];
@@ -2263,6 +2611,11 @@ for (const b of $("modes").querySelectorAll("button"))
   b.addEventListener("click", () => setMode(b.dataset.mode, false));
 
 function stem() {
+  if ($("kind").value === "card") {
+    const what = (artName || "logo").toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "logo";
+    return `${what}_nfc_card` + ($("card_fit").value === "halves" && $("card_nfc").checked ? "_halves" : "");
+  }
   if ($("batch").value.trim()) return `batch_${$("kind").value}`;
   for (const kind of ["stencil", "sign"])
     if ($("kind").value === kind) {

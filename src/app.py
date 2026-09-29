@@ -2,9 +2,11 @@
 
     python3 src/app.py            # then open http://127.0.0.1:8765
 
-Five shapes: an NFC keyring fob (src/cards.py), a name keyring
+Five shapes: the NFC logo card (src/logocard.py), a name keyring
 (src/nametag.py), a pet collar tag (src/pettag.py), a sign enclosure
-(src/signbox.py) and a stencil (src/stencil.py).  Fill in the boxes, watch the part turn in the viewer,
+(src/signbox.py) and a stencil (src/stencil.py).  The NFC keyring fob
+(src/cards.py) is archived: src/gen_cards.py still writes one, the app does
+not.  Fill in the boxes, watch the part turn in the viewer,
 download it.  The 3MF carries each colour as a separate part, so the slicer opens it
 set up for four filaments; the STL is one welded solid.  The preview is the
 same solids, sent one after another with a colour and a place for each, so
@@ -27,10 +29,11 @@ import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import numpy as np
 import trimesh
 
 import cards
-import looks
+import logocard
 import nametag
 import pettag
 import signbox
@@ -56,13 +59,21 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "depth", "wall", "diffuse", "lid", "cable", "mount",
             "pet_shape", "pet_style", "pet_size", "pet_sides", "pet_note",
             "pet_link", "pet_border", "pet_collar", "pet_slot",
-            "sign_shape", "cable_side", "pet_nfc", "pet_chip")
+            "sign_shape", "cable_side", "pet_nfc", "pet_chip",
+            "art", "card_size", "card_border", "card_backing", "card_holes",
+            "card_colours", "card_bg", "card_ring", "card_at", "card_nfc",
+            "card_chip", "card_back", "card_link", "card_both", "card_rises", "card_fit")
 
-# The shapes the page can ask for.  The business card is not among them any
-# more: it is archived -- the code is still in src/cards.py and
-# `src/gen_cards.py --kind card` still writes one, but the app offers the fob,
-# the name keyring, the stencil and the sign enclosure.
-KINDS = ("fob", "name", "pet", "stencil", "sign")
+# The shapes the page can ask for.  "card" is the NFC business card, remade
+# as src/logocard.py: the company's logo is the card's shape and colours.
+# The two business-card-style parts before it -- the CR80 rectangle and the
+# keyring fob with a name, company and phone on it -- are archived: their code
+# is all still in src/cards.py and `src/gen_cards.py --kind card|fob` still
+# writes either, but the app builds neither.
+KINDS = ("card", "name", "pet", "stencil", "sign")
+ARCHIVED = ("fob",)
+# What a logo may be: SVG text, or an image as a browser's FileReader sends it.
+IMAGE = re.compile(r"data:image/(png|jpeg|webp|gif|bmp|svg\+xml)[;,]")
 HEX = re.compile(r"#[0-9a-fA-F]{6}$")
 
 
@@ -119,6 +130,8 @@ def preview(parts, info, row_w):
     not a printed part and has no place on the plate; it is there so that
     pulling the halves apart on screen shows what goes between them.
     """
+    if info.get("kind") == "card" and (info.get("nfc") or {}).get("pause_z"):
+        return at_the_pause(parts[0], info)
     meshes, described = [], []
     assembled = dict((id(p), m) for p, m in cards.assembly(parts, row_w=row_w))
     for part, shift in cards.layout(parts, row_w=row_w):
@@ -132,7 +145,10 @@ def preview(parts, info, row_w):
                               assembled=[round(float(v), 6)
                                          for v in assembled[id(part)].ravel()]))
         if part["name"] == "front" and info.get("joint"):
-            slab = trimesh.creation.box(info["tag"])
+            # the fob's tags are rectangles; a logo card's sticker is round
+            slab = (trimesh.creation.cylinder(radius=info["tag"][0] / 2.0,
+                                              height=info["tag"][2], sections=64)
+                    if info.get("kind") == "card" else trimesh.creation.box(info["tag"]))
             meshes.append(slab)
             place = assembled[id(part)] @ trimesh.transformations.translation_matrix(
                 info["joint"])
@@ -143,6 +159,54 @@ def preview(parts, info, row_w):
                                   assembled=[round(float(v), 6) for v in place.ravel()]))
     mesh = trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]
     return mesh.export(file_type="stl"), described
+
+
+def at_the_pause(part, info):
+    """The preview of a logo card with its sticker sealed in: the one part,
+    cut at the height the print pauses at, so the viewer's "apart" view can
+    show it the way it is at the pause -- the bottom with its pocket open,
+    the sticker going in, the rest of the card lifted off above.  Only the
+    preview is cut; the files are the one part.  The cut pieces keep the
+    card's own coordinates, so glued up and on the plate they are simply the
+    card, sitting where it prints."""
+    z = info["nfc"]["pause_z"]
+    big = cards.rounded_rect(1e3, 1e3, 0.0)
+    below = cards.prisms([big], -10.0, z + 10.0)[0]
+    above = cards.prisms([big], z, 100.0)[0]
+    (_, shift), = cards.layout([part])
+    meshes, described = [], []
+    pieces = {"front": [], "back": []}       # named as the viewer lifts them:
+    for g in part["groups"]:                 # "back" is the one that comes off
+        if g["face"] == "front":
+            pieces["back"].append((g, g["mesh"]))
+        elif g["face"] == "back":
+            pieces["front"].append((g, g["mesh"]))
+        else:
+            pieces["front"].append((g, cards.boolean("intersection", [g["mesh"], below])))
+            pieces["back"].append((g, cards.boolean("intersection", [g["mesh"], above])))
+    ident = [round(float(v), 6) for v in np.eye(4).ravel()]
+    plate = [round(float(v), 4) for v in shift]
+    for name in ("front", "back"):
+        runs = []
+        for g, m in pieces[name]:
+            if not len(m.faces):
+                continue
+            meshes.append(m)
+            runs.append([cards.SLOTS.index(g["slot"]), g["element"], g["face"],
+                         int(len(m.faces))])
+        described.append(dict(name=name, card=0, slots=runs, plate=plate, assembled=ident))
+        if name == "front":
+            n = info["nfc"]
+            disc = trimesh.creation.cylinder(radius=n["d"] / 2.0, height=n["t"], sections=64)
+            meshes.append(disc)
+            place = trimesh.transformations.translation_matrix(
+                (n["centre"][0], n["centre"][1], n["z0"] + n["t"] / 2.0))
+            described.append(dict(name="tag", card=0, tag=True,
+                                  slots=[[len(cards.SLOTS), "tag", "joint",
+                                          int(len(disc.faces))]],
+                                  plate=None,
+                                  assembled=[round(float(v), 6) for v in place.ravel()]))
+    return trimesh.util.concatenate(meshes).export(file_type="stl"), described
 
 
 def model(params):
@@ -164,16 +228,49 @@ def model(params):
     keyed = {k: params.get(k) for k in GEOMETRY}
     if params.get("logo") or params.get("design"):
         keyed["colours"] = colours          # the fills sort into slots by colour
+    if params.get("kind") == "card":
+        keyed["body"] = colours[0]          # logo colours near it fold into the body
     key = json.dumps(keyed, sort_keys=True)
     with BUILD:
         if key not in RECENT:
-            kind = params.get("kind", "fob")
-            if kind == "card":
-                raise ValueError("the business card is archived -- the fob is the one "
-                                 "the app builds now, and src/gen_cards.py --kind card "
-                                 "still writes a card")
+            kind = params.get("kind", "card")
+            if kind in ARCHIVED:
+                raise ValueError("the keyring fob is archived -- the NFC logo card took its "
+                                 "place, and src/gen_cards.py still writes a fob")
             if kind not in KINDS:
                 raise ValueError(f"no such shape: {kind}")
+            if kind == "card":
+                # The logo card: the logo, as SVG text or an image data: URL,
+                # is the card's outline and its colours.  One design, so no
+                # batch -- a stack of the same card is one file printed again.
+                art = params.get("art") or None
+                if art and not (art.lstrip().startswith("<") or IMAGE.match(art)):
+                    raise ValueError("the logo has to be an SVG, PNG, JPEG or WebP")
+                RECENT[key] = logocard.build(
+                    art, size=num("card_size", logocard.SIZE),
+                    border=num("card_border", logocard.BORDER),
+                    backing=params.get("card_backing") or "outline",
+                    fill_holes=bool(params.get("card_holes", True)),
+                    max_colours=int(num("card_colours", logocard.INLAYS)),
+                    keep_background=bool(params.get("card_bg")),
+                    ring=params.get("card_ring") or "tab",
+                    ring_at=params.get("card_at") or "top-left",
+                    ring_d=num("ring_d", logocard.RING_D),
+                    rise=num("rise", 0.0), colours=colours,
+                    nfc=bool(params.get("card_nfc", True)),
+                    chip_d=num("card_chip", 0.0) or None,
+                    back=params.get("card_back") or "arcs",
+                    link=params.get("card_link", ""),
+                    both=bool(params.get("card_both")),
+                    fit=params.get("card_fit") or "halves",
+                    # {slot: mm}, only when each colour has its own height
+                    rises={k: float(v) for k, v in params["card_rises"].items()
+                           if isinstance(v, (int, float, str)) and str(v).strip()}
+                    if isinstance(params.get("card_rises"), dict) else None)
+                while len(RECENT) > 8:
+                    del RECENT[next(iter(RECENT))]
+                parts, info = RECENT[key]
+                return _finish(params, parts, info, num)
             if kind == "name":
                 # A name keyring has no front and back, no tag and no
                 # layout: the word is the whole object, so only these few
@@ -323,47 +420,7 @@ def model(params):
                     del RECENT[next(iter(RECENT))]
                 parts, info = RECENT[key]
                 return _finish(params, parts, info, num)
-            tag = dict(w=num("tag_w", cards.TAG["w"]), h=num("tag_h", cards.TAG["h"]),
-                       thick=num("tag_thick", cards.TAG["thick"]))
-            logo = params.get("logo") or None       # the SVGs' text, from the file pickers
-            design = params.get("design") or None
-            for what, svg in (("logo", logo), ("design", design)):
-                if svg and not svg.lstrip().startswith("<"):
-                    raise ValueError(f"the {what} has to be an SVG file")
-            look = params.get("look") or "plain"
-            if look not in looks.PATTERNS:
-                raise ValueError(f"no such pattern: {look}")
-            layout = params.get("layout") or "centred"
-            if layout not in cards.LAYOUTS:
-                raise ValueError(f"no such layout: {layout}")
-            placeholder = params.get("placeholder") or None
-            settings = dict(
-                tag=tag, tap_text=params.get("tap", "TAP HERE"),
-                tag_mode=params.get("tag_mode", "split"),
-                border=bool(params.get("border", False)), rise=num("rise", cards.RISE),
-                font=typefaces.face(face(params))["path"], logo=logo, design=design,
-                qr=bool(params.get("qr")), link=params.get("link", ""),
-                look=look, colours=colours, layout=layout, placeholder=placeholder,
-                role=params.get("role", ""), email=params.get("email", ""))
-            if params.get("batch"):
-                rows = cards.parse_batch(params["batch"])
-                if not rows:
-                    raise ValueError("the batch box is empty")
-                parts, infos = cards.build_batch(rows, kind, **settings)
-                info = {**infos[0], "batch": len(rows), "label": "",
-                        "nozzle": (None if any(i["nozzle"] is None for i in infos
-                                               if i["logo"] or i["qr"])
-                                   else min([i["nozzle"] for i in infos if i["nozzle"]],
-                                            default=None)),
-                        "volume": round(sum(i["volume"] for i in infos), 2),
-                        "watertight": all(i["watertight"] for i in infos)}
-                RECENT[key] = parts, info
-            else:
-                RECENT[key] = cards.build(
-                    kind, name=params.get("name", ""), company=params.get("company", ""),
-                    phone=params.get("phone", ""), **settings)
-            while len(RECENT) > 8:
-                del RECENT[next(iter(RECENT))]
+            raise ValueError(f"no builder for {kind}")          # every kind returns above
         parts, info = RECENT[key]
 
     return _finish(params, parts, info, num)
@@ -377,18 +434,20 @@ def _finish(params, parts, info, num):
     colours = palette(params)
     row_w = num("bed", 220.0) if params.get("batch") else None
     if params.get("format") == "3mf":
-        if params.get("kind") == "pet":
+        if params.get("kind") in ("pet", "card"):
             # Each slot on its own filament, colours and materials named, so
             # a TPU tag with PETG lettering opens ready to slice as one print.
             # A sealed NFC chip needs the print to stop above its pocket;
             # every tag on a plate has its pocket at the same height.
             pauses = [(info["nfc"]["resume_z"], "Drop the NFC chip into the pocket")] \
-                if info.get("nfc") else []
+                if info.get("nfc") and info["nfc"].get("resume_z") else []
             return (cards.export_3mf_tools(parts, filaments(params, colours), row_w=row_w,
                                            pauses=pauses),
                     info, "model/3mf")
         return cards.export_3mf(parts, colours, row_w=row_w), info, "model/3mf"
     if params.get("format") == "stl":
+        if params.get("kind") == "card":
+            parts = logocard.weld(parts)          # one solid a part, only for this
         return cards.plate(parts, row_w=row_w).export(file_type="stl"), info, "model/stl"
     if params.get("format") == "glb" and params.get("kind") == "pet":
         # The product shot: the first tag, hanging on a split ring.
@@ -400,7 +459,7 @@ def _finish(params, parts, info, num):
 def health():
     """GET /api/model: does the whole pipeline run where this is deployed?
 
-    Builds the default fob and reports on it, so one request from a browser
+    Builds the default logo card and reports on it, so one request from a browser
     tells you the geometry libraries loaded, the font was found and a boolean
     came out watertight -- which is what a hosted function most often gets
     wrong, and what a 200 on the page alone would not show.
@@ -408,9 +467,9 @@ def health():
     import time
     t = time.time()
     with BUILD:
-        parts, info = cards.build("fob", "Self Test")
+        parts, info = logocard.build()
     return dict(ok=info["watertight"], font=cards.default_font(),
-                built=f"{info['w']} x {info['h']} mm fob in {time.time() - t:.2f}s",
+                built=f"{info['w']} x {info['h']} mm logo card in {time.time() - t:.2f}s",
                 python=__import__("sys").version.split()[0])
 
 
