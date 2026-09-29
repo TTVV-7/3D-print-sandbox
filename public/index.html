@@ -1430,7 +1430,7 @@ function frame() {
     gl.uniformMatrix4fv(loc.mvp, false, M.mul(M.mul(proj, view), model));
     gl.uniformMatrix4fv(loc.model, false, M.mul(turn, model));
     for (const g of part.groups) {
-      gl.uniform1f(loc.hi, !light ? 0 : (lit(g) ? 1 : -1));
+      gl.uniform1f(loc.hi, !light || unlit() ? 0 : (lit(g) ? 1 : -1));
       gl.drawArrays(gl.TRIANGLES, g.start, g.count);
     }
   }
@@ -1562,11 +1562,15 @@ function lit(g) {
   return false;
 }
 
+/* A name keyring is nearly all one field, so lighting it up just turns the
+   whole keyring blue -- it stays in its own colours instead. */
+const unlit = () => $("kind").value === "name";
+
 function setLight(key) {
   if (key === lightKey) return;
   lightKey = key;
   light = (key && LIGHTS[key]) || null;
-  if (!light) { $("hud").textContent = HUD_IDLE; return; }
+  if (!light || unlit()) { $("hud").textContent = HUD_IDLE; return; }
   const faces = new Set();
   for (const p of parts) for (const g of p.groups) if (lit(g)) faces.add(g.face);
   if (!faces.size) {
