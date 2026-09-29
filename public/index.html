@@ -1279,12 +1279,12 @@ void main() {
   float d = max(dot(n, key), 0.0) * 0.70 + max(dot(n, fill), 0.0) * 0.22 + 0.30;
   vec3 h = normalize(key + vec3(0.0, 0.0, 1.0));
   float s = pow(max(dot(n, h), 0.0), 40.0) * 0.25;
-  // Putting the cursor in a box lights up what it makes: that field goes a
-  // colour no filament here is, and the rest of the part loses its own, so
-  // the answer to "which bit is this?" is the only coloured thing on screen.
+  // Putting the cursor in a box lights up what it makes: a light blue tint
+  // over that field's own colour, and the rest of the part a little faded,
+  // so you can still see what it will look like.
   vec3 c = vC;
-  if (uHi > 0.5) c = vec3(0.10, 0.76, 1.0);
-  else if (uHi < -0.5) c = mix(c, vec3(dot(c, vec3(0.299, 0.587, 0.114))), 0.78);
+  if (uHi > 0.5) c = mix(c, vec3(0.10, 0.76, 1.0), 0.30);
+  else if (uHi < -0.5) c = mix(c, vec3(dot(c, vec3(0.299, 0.587, 0.114))), 0.40);
   gl_FragColor = vec4(c * d + s, 1.0);
 }`;
 
@@ -1483,8 +1483,8 @@ function setMode(next, snap) {
 
 /* ---------------------------------------------------------- highlighting --
    Every run of triangles knows the field it came from, so a control can say
-   "this one" and the viewer can answer.  Putting the cursor in a box -- or
-   just running it over one -- lights that field up and greys the rest. */
+   "this one" and the viewer can answer.  Putting the cursor in a box tints
+   that field and fades the rest. */
 const HUD_IDLE = "drag to turn \u00b7 scroll to zoom";
 const LIGHTS = {
   kind:        { all: true, label: "the whole part" },
@@ -2088,10 +2088,10 @@ function takeLogoColours(sentBody, body) {
   else recolour();
 }
 
-/* A control lights up what it makes: the focused one wins, and the hovered
-   one fills in while nothing has focus. */
+/* A control lights up what it makes while it has focus.  Only focus: lighting
+   up on hover flickered the part and swung the camera about every time the
+   pointer crossed the sidebar. */
 const aside = document.querySelector("aside");
-let focusedKey = null, hoverKey = null;
 const lightKeyOf = el => {
   for (let n = el; n && n !== aside; n = n.parentElement) {
     if (n.dataset && n.dataset.light) return n.dataset.light;
@@ -2099,16 +2099,8 @@ const lightKeyOf = el => {
   }
   return null;
 };
-aside.addEventListener("focusin", e => {
-  focusedKey = lightKeyOf(e.target);
-  setLight(focusedKey || hoverKey);
-});
-aside.addEventListener("focusout", () => { focusedKey = null; setLight(hoverKey); });
-aside.addEventListener("pointerover", e => {
-  hoverKey = lightKeyOf(e.target);
-  setLight(focusedKey || hoverKey);
-});
-aside.addEventListener("pointerleave", () => { hoverKey = null; setLight(focusedKey); });
+aside.addEventListener("focusin", e => setLight(lightKeyOf(e.target)));
+aside.addEventListener("focusout", () => setLight(null));
 
 $("link").addEventListener("input", checkLink);
 $("card_link").addEventListener("input", checkCardLink);
