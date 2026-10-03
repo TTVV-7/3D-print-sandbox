@@ -308,13 +308,16 @@
              flex-wrap: wrap; justify-content: flex-end; }
 
   /* the readout */
-  #specs {
-    background: var(--bg-default); border-top: 1px solid var(--border-default); padding: var(--space-400) var(--space-600);
-    display: flex; flex-wrap: wrap; gap: var(--space-100) var(--space-600); font-size: 14px; color: var(--text-secondary);
-  }
-  #specs b { color: var(--text-default); font-weight: 600; }
-  #specs .warn { color: var(--warning); background: var(--warning-bg); padding: 0 var(--space-200); border-radius: var(--radius-100); }
-  #specs .err { color: var(--danger); background: var(--danger-bg); padding: 0 var(--space-200); border-radius: var(--radius-100); }
+  #readout { background: var(--bg-default); border-top: 1px solid var(--border-default); padding: var(--space-300) var(--space-600);
+             font-size: 14px; color: var(--text-secondary); }
+  #more > summary { cursor: pointer; width: max-content; user-select: none; }
+  #more > summary:hover { color: var(--text-default); }
+  #specs, #alerts { display: flex; flex-wrap: wrap; gap: var(--space-100) var(--space-600); }
+  #specs { padding-top: var(--space-200); }
+  #alerts:not(:empty) { padding-bottom: var(--space-200); }
+  #specs b, #alerts b { color: var(--text-default); font-weight: 600; }
+  #specs .warn, #alerts .warn { color: var(--warning); background: var(--warning-bg); padding: 0 var(--space-200); border-radius: var(--radius-100); }
+  #specs .err, #alerts .err { color: var(--danger); background: var(--danger-bg); padding: 0 var(--space-200); border-radius: var(--radius-100); }
 
   aside { scrollbar-width: thin; scrollbar-color: var(--border-default) transparent; }
 
@@ -438,7 +441,7 @@
 
   <section>
     <h2>1 &middot; Shape</h2>
-    <div class="tiles" data-light="kind">
+    <div class="tiles">
       <button type="button" class="tile" data-kind="card" aria-pressed="true">
         <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/card.webp)"></span>
         <div><b>NFC logo card</b><span>your logo is the shape, in its own colours</span></div>
@@ -467,30 +470,30 @@
 
   <section>
     <h2 id="who">2 &middot; Who you are</h2>
-    <label class="field" data-for="fob name pet stencil sign" data-light="name"><span id="name_label">Name</span><input type="text" id="name" value="Dino" autocomplete="off"></label>
-    <label class="field" data-for="fob" data-light="company"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
-    <label class="field" data-for="fob" data-light="role"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
-    <label class="field" data-for="card" data-light="art_file"><span>Logo</span><input type="file" id="art_file" accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp"></label>
+    <label class="field" data-for="fob name pet stencil sign"><span id="name_label">Name</span><input type="text" id="name" value="Dino" autocomplete="off"></label>
+    <label class="field" data-for="fob"><span>Company</span><input type="text" id="company" value="Bluewater Realty" autocomplete="off"></label>
+    <label class="field" data-for="fob"><span>Title</span><input type="text" id="role" value="" autocomplete="off" placeholder="Senior Agent"></label>
+    <label class="field" data-for="card"><span>Logo</span><input type="file" id="art_file" accept=".svg,.png,.jpg,.jpeg,.webp,image/svg+xml,image/png,image/jpeg,image/webp"></label>
     <p class="hint" data-for="card" id="art_note">An SVG is best &mdash; its shapes come through exactly. A PNG,
        JPEG or WebP works too: it is traced, its background taken away, and its colours boiled down
        to the few flat ones the logo is really drawn in. Until you pick one, the card shows a
        made-up sample. A simple logo builds in a second; a detailed illustration, with hundreds of
        shapes, can take up to a minute each time something changes.</p>
-    <label class="check" data-for="card" data-light="card_bg"><input type="checkbox" id="card_bg"><span>Keep the background it was drawn on</span></label>
+    <label class="check" data-for="card"><input type="checkbox" id="card_bg"><span>Keep the background it was drawn on</span></label>
     <p class="hint" data-for="card">Off, the rectangle or white page a logo is so often exported on is taken
        away and the card follows the logo itself. On, the background is part of the logo &mdash; for
        an app icon or a badge whose square is the point.</p>
-    <label class="check" data-for="card" data-light="card_both"><input type="checkbox" id="card_both"><span>Logo on both sides</span></label>
+    <label class="check" data-for="card"><input type="checkbox" id="card_both"><span>Logo on both sides</span></label>
     <p class="hint" data-for="card">The logo on the back as well, right behind the front one and in the same
        filaments &mdash; no extra head. Turn the card over and you see its mirror image, filling exactly
        the same outline. The back then has no room for the tap mark or a QR code.</p>
-    <label class="field" data-for="fob pet" data-light="phone"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
-    <label class="field" data-for="fob" data-light="email"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
+    <label class="field" data-for="fob pet"><span>Phone</span><input type="text" id="phone" value="(555) 214-8890" autocomplete="off"></label>
+    <label class="field" data-for="fob"><span>Email</span><input type="text" id="email" value="" autocomplete="off" placeholder="jane@bluewater.example"></label>
     <p class="hint" data-for="fob">Name, company, title, phone and email are the five every guide to business
        cards agrees on, and five to seven things is where a fob stops being read. Leave any of
        them empty and the line goes away. A long one shrinks to fit; past the point where that
        stops being printable, put a <code>|</code> where it should break instead.</p>
-    <label class="field" data-for="pet" data-light="pet_note"><span>Extra line</span><input type="text" id="pet_note" value="" autocomplete="off" placeholder="I'm microchipped"></label>
+    <label class="field" data-for="pet"><span>Extra line</span><input type="text" id="pet_note" value="" autocomplete="off" placeholder="I'm microchipped"></label>
     <p class="hint" data-for="pet">The pet's name goes on the front, as big as the tag takes it. The phone
        number is always set in the plain bold sans whatever face the name is in, and the fit
        shrinks the name first and the number last &mdash; a long number is split over two lines
@@ -506,41 +509,41 @@
     <p class="hint" data-for="stencil">The words get cut clean through the plate, as large as the
        plate will take them. <code>|</code> splits them over two lines. Leave this empty and give it
        an SVG instead &mdash; the artwork below wins over the words either way.</p>
-    <label class="field" data-for="stencil sign" data-light="design_file"><span>Artwork instead (SVG)</span><input type="file" id="stencil_svg" accept=".svg,image/svg+xml"></label>
+    <label class="field" data-for="stencil sign"><span>Artwork instead (SVG)</span><input type="file" id="stencil_svg" accept=".svg,image/svg+xml"></label>
     <p class="hint" data-for="stencil sign" id="stencil_svg_note">Flat fills only &mdash; strokes and live text
        are ignored, so export it as outlines first. Every fill becomes one hole, whatever colour it was.</p>
-    <label class="field" data-for="fob" data-light="logo_file"><span>Logo (SVG)</span><input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
+    <label class="field" data-for="fob"><span>Logo (SVG)</span><input type="file" id="logo_file" accept=".svg,image/svg+xml"></label>
     <p class="hint" data-for="fob" id="logo_note">Goes beside the name. Flat fills only &mdash; strokes, gradients
        and text objects are ignored, so export the logo as outlines first. Each fill colour in the
        file goes to whichever of the four colours it is nearest.</p>
-    <label class="field" data-for="fob" data-light="design_file"><span>Full front design (SVG)</span><input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
+    <label class="field" data-for="fob"><span>Full front design (SVG)</span><input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
     <p class="hint" data-for="fob" id="design_note">Replaces the whole front with your own artwork. Draw it on a
        rectangle in the body colour and it comes out at the rectangle's size.</p>
   </section>
 
   <section>
     <h2>3 &middot; How it looks</h2>
-    <div class="field" data-for="card" data-light="card_size"><span>Size</span>
+    <div class="field" data-for="card"><span>Size</span>
       <div class="slider"><input type="range" id="card_size" min="40" max="120" step="1" value="70"><output id="card_size_v">70 mm</output></div>
     </div>
     <p class="hint" data-for="card">The longest side of the card, not counting the keyring tab. A
        business card is 85 mm across; 60 to 80 still reads as a card and fits a wallet.</p>
-    <label class="field" data-for="card" data-light="card_backing"><span>Shape</span>
+    <label class="field" data-for="card"><span>Shape</span>
       <select id="card_backing">
         <option value="outline">Follows the logo</option>
         <option value="rounded">Rounded rectangle</option>
         <option value="circle">Disc</option>
       </select>
     </label>
-    <div class="field" data-for="card" data-light="card_border"><span>Border round the logo</span>
+    <div class="field" data-for="card"><span>Border round the logo</span>
       <div class="slider"><input type="range" id="card_border" min="0" max="6" step="0.5" value="2"><output id="card_border_v">2 mm</output></div>
     </div>
     <p class="hint" data-for="card">Follows the logo: every colour in it is traced and merged, grown by the
        border and cut out along that line, like a die-cut sticker. Pieces that stand apart are bridged
        until it is one card. A long thin wordmark may leave no room for the chip &mdash; give it a
        rounded rectangle or a disc behind it instead.</p>
-    <label class="check" data-for="card" data-light="card_holes"><input type="checkbox" id="card_holes" checked><span>Fill in the holes inside the logo</span></label>
-    <label class="field" data-for="card" data-light="card_colours"><span>Logo colours</span>
+    <label class="check" data-for="card"><input type="checkbox" id="card_holes" checked><span>Fill in the holes inside the logo</span></label>
+    <label class="field" data-for="card"><span>Logo colours</span>
       <select id="card_colours">
         <option value="3">Up to three</option>
         <option value="2">Up to two</option>
@@ -552,14 +555,14 @@
        logo with more colours has its closest ones merged. A logo colour that matches the card's own
        &mdash; white lettering on a white card &mdash; is simply the card showing through, and costs no
        head at all.</p>
-    <label class="field" data-for="card" data-light="card_ring"><span>Keyring</span>
+    <label class="field" data-for="card"><span>Keyring</span>
       <select id="card_ring">
         <option value="tab">Tab with a hole, off the edge</option>
         <option value="hole">Hole in the corner of the card</option>
         <option value="none">None</option>
       </select>
     </label>
-    <label class="field" data-for="card" data-light="card_at"><span>Where</span>
+    <label class="field" data-for="card"><span>Where</span>
       <select id="card_at">
         <option value="top-left">Top left</option>
         <option value="top">Top</option>
@@ -574,7 +577,7 @@
        goes through the card itself, as far into the corner as it will go while staying clear of the
        logo &mdash; and when there is no room for that, it becomes a tab rather than a hole through
        your logo. The readout says which you got.</p>
-    <label class="field" data-for="sign" data-light="sign_shape"><span>Box shape</span>
+    <label class="field" data-for="sign"><span>Box shape</span>
       <select id="sign_shape">
         <option value="letters">Follows the letters</option>
         <option value="box">Rectangle</option>
@@ -585,13 +588,13 @@
        so the sign is one rounded shape hugging the word, the way a channel-letter sign is. The two
        sliders below are then the most room the word can have, and the box comes out as big as the
        word needs. Rectangle is the plain box, and the one the wall mounts fit.</p>
-    <div class="field" data-for="stencil sign" data-light="plate"><span id="plate_label">Plate</span>
+    <div class="field" data-for="stencil sign"><span id="plate_label">Plate</span>
       <div class="slider"><input type="range" id="plate_w" min="30" max="250" step="5" value="120"><output id="plate_w_v">120 mm</output></div>
     </div>
-    <div class="field" data-for="stencil sign" data-light="plate">
+    <div class="field" data-for="stencil sign">
       <div class="slider"><input type="range" id="plate_h" min="30" max="250" step="5" value="60"><output id="plate_h_v">60 mm</output></div>
     </div>
-    <div class="field" data-for="stencil sign" data-light="margin"><span>Margin</span>
+    <div class="field" data-for="stencil sign"><span>Margin</span>
       <div class="slider"><input type="range" id="margin" min="0" max="30" step="0.5" value="8"><output id="margin_v">8 mm</output></div>
     </div>
     <p class="hint" data-for="stencil">The plate left round the cut: what you hold, and what stops the
@@ -599,43 +602,43 @@
     <p class="hint" data-for="sign">The unlit border round the lettering. It never goes under the wall
        plus a millimetre: a letter out there would be cut into the wall itself, where there is no
        diffuser behind it to light it or to hold it on.</p>
-    <div class="field" data-for="stencil" data-light="bridge"><span>Bridges</span>
+    <div class="field" data-for="stencil"><span>Bridges</span>
       <div class="slider"><input type="range" id="bridge" min="0" max="4" step="0.1" value="1.6"><output id="bridge_v">1.6 mm</output></div>
     </div>
     <p class="hint" data-for="stencil">Every counter &mdash; the middle of an O, the triangle in an A
        &mdash; is an island once the cut goes through, and an island with nothing holding it falls out.
        Each one gets a bar of plate left across it. At 0 they come away as loose pieces.</p>
-    <div class="field" data-for="stencil" data-light="thick"><span>Thickness</span>
+    <div class="field" data-for="stencil"><span>Thickness</span>
       <div class="slider"><input type="range" id="thick" min="0.4" max="3" step="0.2" value="0.8"><output id="thick_v">0.8 mm</output></div>
     </div>
     <p class="hint" data-for="stencil">Thin is the point: every millimetre is a millimetre of wall the
        paint has to reach round, which is what blurs an edge. 0.8 mm is four layers and still peels off
        in one piece.</p>
-    <div class="field" data-for="sign" data-light="depth"><span>Depth</span>
+    <div class="field" data-for="sign"><span>Depth</span>
       <div class="slider"><input type="range" id="depth" min="10" max="60" step="1" value="24"><output id="depth_v">24 mm</output></div>
     </div>
     <p class="hint" data-for="sign">Front face to back, and so how far the light has to spread before it
        reaches the diffuser. Under about 12 mm of clear air you can count the LEDs through the letters;
        the readout says how much is left once the face and the lid have taken theirs.</p>
-    <div class="field" data-for="sign" data-light="diffuse"><span>Diffuser</span>
+    <div class="field" data-for="sign"><span>Diffuser</span>
       <div class="slider"><input type="range" id="diffuse" min="0.4" max="2" step="0.2" value="0.8"><output id="diffuse_v">0.8 mm</output></div>
     </div>
     <p class="hint" data-for="sign">The translucent sheet printed across the whole inside of the face.
        It is what turns a row of LEDs into an evenly lit word &mdash; and it is also what holds the
        middle of an O on, so unlike a stencil there is nothing here to bridge.</p>
-    <div class="field" data-for="sign" data-light="wall"><span>Walls</span>
+    <div class="field" data-for="sign"><span>Walls</span>
       <div class="slider"><input type="range" id="wall" min="1" max="4" step="0.2" value="2"><output id="wall_v">2 mm</output></div>
     </div>
     <p class="hint" data-for="sign">Five lines of a 0.4 mm nozzle at the default: stiff enough to hold the
        lid without bowing, and opaque enough that the light leaves by the letters.</p>
-    <label class="field" data-for="sign" data-light="cable"><span>Cable out</span>
+    <label class="field" data-for="sign"><span>Cable out</span>
       <select id="cable_side">
         <option value="right">Through the back, right-hand end</option>
         <option value="left">Through the back, left-hand end</option>
         <option value="bottom">Through the bottom wall</option>
       </select>
     </label>
-    <div class="field" data-for="sign" data-light="cable"><span>Cable width</span>
+    <div class="field" data-for="sign"><span>Cable width</span>
       <div class="slider"><input type="range" id="cable" min="0" max="12" step="0.5" value="6"><output id="cable_v">6 mm</output></div>
     </div>
     <p class="hint" data-for="sign">Right and left are as you look at the lit front. Through the back, the
@@ -643,12 +646,12 @@
        in rather than being threaded, and closed into a hole by the wall once the lid is in &mdash; so
        nothing shows from the front. Through the bottom wall is a notch in the back edge of the
        wall, cut a lid deeper so the cable passes under a lid that stays whole. 0 leaves no way out.</p>
-    <label class="check" data-for="sign" data-light="lid"><input type="checkbox" id="lid" checked><span>Back lid</span></label>
+    <label class="check" data-for="sign"><input type="checkbox" id="lid" checked><span>Back lid</span></label>
     <p class="hint" data-for="sign">A plate that drops into a rebate in the back and stops flush on the
        ledge it leaves &mdash; a friction fit, so you can get it off again to change the strip. Stick the
        LEDs to the inside of it; it prints that face down, which is the flat one. Off leaves the back
        open.</p>
-    <label class="field" data-for="sign" data-shape="box" data-light="mount"><span>Wall mount</span>
+    <label class="field" data-for="sign" data-shape="box"><span>Wall mount</span>
       <select id="mount">
         <option value="none">None</option>
         <option value="tape">Tape pads</option>
@@ -664,7 +667,7 @@
        with the hole countersunk into the face, so it goes up and comes down with the lid on &mdash;
        at the cost of two screw heads showing, out in the plain border. Both need room between the
        wall and the lettering, and say so if the margin is too tight.</p>
-    <label class="field" data-for="pet" data-light="pet_style"><span>How it goes on</span>
+    <label class="field" data-for="pet"><span>How it goes on</span>
       <select id="pet_style">
         <option value="hanging">Hanging &mdash; ring tab for a split ring</option>
         <option value="slide">Slide-on &mdash; the collar threads through it</option>
@@ -674,7 +677,7 @@
        back. A slide-on tag is a flat plate with a slot at each end; the strap goes in one slot,
        behind the plate and out of the other. Nothing dangles, so it cannot jingle, snag or fall
        off when a ring opens &mdash; but its back is against the dog, so everything is on the front.</p>
-    <label class="field" data-for="pet" data-light="pet_shape" id="pet_shape_field" data-style="hanging"><span>Shape</span>
+    <label class="field" data-for="pet" id="pet_shape_field" data-style="hanging"><span>Shape</span>
       <select id="pet_shape">
         <option value="bone" selected>Bone</option>
         <option value="paw">Paw print</option>
@@ -686,7 +689,7 @@
         <option value="tag">Tag</option>
       </select>
     </label>
-    <div class="field" data-for="pet" data-light="pet_size"><span>Width</span>
+    <div class="field" data-for="pet"><span>Width</span>
       <div class="slider"><input type="range" id="pet_size" min="20" max="60" step="1" value="45"><output id="pet_size_v">45 mm</output></div>
     </div>
     <p class="hint" data-for="pet" id="pet_size_note">Each shape starts at the width where a full phone number still comes out
@@ -695,14 +698,14 @@
        between its lobes, a paw's only the pad, and a fish's the body in front of its tail. Picking a
        shape puts this back to that shape's starting size; the readout warns when the number drops
        under 3.5 mm.</p>
-    <label class="field" data-for="pet" data-light="pet_sides" id="pet_sides_field" data-style="hanging"><span>Sides</span>
+    <label class="field" data-for="pet" id="pet_sides_field" data-style="hanging"><span>Sides</span>
       <select id="pet_sides">
         <option value="two">Name on the front, phone on the back</option>
         <option value="name">Name on both sides</option>
         <option value="one">Everything on the front</option>
       </select>
     </label>
-    <label class="field" data-for="pet" data-light="pet_collar" id="pet_collar_field" data-style="slide"><span>Collar width</span>
+    <label class="field" data-for="pet" id="pet_collar_field" data-style="slide"><span>Collar width</span>
       <select id="pet_collar">
         <option value="10">10 mm (3/8&Prime;) &mdash; cat</option>
         <option value="15">15 mm (5/8&Prime;) &mdash; small dog</option>
@@ -711,14 +714,14 @@
         <option value="38">38 mm (1&frac12;&Prime;) &mdash; martingale</option>
       </select>
     </label>
-    <div class="field" data-for="pet" data-light="pet_slot" id="pet_slot_field" data-style="slide"><span>Slot width</span>
+    <div class="field" data-for="pet" id="pet_slot_field" data-style="slide"><span>Slot width</span>
       <div class="slider"><input type="range" id="pet_slot" min="2" max="6" step="0.5" value="3.5"><output id="pet_slot_v">3.5 mm</output></div>
     </div>
     <p class="hint" data-for="pet" id="pet_slot_note" data-style="slide">The slots are the collar's width plus 1.5 mm long,
        and this wide: the strap's thickness with room to go through at an angle. Measure the
        collar; nylon webbing is about 2 mm, leather 3 to 4.</p>
-    <label class="check" data-for="pet" data-light="pet_nfc"><input type="checkbox" id="pet_nfc"><span>NFC chip inside, with the phone number</span></label>
-    <label class="field" data-for="pet" data-light="pet_nfc" id="pet_chip_field" hidden><span>Chip</span>
+    <label class="check" data-for="pet"><input type="checkbox" id="pet_nfc"><span>NFC chip inside, with the phone number</span></label>
+    <label class="field" data-for="pet" id="pet_chip_field" hidden><span>Chip</span>
       <select id="pet_chip">
         <option value="0">Biggest that fits</option>
         <option value="25">25 mm round</option>
@@ -734,39 +737,39 @@
        the readout says the height and exactly what to write to the chip (NFC Tools and the like:
        add a phone number record, write, then lock it). Works with every layout &mdash; with
        <em>Name on both sides</em>, the chip is where the number lives.</p>
-    <label class="check" data-for="pet" data-light="pet_border"><input type="checkbox" id="pet_border"><span>Border round the front</span></label>
-    <label class="field" data-for="pet" data-light="pet_link" id="pet_link_field" data-style="hanging"><span>QR code link</span><input type="text" id="pet_link" value="" autocomplete="off" placeholder="https://..."></label>
+    <label class="check" data-for="pet"><input type="checkbox" id="pet_border"><span>Border round the front</span></label>
+    <label class="field" data-for="pet" id="pet_link_field" data-style="hanging"><span>QR code link</span><input type="text" id="pet_link" value="" autocomplete="off" placeholder="https://..."></label>
     <p class="hint" data-for="pet" id="pet_link_note" data-style="hanging">Optional, on the back beside the phone number: a page with
        the owner's details that a finder opens with their camera. Use a short link you control, so it
        can be re-pointed without reprinting the tag. A code needs room &mdash; at least 38 mm of
        tag &mdash; and the readout says when it has been squeezed.</p>
-    <label class="field" data-for="name pet stencil sign" data-light="font"><span>Face</span>
+    <label class="field" data-for="name pet stencil sign"><span>Face</span>
       <select id="font"></select>
     </label>
     <p class="hint" data-for="name pet stencil sign" id="font_note"></p>
-    <div class="field" data-for="name" data-light="cap"><span>Letter height</span>
+    <div class="field" data-for="name"><span>Letter height</span>
       <div class="slider"><input type="range" id="cap" min="8" max="26" step="0.5" value="14"><output id="cap_v">14 mm</output></div>
     </div>
     <p class="hint" data-for="name" id="cap_note"></p>
-    <div class="field" data-for="name pet card" data-light="ring_d" id="ring_field" data-style="hanging"><span>Ring hole</span>
+    <div class="field" data-for="name pet card" id="ring_field" data-style="hanging"><span>Ring hole</span>
       <div class="slider"><input type="range" id="ring_d" min="0" max="9" step="0.5" value="5"><output id="ring_v">5 mm</output></div>
     </div>
     <p class="hint" data-for="name">A 5 mm hole takes a split ring or a lobster clasp. Nothing at all
        drops the tab and leaves the bare word.</p>
     <p class="hint" data-for="pet" id="ring_note" data-style="hanging">5 mm takes the split ring or S-hook on most collars. The
        plastic round it is heavier than a keyring's, because a tab that tears out is a lost tag.</p>
-    <label class="check" data-for="name" data-light="outline"><input type="checkbox" id="outline" checked><span>Letters raised in a second colour</span></label>
+    <label class="check" data-for="name"><input type="checkbox" id="outline" checked><span>Letters raised in a second colour</span></label>
     <p class="hint" data-for="name">On, the word sits proud of its own outline and the print takes one
        filament change. Off, it is one flat solid in the body colour.</p>
-    <label class="field" data-for="fob" data-light="preset"><span>Preset</span>
+    <label class="field" data-for="fob"><span>Preset</span>
       <select id="preset"></select>
     </label>
-    <label class="field" data-for="fob" data-light="layout"><span>Layout</span>
+    <label class="field" data-for="fob"><span>Layout</span>
       <select id="layout"></select>
     </label>
     <p class="hint" data-for="fob" id="layout_note"></p>
-    <label class="check" data-for="fob" data-light="logo_file"><input type="checkbox" id="placeholder"><span>Empty square where a logo would go</span></label>
-    <label class="field" data-for="fob" data-light="look"><span>Background pattern</span>
+    <label class="check" data-for="fob"><input type="checkbox" id="placeholder"><span>Empty square where a logo would go</span></label>
+    <label class="field" data-for="fob"><span>Background pattern</span>
       <select id="look"></select>
     </label>
     <div class="field" id="spool_field" hidden><span>Colours from the shelf</span>
@@ -783,10 +786,10 @@
        it ready to print. Edit the file when a spool arrives or runs out.</p>
     <div class="field"><span id="exact_label">Colours</span>
       <div class="swatches">
-        <label data-light="c0"><input type="color" id="c0" value="#0c1a2e">Body</label>
-        <label data-light="c1"><input type="color" id="c1" value="#1f3a5f">Pattern</label>
-        <label data-light="c2"><input type="color" id="c2" value="#f5f2ec">Primary</label>
-        <label data-light="c3"><input type="color" id="c3" value="#ff5b1f">Secondary</label>
+        <label><input type="color" id="c0" value="#0c1a2e">Body</label>
+        <label><input type="color" id="c1" value="#1f3a5f">Pattern</label>
+        <label><input type="color" id="c2" value="#f5f2ec">Primary</label>
+        <label><input type="color" id="c3" value="#ff5b1f">Secondary</label>
       </div>
     </div>
     <p class="hint" data-for="fob">Every colour is an inlay in one thin face layer &mdash; the first 0.6 mm of each
@@ -810,18 +813,18 @@
        lettering <i>and</i> the diffuser behind it, and it wants a translucent or a white filament
        &mdash; they are one piece, and they are the only thing the light comes through. The other two
        are not used.</p>
-    <div class="field" data-light="rise" id="rise_field"><span>Relief</span>
+    <div class="field" id="rise_field"><span>Relief</span>
       <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
     </div>
-    <label class="check" data-for="card" data-light="card_stepped"><input type="checkbox" id="card_stepped"><span>A different height for each colour</span></label>
+    <label class="check" data-for="card"><input type="checkbox" id="card_stepped"><span>A different height for each colour</span></label>
     <div id="card_steps" hidden>
-      <div class="field" data-light="c2" data-slot="primary"><span id="card_rise_primary_l">Logo colour 1</span>
+      <div class="field" data-slot="primary"><span id="card_rise_primary_l">Logo colour 1</span>
         <div class="slider"><input type="range" id="card_rise_primary" min="0" max="3" step="0.2" value="0.4"><output id="card_rise_primary_v">0.4 mm</output></div>
       </div>
-      <div class="field" data-light="c3" data-slot="secondary"><span id="card_rise_secondary_l">Logo colour 2</span>
+      <div class="field" data-slot="secondary"><span id="card_rise_secondary_l">Logo colour 2</span>
         <div class="slider"><input type="range" id="card_rise_secondary" min="0" max="3" step="0.2" value="1.2"><output id="card_rise_secondary_v">1.2 mm</output></div>
       </div>
-      <div class="field" data-light="c1" data-slot="pattern"><span id="card_rise_pattern_l">Logo colour 3</span>
+      <div class="field" data-slot="pattern"><span id="card_rise_pattern_l">Logo colour 3</span>
         <div class="slider"><input type="range" id="card_rise_pattern" min="0" max="3" step="0.2" value="2"><output id="card_rise_pattern_v">2.0 mm</output></div>
       </div>
     </div>
@@ -842,8 +845,8 @@
 
   <section data-for="card">
     <h2>4 &middot; The tap side</h2>
-    <label class="check" data-light="card_nfc"><input type="checkbox" id="card_nfc" checked><span>NFC sticker inside</span></label>
-    <label class="field" data-light="card_fit" id="card_fit_field"><span>How it goes in</span>
+    <label class="check"><input type="checkbox" id="card_nfc" checked><span>NFC sticker inside</span></label>
+    <label class="field" id="card_fit_field"><span>How it goes in</span>
       <select id="card_fit">
         <option value="halves">Two halves &mdash; sticker glued between them</option>
         <option value="sealed">Sealed in &mdash; pause the print, drop it in</option>
@@ -853,7 +856,7 @@
        thickness with half the sticker's cavity in each, and three pins on the glue line so they only go
        together one way. No pause: print both, put the sticker in the cavity, glue the flat round it and
        clamp. Use Pulled apart above the preview to see the sticker between them.</p>
-    <label class="field" data-light="card_chip" id="card_chip_field"><span>Sticker</span>
+    <label class="field" id="card_chip_field"><span>Sticker</span>
       <select id="card_chip">
         <option value="0">The biggest that fits</option>
         <option value="30">30 mm round</option>
@@ -867,11 +870,11 @@
        The print stops once, just above the pocket: drop the sticker in and resume, and it is sealed
        inside for good &mdash; nothing to peel, nothing showing. The 3MF carries the pause, and the
        readout says the height. A bigger sticker reads from further off.</p>
-    <label class="field" data-light="card_link"><span>Link</span><input type="text" id="card_link" value="" autocomplete="off" placeholder="https://..."></label>
+    <label class="field"><span>Link</span><input type="text" id="card_link" value="" autocomplete="off" placeholder="https://..."></label>
     <p class="hint" id="card_linkfit">What a phone opens when it taps the card &mdash; your site, a booking
        page, a vCard. Nothing here writes the sticker; that is a phone job (NFC Tools and the like),
        once the card is printed. A link you control can be re-pointed later without reprinting.</p>
-    <label class="field" data-light="card_back"><span>On the back</span>
+    <label class="field"><span>On the back</span>
       <select id="card_back">
         <option value="arcs">The tap mark, over the sticker</option>
         <option value="qr">A QR code for the link</option>
@@ -884,7 +887,7 @@
 
   <section data-for="fob">
     <h2>4 &middot; The tap side</h2>
-    <label class="field" data-light="tag_mode"><span>Tag fitting</span>
+    <label class="field"><span>Tag fitting</span>
       <select id="tag_mode">
         <option value="split">Two halves &mdash; tag glued between them</option>
         <option value="pocket">Pocket &mdash; open recess, stick the tag in after</option>
@@ -895,19 +898,19 @@
        a three-pin key so they only go together one way. Glue the flat border outside the cavity
        and clamp; the tag ends up sealed in the middle with nothing showing.</p>
     <div class="row">
-      <label class="field" data-light="tag_w"><span>Tag width</span><input type="text" id="tag_w" value="35" autocomplete="off" inputmode="decimal"></label>
-      <label class="field" data-light="tag_h"><span>Tag height</span><input type="text" id="tag_h" value="22" autocomplete="off" inputmode="decimal"></label>
-      <label class="field" data-light="tag_thick"><span>Thick</span><input type="text" id="tag_thick" value="0.5" autocomplete="off" inputmode="decimal"></label>
+      <label class="field"><span>Tag width</span><input type="text" id="tag_w" value="35" autocomplete="off" inputmode="decimal"></label>
+      <label class="field"><span>Tag height</span><input type="text" id="tag_h" value="22" autocomplete="off" inputmode="decimal"></label>
+      <label class="field"><span>Thick</span><input type="text" id="tag_thick" value="0.5" autocomplete="off" inputmode="decimal"></label>
     </div>
     <p class="hint">Millimetres, measured off your own tags. The cavity adds 0.4 mm of slack, and
        the fob grows if it has to.</p>
-    <label class="field" data-light="tap"><span>Wording under the arcs</span><input type="text" id="tap" value="TAP HERE" autocomplete="off"></label>
+    <label class="field"><span>Wording under the arcs</span><input type="text" id="tap" value="TAP HERE" autocomplete="off"></label>
     <p class="hint">Use <code>|</code> to split lines. Leave it empty for arcs alone &mdash;
        which is what the fob gets anyway, there is no room for text beside its cavity.</p>
-    <label class="field" data-light="link"><span>Link</span><input type="text" id="link" value="" autocomplete="off" placeholder="https://..."></label>
+    <label class="field"><span>Link</span><input type="text" id="link" value="" autocomplete="off" placeholder="https://..."></label>
     <p class="hint" id="linkfit">Nothing here writes the tag &mdash; that is a phone job
        (NFC Tools and the like). This counts the bytes it would take.</p>
-    <label class="check" data-light="qr"><input type="checkbox" id="qr"><span>QR code for the link on the back</span></label>
+    <label class="check"><input type="checkbox" id="qr"><span>QR code for the link on the back</span></label>
     <p class="hint">For phones that don't tap, and the one addition worth making to a modern card:
        a short link you control can be re-pointed without reprinting. A shorter link is a coarser
        code, and a coarser code prints on a bigger nozzle.</p>
@@ -966,7 +969,10 @@
       <button class="button primary" id="save" disabled><svg viewBox="0 0 16 16"><path d="M8 2v8m0 0L5 7m3 3 3-3M3 12v2h10v-2"/></svg>Download 3MF</button>
     </div>
   </div>
-  <div id="specs">building&hellip;</div>
+  <div id="readout">
+    <div id="alerts"></div>
+    <details id="more"><summary>Print details</summary><div id="specs">building&hellip;</div></details>
+  </div>
 </main>
 
 <script>
@@ -990,7 +996,15 @@ let logoText = "", designText = "", stencilSvg = "";
    the one after it has to hand out the logo's colours again. */
 let artData = "", artName = "", artFresh = "body";
 const STEP_SLOTS = ["primary", "secondary", "pattern"];
-const specs = $("specs");
+/* The readout: the numbers fold away under "Print details", but a warning or
+   an error is pulled out above them, so nobody has to open it to see one. */
+const specs = {
+  set innerHTML(html) {
+    const box = $("specs");
+    box.innerHTML = html;
+    $("alerts").replaceChildren(...box.querySelectorAll(":scope > .warn, :scope > .err"));
+  },
+};
 
 /* The looks, as src/looks.py has them -- a layout, a pattern and four colours:
    body, pattern, primary, secondary.  Kept here too so picking one is instant. */
@@ -1266,7 +1280,6 @@ void main() {
 const FRAG = `
 precision mediump float;
 varying vec3 vN; varying vec3 vC;
-uniform float uHi;          // 1 this group is lit, -1 something else is, 0 nothing
 void main() {
   // Two-sided: a back face is lit as though it faced us.  With culling off,
   // the pinholes a sliver leaves in a flat face show the inside of the solid
@@ -1279,13 +1292,7 @@ void main() {
   float d = max(dot(n, key), 0.0) * 0.70 + max(dot(n, fill), 0.0) * 0.22 + 0.30;
   vec3 h = normalize(key + vec3(0.0, 0.0, 1.0));
   float s = pow(max(dot(n, h), 0.0), 40.0) * 0.25;
-  // Putting the cursor in a box lights up what it makes: that field goes a
-  // colour no filament here is, and the rest of the part loses its own, so
-  // the answer to "which bit is this?" is the only coloured thing on screen.
-  vec3 c = vC;
-  if (uHi > 0.5) c = vec3(0.10, 0.76, 1.0);
-  else if (uHi < -0.5) c = mix(c, vec3(dot(c, vec3(0.299, 0.587, 0.114))), 0.78);
-  gl_FragColor = vec4(c * d + s, 1.0);
+  gl_FragColor = vec4(vC * d + s, 1.0);
 }`;
 
 /* ------------------------------------------------------------- the view --
@@ -1345,7 +1352,6 @@ if (!gl) {
     col: gl.getAttribLocation(prog, "aCol"),
     mvp: gl.getUniformLocation(prog, "uMVP"),
     model: gl.getUniformLocation(prog, "uModel"),
-    hi: gl.getUniformLocation(prog, "uHi"),
   };
   for (const k of ["pos", "nrm", "col"]) {
     buf[k] = gl.createBuffer();
@@ -1429,10 +1435,7 @@ function frame() {
     const model = place(part, lift);
     gl.uniformMatrix4fv(loc.mvp, false, M.mul(M.mul(proj, view), model));
     gl.uniformMatrix4fv(loc.model, false, M.mul(turn, model));
-    for (const g of part.groups) {
-      gl.uniform1f(loc.hi, !light ? 0 : (lit(g) ? 1 : -1));
-      gl.drawArrays(gl.TRIANGLES, g.start, g.count);
-    }
+    gl.drawArrays(gl.TRIANGLES, part.start, part.count);
   }
 }
 
@@ -1481,109 +1484,6 @@ function setMode(next, snap) {
   if (snap) { lift = liftTo; yaw = yawTo; pitch = pitchTo; focus = [...focusTo]; dist = distTo; }
 }
 
-/* ---------------------------------------------------------- highlighting --
-   Every run of triangles knows the field it came from, so a control can say
-   "this one" and the viewer can answer.  Putting the cursor in a box -- or
-   just running it over one -- lights that field up and greys the rest. */
-const HUD_IDLE = "drag to turn \u00b7 scroll to zoom";
-const LIGHTS = {
-  kind:        { all: true, label: "the whole part" },
-  art_file:    { el: ["logo"], label: "the logo" },
-  card_bg:     { all: true, label: "the whole card" },
-  card_size:   { all: true, label: "the whole card" },
-  card_backing:{ el: ["body"], label: "the card's shape" },
-  card_border: { el: ["body"], label: "the border round the logo" },
-  card_holes:  { el: ["body"], label: "the card's shape" },
-  card_colours:{ el: ["logo"], label: "the logo's colours" },
-  card_ring:   { el: ["body"], label: "the card the keyring goes through" },
-  card_at:     { el: ["body"], label: "the card the keyring goes through" },
-  card_nfc:    { el: ["tag"], mode: "apart", label: "the NFC sticker" },
-  card_chip:   { el: ["tag"], mode: "apart", label: "the NFC sticker" },
-  card_link:   { el: ["qr"], label: "the QR code" },
-  card_back:   { face: "back", label: "the back" },
-  card_fit:    { el: ["tag"], mode: "apart", label: "the sticker between the halves" },
-  card_both:   { face: "back", label: "the logo on the back" },
-  card_stepped:{ el: ["logo"], label: "the logo" },
-  name:        { el: ["name"], label: "the name" },
-  company:     { el: ["company"], label: "the company" },
-  role:        { el: ["role"], label: "the title" },
-  phone:       { el: ["phone"], label: "the phone number" },
-  email:       { el: ["email"], label: "the email" },
-  logo_file:   { el: ["logo", "design"], label: "the logo" },
-  design_file: { el: ["design", "logo"], label: "the design" },
-  preset:      { ink: true, label: "everything in the face" },
-  layout:      { face: "front", label: "the front" },
-  look:        { el: ["pattern"], label: "the pattern" },
-  rise:        { ink: true, label: "everything in the face" },
-  c0:          { slot: 0, label: "the body colour" },
-  c1:          { slot: 1, label: "the pattern colour" },
-  c2:          { slot: 2, label: "the primary colour" },
-  c3:          { slot: 3, label: "the secondary colour" },
-  tap:         { el: ["tap", "arcs"], label: "the tap mark" },
-  link:        { el: ["qr"], label: "the QR code" },
-  qr:          { el: ["qr"], label: "the QR code" },
-  font:        { all: true, label: "the whole word" },
-  plate:       { all: true, label: "the plate" },
-  margin:      { all: true, label: "the plate" },
-  bridge:      { all: true, label: "the bridges" },
-  thick:       { all: true, label: "the plate" },
-  cap:         { all: true, label: "the whole word" },
-  ring_d:      { all: true, label: "the ring tab" },
-  outline:     { el: ["name"], label: "the raised letters" },
-  depth:       { all: true, label: "the box" },
-  wall:        { el: ["body"], label: "the walls" },
-  diffuse:     { el: ["diffuser"], label: "the diffuser" },
-  cable:       { el: ["body"], label: "the case the notch is in" },
-  lid:         { el: ["lid"], label: "the back lid" },
-  mount:       { el: ["body"], label: "the case the mounts are part of" },
-  pet_note:    { el: ["note"], label: "the extra line" },
-  pet_style:   { all: true, label: "the whole tag" },
-  pet_shape:   { all: true, label: "the whole tag" },
-  pet_size:    { all: true, label: "the whole tag" },
-  pet_sides:   { all: true, label: "the whole tag" },
-  pet_collar:  { el: ["body"], label: "the plate the slots are in" },
-  pet_slot:    { el: ["body"], label: "the plate the slots are in" },
-  pet_border:  { el: ["border"], label: "the border" },
-  pet_link:    { el: ["qr"], label: "the QR code" },
-  tag_mode:    { el: ["tag"], mode: "apart", label: "the tag in the joint" },
-  tag_w:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
-  tag_h:       { el: ["tag"], mode: "apart", label: "the tag in the joint" },
-  tag_thick:   { el: ["tag"], mode: "apart", label: "the tag in the joint" },
-};
-let light = null, lightKey = null;
-
-function lit(g) {
-  if (!light) return false;
-  if (light.all) return true;
-  if (light.slot !== undefined) return g.slot === light.slot;
-  if (light.ink) return g.element !== "body" && g.element !== "tag";
-  if (light.el) return light.el.includes(g.element);
-  if (light.face) return g.face === light.face;
-  return false;
-}
-
-function setLight(key) {
-  if (key === lightKey) return;
-  lightKey = key;
-  light = (key && LIGHTS[key]) || null;
-  if (!light) { $("hud").textContent = HUD_IDLE; return; }
-  const faces = new Set();
-  for (const p of parts) for (const g of p.groups) if (lit(g)) faces.add(g.face);
-  if (!faces.size) {
-    $("hud").textContent = `nothing on the part for ${light.label} yet`;
-    return;
-  }
-  $("hud").textContent = `showing ${light.label}`;
-  // Turn whatever it is towards the camera: the tag only exists in the open
-  // joint, and there is no point lighting up the back of a card you are
-  // looking at the front of.
-  if (light.mode && !$("modes").hidden) setMode(light.mode, false);
-  else if (mode === "glued" && faces.size === 1) {
-    if (faces.has("back")) yawTo = frontYaw + Math.PI;
-    else if (faces.has("front")) yawTo = frontYaw;
-  }
-}
-
 /* ------------------------------------------------------------ the model --
    Binary STL: 80-byte header, a triangle count, then 50 bytes per triangle.
    The stored facet normal is used, and only recomputed when it is missing or
@@ -1593,7 +1493,7 @@ function setLight(key) {
    the flat faces.  The writer computed those normals in double precision
    from the geometry before it was rounded, so they are the better source.
    info.preview says which triangles are which part, and for each run of them
-   the colour slot, the field it came from and the face it is on. */
+   the colour slot. */
 function upload(bytes) {
   const dv = new DataView(bytes);
   const n = dv.getUint32(80, true);
@@ -1607,10 +1507,8 @@ function upload(bytes) {
   for (const part of info.preview) {
     const lo = [Infinity, Infinity, Infinity], hi = [-Infinity, -Infinity, -Infinity];
     const start = i / 3;
-    const groups = [];
-    for (const [slot, element, face, faces] of part.slots) {
+    for (const [slot, , , faces] of part.slots) {
       const c = palette[slot];
-      groups.push({ slot, element, face, start: i / 3, count: faces * 3 });
       for (let f = 0; f < faces; f++, i += 9) {
         let nx = dv.getFloat32(o, true), ny = dv.getFloat32(o + 4, true),
             nz = dv.getFloat32(o + 8, true);
@@ -1638,7 +1536,6 @@ function upload(bytes) {
       }
     }
     parts.push({ name: part.name, start, count: i / 3 - start, lo, hi, tag: !!part.tag,
-                 groups,
                  plate: part.plate, assembled: M.fromRows(part.assembled),
                  // far enough that the halves clear each other on screen at
                  // the exploded view's angle, rather than overlapping
@@ -2084,28 +1981,6 @@ function takeLogoColours(sentBody, body) {
   else recolour();
 }
 
-/* A control lights up what it makes: the focused one wins, and the hovered
-   one fills in while nothing has focus. */
-const aside = document.querySelector("aside");
-let focusedKey = null, hoverKey = null;
-const lightKeyOf = el => {
-  for (let n = el; n && n !== aside; n = n.parentElement) {
-    if (n.dataset && n.dataset.light) return n.dataset.light;
-    if (n.id && LIGHTS[n.id]) return n.id;
-  }
-  return null;
-};
-aside.addEventListener("focusin", e => {
-  focusedKey = lightKeyOf(e.target);
-  setLight(focusedKey || hoverKey);
-});
-aside.addEventListener("focusout", () => { focusedKey = null; setLight(hoverKey); });
-aside.addEventListener("pointerover", e => {
-  hoverKey = lightKeyOf(e.target);
-  setLight(focusedKey || hoverKey);
-});
-aside.addEventListener("pointerleave", () => { hoverKey = null; setLight(focusedKey); });
-
 $("link").addEventListener("input", checkLink);
 $("card_link").addEventListener("input", checkCardLink);
 for (const id of ["card_bg", "card_holes", "card_nfc", "card_both", "card_stepped"])
@@ -2335,7 +2210,6 @@ function spoolsChosen(snap) {
     if (snap) snapTo(id);
     const row = document.createElement("div");
     row.className = "spool-row";
-    row.dataset.light = id;
     const head = document.createElement("div");
     head.className = "spool-head";
     head.innerHTML = `<span>${label}: <b>${spoolName(id) || "not a spool on the shelf"}</b></span>`;
