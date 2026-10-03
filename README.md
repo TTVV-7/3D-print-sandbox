@@ -350,7 +350,26 @@ one under the name and the file builds as nothing, silently.  It lives at
 this repo, so every push builds: the default branch goes to that address, any
 other branch gets a preview address of its own (which asks for a Vercel login;
 the production one is public).  The URL then works from any phone or laptop
-with nothing installed.
+with nothing installed.  It is moving to **https://design.printyours.ca**, which
+is the address the canonical links, the share previews (`public/assets/og/`),
+`public/robots.txt` and `public/sitemap.xml` all name.
+
+A link can open the page on one shape, so a page on www.printyours.ca about pet
+tags lands on the pet tag and not on the card:
+
+| Shape | Link |
+| --- | --- |
+| NFC logo card | `https://design.printyours.ca/?shape=nfc-card` (or plain `/`) |
+| Name keyring | `https://design.printyours.ca/?shape=name-keychain` |
+| Pet tag | `https://design.printyours.ca/?shape=pet-tag` |
+| Sign enclosure | `https://design.printyours.ca/?shape=light-up-sign` |
+| Stencil | `https://design.printyours.ca/?shape=stencil` |
+| Phone case | `https://design.printyours.ca/case` |
+
+A few other spellings work too (`keyring`, `keychain`, `pet`, `sign`, `card`,
+and `phone-case`, which goes on to `/case`); anything it does not know opens on
+the card, as `/` does.  `SHAPE_LINKS` near the end of `public/index.html` has
+the list.
 
 Two things follow from running on a function: the preview comes back gzipped (a
 batch plate would otherwise hit the response ceiling), the first request after a

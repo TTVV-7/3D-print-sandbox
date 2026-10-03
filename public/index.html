@@ -3,7 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Fobs, keyrings, pet tags, signs</title>
+<title>Design Your Own NFC Card, Keychain or Pet Tag | Print Yours</title>
+<meta name="description" content="Design a custom NFC business card, name keychain, pet tag, light-up sign or stencil in your browser, see it in 3D, then have Print Yours print it.">
+<link rel="canonical" href="https://design.printyours.ca/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Print Yours">
+<meta property="og:url" content="https://design.printyours.ca/">
+<meta property="og:title" content="Design Your Own NFC Card, Keychain or Pet Tag | Print Yours">
+<meta property="og:description" content="Design a custom NFC business card, name keychain, pet tag, light-up sign or stencil in your browser, see it in 3D, then have Print Yours print it.">
+<meta property="og:image" content="https://design.printyours.ca/assets/og/design.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A logo NFC card, a heart pet tag, a name keychain and a lit OPEN sign, designed with Print Yours">
+<meta name="twitter:card" content="summary_large_image">
 <style>
   /* Styled on Figma's Simple Design System: Inter, a near-black brand colour
      on white, 1 px borders, 8 px radii, an 8-based spacing scale.  The tokens
@@ -471,6 +483,13 @@
   /* 48 faces, 141 KB of woff2 */
   /* ---- end face specimens ---- */
 
+  /* Print Yours, whose app this is: the wordmark, back to the main site, and
+     the way to order the thing designed here instead of printing it. */
+  .brand { display: inline-flex; align-items: baseline; gap: .28em; margin-bottom: var(--space-300);
+           font-weight: 700; font-size: 18px; letter-spacing: -0.02em; color: #0c1a2e; text-decoration: none; }
+  .brand span { color: #e64a12; }
+  .brand:hover { text-decoration: underline; }
+  .quote a { color: var(--text-default); font-weight: 600; }
   #reel { padding: 0; border: 0; background: none; overflow: visible; }
   #reel::backdrop { background: rgba(12, 26, 46, .78); }
   #reel video { display: block; height: min(86vh, 960px); max-width: 92vw; aspect-ratio: 9 / 16;
@@ -484,6 +503,7 @@
 <body>
 <aside id="options">
   <div>
+    <a class="brand" href="https://www.printyours.ca">Print <span>Yours</span></a>
     <h1>Logo cards, keyrings, pet tags, signs</h1>
     <p class="sub">Pick a shape, fill it in, take the file away.</p>
     <p class="sub" style="margin-top:var(--space-200)"><a href="/case"
@@ -1057,6 +1077,8 @@
   </div>
   <div id="readout">
     <div id="alerts"></div>
+    <p class="quote" style="margin:0 0 var(--space-200)">Rather we printed it for you?
+      <a href="https://www.printyours.ca/quote">Get a quote from Print Yours &rarr;</a></p>
     <details id="more"><summary>Print details</summary><div id="specs">building&hellip;</div></details>
   </div>
 </main>
@@ -2827,6 +2849,28 @@ async function download(format, type, ext) {
 
 $("save_stl").addEventListener("click", () => download("stl", "model/stl", "stl"));
 $("save").addEventListener("click", () => download("3mf", "model/3mf", "3mf"));
+
+/* A link can open the page on a shape -- /?shape=pet-tag -- so a page about
+   pet tags lands on the pet tag rather than on the card.  No shape, or one
+   this page does not know, is the card, the same as plain "/".  The tile's
+   own click does the switching, so a linked shape starts exactly as one
+   picked by hand does. */
+const SHAPE_LINKS = {
+  "nfc-card": "card", "name-keychain": "name", "pet-tag": "pet", "light-up-sign": "sign",
+  "stencil": "stencil",
+  // the other names people might write the same link with
+  "card": "card", "logo-card": "card", "nfc-business-card": "card",
+  "name": "name", "keychain": "name", "keyring": "name", "name-keyring": "name",
+  "pet": "pet", "sign": "sign", "stencils": "stencil",
+};
+{
+  const asked = (new URLSearchParams(location.search).get("shape") || "").trim().toLowerCase();
+  if (["phone-case", "case"].includes(asked)) location.replace("/case");
+  const tile = Object.hasOwn(SHAPE_LINKS, asked) &&
+               document.querySelector(`.tile[data-kind="${SHAPE_LINKS[asked]}"]`);
+  // the switch queues a build; the one just below makes it, so not twice
+  if (tile && tile.getAttribute("aria-pressed") !== "true") { tile.click(); clearTimeout(pending); }
+}
 
 rebuild();
 </script>

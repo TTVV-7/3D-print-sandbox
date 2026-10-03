@@ -3,7 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Phone cases</title>
+<title>Design Your Own Custom Phone Case | Print Yours</title>
+<meta name="description" content="Put your own art on a custom 3D-printed phone case: pick your phone, add an SVG, preview it on the phone in 3D, then have Print Yours print it.">
+<link rel="canonical" href="https://design.printyours.ca/case">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Print Yours">
+<meta property="og:url" content="https://design.printyours.ca/case">
+<meta property="og:title" content="Design Your Own Custom Phone Case | Print Yours">
+<meta property="og:description" content="Put your own art on a custom 3D-printed phone case: pick your phone, add an SVG, preview it on the phone in 3D, then have Print Yours print it.">
+<meta property="og:image" content="https://design.printyours.ca/assets/og/case.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="A custom phone case with colourful shapes on the back, designed with Print Yours">
+<meta name="twitter:card" content="summary_large_image">
 <style>
   /* The same Simple Design System tokens and components as index.html, minus
      the display-face specimens, which this page has no use for.  Kept inline
@@ -385,6 +397,13 @@
   #notes .ok { color: var(--positive); background: var(--positive-bg); }
 
   /* Top bar: this page and the other one */
+  /* Print Yours, whose app this is: the wordmark, back to the main site, and
+     the way to order the thing designed here instead of printing it. */
+  .brand { display: inline-flex; align-items: baseline; gap: .28em; margin-bottom: var(--space-300);
+           font-weight: 700; font-size: 18px; letter-spacing: -0.02em; color: #0c1a2e; text-decoration: none; }
+  .brand span { color: #e64a12; }
+  .brand:hover { text-decoration: underline; }
+  .quote a { color: var(--text-default); font-weight: 600; }
   .nav { display: flex; gap: var(--space-300); align-items: center; font-size: 14px; }
   .nav a { color: var(--text-secondary); text-decoration: none; }
   .nav a:hover { color: var(--text-default); text-decoration: underline; }
@@ -415,6 +434,7 @@
 <body>
 <aside>
   <div>
+    <a class="brand" href="https://www.printyours.ca">Print <span>Yours</span></a>
     <div class="nav"><a href="/">&larr; The other generator</a></div>
     <h1>Phone cases</h1>
     <p class="sub">Pick a phone, paint the back with an SVG, print it face down.</p>
@@ -669,6 +689,8 @@
       has neither, because leaving the middle of the back plate unfilled is a
       thing g-code can say and a solid cannot.</p></div>
   </div>
+  <p class="hint quote">Rather we printed it for you?
+    <a href="https://www.printyours.ca/quote">Get a quote from Print Yours &rarr;</a></p>
 </aside>
 
 <main>
