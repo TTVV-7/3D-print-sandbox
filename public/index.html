@@ -585,10 +585,33 @@
        so the sign is one rounded shape hugging the word, the way a channel-letter sign is. The two
        sliders below are then the most room the word can have, and the box comes out as big as the
        word needs. Rectangle is the plain box, and the one the wall mounts fit.</p>
-    <div class="field" data-for="stencil sign" data-light="plate"><span id="plate_label">Plate</span>
+    <label class="field" data-for="stencil" data-light="stencil_fit"><span>Fits</span>
+      <select id="stencil_fit">
+        <option value="">A flat plate</option>
+        <option value="round">A round plate</option>
+        <optgroup label="On top of a drink">
+          <option value="espresso">Espresso cup &mdash; 68 mm rim</option>
+          <option value="mug">Coffee mug &mdash; 84 mm rim</option>
+          <option value="cappuccino">Cappuccino cup &mdash; 100 mm rim</option>
+        </optgroup>
+        <optgroup label="On top of a bake">
+          <option value="cupcake">Cupcake &mdash; 66 mm</option>
+          <option value="cake6">6&Prime; round cake</option>
+          <option value="cake8">8&Prime; round cake</option>
+          <option value="cake9">9&Prime; round cake</option>
+          <option value="cake10">10&Prime; round cake (too big for most beds)</option>
+        </optgroup>
+      </select>
+    </label>
+    <p class="hint" data-for="stencil">Size it to what it goes on. A cup or a cake makes the stencil a
+       disc a little wider than the rim, so it rests there instead of falling in, and the artwork is
+       fitted to the opening &mdash; dust cocoa over a cappuccino, or icing sugar over a cake. The
+       preview stands it on the thing, to scale, so you can see how big it really is. Sizes are the
+       usual ones; measure yours and pick a round plate if it is different.</p>
+    <div class="field" data-for="stencil sign" data-fit="rect round" data-light="plate"><span id="plate_label">Plate</span>
       <div class="slider"><input type="range" id="plate_w" min="30" max="250" step="5" value="120"><output id="plate_w_v">120 mm</output></div>
     </div>
-    <div class="field" data-for="stencil sign" data-light="plate">
+    <div class="field" data-for="stencil sign" data-fit="rect" data-light="plate">
       <div class="slider"><input type="range" id="plate_h" min="30" max="250" step="5" value="60"><output id="plate_h_v">60 mm</output></div>
     </div>
     <div class="field" data-for="stencil sign" data-light="margin"><span>Margin</span>
@@ -975,7 +998,7 @@ const $ = id => document.getElementById(id);
 const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag_w",
                 "tag_h", "tag_thick", "tag_mode", "rise", "link", "batch", "bed",
                 "look", "layout", "cap", "ring_d", "font",
-                "plate_w", "plate_h", "margin", "bridge", "thick",
+                "plate_w", "plate_h", "margin", "bridge", "thick", "stencil_fit",
                 "depth", "wall", "diffuse", "cable", "mount", "sign_shape", "cable_side",
                 "pet_style", "pet_shape", "pet_size", "pet_sides", "pet_note",
                 "pet_collar", "pet_slot", "pet_link", "pet_chip",
@@ -983,6 +1006,7 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "card_at", "card_chip", "card_back", "card_link", "card_fit"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
+const PROP_COLOUR = [0.80, 0.78, 0.74];  // the mug or cake a stencil stands on, ditto
 let logoText = "", designText = "", stencilSvg = "";
 /* The logo card's logo: SVG text, or an image as a data: URL.  `artFresh` is
    "body" when a new one arrives, so the next build starts the card's colour
@@ -1381,7 +1405,7 @@ if (!gl) {
 
 /* what is on screen in this mode: the tag is not a printed part, so it only
    shows when the halves are open far enough to see it */
-const shown = part => mode !== "plate" || !part.tag;
+const shown = part => part.prop ? mode === "glued" : (mode !== "plate" || !part.tag);
 
 /* where a part sits in the current mode: column-major 4x4.  Opening the
    joint lifts the back half clear and leaves the tag halfway up, which is
@@ -1477,6 +1501,10 @@ function setMode(next, snap) {
   // the open pocket rather than up at the bottom of it.
   if (mode === "apart" && info && info.kind === "card" && info.front_up) [yawTo, pitchTo] = [0, -0.75];
   if (mode === "glued") yawTo = frontYaw;
+  // A stencil on its mug or cake: from the side and above, the way you would
+  // see one on the table, so the thing under it gives it its size.
+  if (info && info.kind === "stencil" && info.thing)
+    [yawTo, pitchTo] = mode === "glued" ? [0, -0.98] : mode === "apart" ? [0, -0.45] : CAMERA.plate;
   frameView();
   if (snap) { lift = liftTo; yaw = yawTo; pitch = pitchTo; focus = [...focusTo]; dist = distTo; }
 }
@@ -1524,6 +1552,7 @@ const LIGHTS = {
   qr:          { el: ["qr"], label: "the QR code" },
   font:        { all: true, label: "the whole word" },
   plate:       { all: true, label: "the plate" },
+  stencil_fit: { all: true, label: "the stencil" },
   margin:      { all: true, label: "the plate" },
   bridge:      { all: true, label: "the bridges" },
   thick:       { all: true, label: "the plate" },
@@ -1554,6 +1583,7 @@ let light = null, lightKey = null;
 
 function lit(g) {
   if (!light) return false;
+  if (g.element === "prop") return false;
   if (light.all) return true;
   if (light.slot !== undefined) return g.slot === light.slot;
   if (light.ink) return g.element !== "body" && g.element !== "tag";
@@ -1599,7 +1629,7 @@ function upload(bytes) {
   const n = dv.getUint32(80, true);
   const pos = new Float32Array(n * 9), nrm = new Float32Array(n * 9);
   const col = new Float32Array(n * 9);
-  const palette = COLOURS.map(id => rgb($(id).value)).concat([TAG_COLOUR]);
+  const palette = COLOURS.map(id => rgb($(id).value)).concat([TAG_COLOUR, PROP_COLOUR]);
   frontYaw = info.front_up ? 0 : Math.PI;
 
   let o = 84, i = 0;
@@ -1638,6 +1668,7 @@ function upload(bytes) {
       }
     }
     parts.push({ name: part.name, start, count: i / 3 - start, lo, hi, tag: !!part.tag,
+                 prop: !!part.prop,
                  groups,
                  plate: part.plate, assembled: M.fromRows(part.assembled),
                  // far enough that the halves clear each other on screen at
@@ -1655,7 +1686,7 @@ function upload(bytes) {
 /* only the colours changed: repaint without re-reading the geometry */
 function recolour() {
   if (!gl || !stl) return;
-  const palette = COLOURS.map(id => rgb($(id).value)).concat([TAG_COLOUR]);
+  const palette = COLOURS.map(id => rgb($(id).value)).concat([TAG_COLOUR, PROP_COLOUR]);
   let i = 0;
   const col = [];
   for (const part of info.preview)
@@ -1890,7 +1921,10 @@ function cutReadout(line) {
   const ties = info.bridges;
   specs.innerHTML = [
     info.batch ? line("batch", `${info.batch} stencils`) : "",
-    line("plate", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.thick)} mm`),
+    info.fit ? line("plate", `a disc ${mm(info.w)} mm across, ${mm(info.thick)} mm thick`)
+             : line("plate", `${mm(info.w)} &times; ${mm(info.h)} &times; ${mm(info.thick)} mm`),
+    info.thing ? line("fits", `${info.fit_name.replace(/ &mdash;.*/, "")}: ${mm(info.thing.rim)} mm rim,
+                               ${mm((info.w - info.thing.rim) / 2)} mm overhang all round`) : "",
     info.svg ? line("artwork", `an SVG, ${mm(info.art[0])} &times; ${mm(info.art[1])} mm`)
              : line("words", `${info.typeface_name}, ${mm(info.cap)} mm caps`),
     line("cut away", `${info.open_area}% of the plate`),
@@ -1903,6 +1937,9 @@ function cutReadout(line) {
     info.loose && ties
       ? `<span class="warn">${info.loose} island${info.loose === 1 ? "" : "s"} still loose &mdash;
          ${info.loose === 1 ? "it prints" : "they print"} as a separate piece.</span>` : "",
+    info.too_big
+      ? `<span class="warn">${mm(info.w)} mm is bigger than a ${info.bed} mm bed &mdash; it
+         will not print in one piece on most printers.</span>` : "",
     info.thin.length
       ? `<span class="warn">${list(info.thin)} narrower than 0.8 mm &mdash; a bigger plate, a heavier
          face, or fewer words.</span>` : "",
@@ -2039,11 +2076,16 @@ async function rebuild() {
     }
     // Split: more than one part, or a sticker sealed inside one that the
     // preview can show going in.
-    const splitOf = i => !!i && (i.parts.length > 1 || (i.preview || []).some(p => p.tag));
+    const splitOf = i => !!i && (i.parts.length > 1 || (i.preview || []).some(p => p.tag || p.prop));
     const wasSplit = splitOf(info);
     info = JSON.parse(res.headers.get("X-Card-Info"));
     stl = await body(res);
     const split = splitOf(info);
+    if (info.kind === "stencil" && info.thing)
+      $("modes").querySelectorAll("button").forEach((b, i) => {
+        b.textContent = [`On the ${info.fit_name.replace(/^\d+\S* round /, "").toLowerCase()}`,
+                         "Just the stencil", "On the plate"][i];
+      });
     if (info.kind === "card")
       $("modes").querySelectorAll("button").forEach((b, i) => {
         b.textContent = (info.parts.length > 1 ? ["Glued up", "Pulled apart", "On the plate"]
@@ -2425,6 +2467,10 @@ function petSize() {
   $("pet_size").value = PET_SIZES[key];
   $("pet_size").dispatchEvent(new Event("input"));
 }
+/* A stencil is a rectangle, a plain disc, or a disc sized to a thing -- which
+   sets its size itself, so the sliders that would go away. */
+const fitKind = () => ({ "": "rect", round: "round" })[$("stencil_fit").value] || "thing";
+$("stencil_fit").addEventListener("change", shapeChosen);
 /* A box that follows the letters has no plain border for a mount to live in. */
 $("sign_shape").addEventListener("change", () => {
   if ($("sign_shape").value === "letters") $("mount").value = "none";
@@ -2453,7 +2499,8 @@ function shapeChosen() {
   for (const el of document.querySelectorAll("[data-for]"))
     el.hidden = !el.dataset.for.split(" ").includes(kind) ||
                 (kind === "pet" && !!el.dataset.style && el.dataset.style !== style) ||
-                (kind === "sign" && !!el.dataset.shape && el.dataset.shape !== $("sign_shape").value);
+                (kind === "sign" && !!el.dataset.shape && el.dataset.shape !== $("sign_shape").value) ||
+                (kind === "stencil" && !!el.dataset.fit && !el.dataset.fit.split(" ").includes(fitKind()));
   // The chip's size is only a question once there is a chip.
   if (kind === "pet") $("pet_chip_field").hidden = !$("pet_nfc").checked;
   $("shape_note").textContent = {
@@ -2472,8 +2519,10 @@ function shapeChosen() {
                                       name: "The word", pet: "What it says" }[kind] || "Who you are");
   spoolsChosen();
   stepsShown();
-  // The stencil's two plate sliders are the sign's face.
-  $("plate_label").textContent = kind !== "sign" ? "Plate"
+  // The stencil's two plate sliders are the sign's face; a round stencil's
+  // one is its diameter.
+  $("plate_label").textContent = kind === "stencil" && fitKind() === "round" ? "Diameter"
+    : kind !== "sign" ? "Plate"
     : $("sign_shape").value === "letters" ? "Most room for the word" : "Face";
   // A sign is not glued and has no halves: it has a lid that comes off.
   const labels = kind === "sign" ? ["Put together", "Lid off", "On the plate"]

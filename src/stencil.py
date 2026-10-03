@@ -2,6 +2,11 @@
 
     parts, info = stencil.build("SHOP", w=120, h=60)
     parts, info = stencil.build(svg=open("arrow.svg").read(), w=90, h=90)
+    parts, info = stencil.build("30", fit="cake8")      # sized to an 8" cake
+
+Or a disc sized to the thing it goes on -- a coffee mug, a cupcake, a round
+cake -- so it sits on the rim and the artwork fills what shows through it.
+See FITS.
 
 The problem here is the name keyring's, backwards.  A keyring has to make one
 solid out of the several a word is; a stencil has to keep one plate in one
@@ -29,7 +34,7 @@ the STL and the app's viewer all take them unchanged.
 import numpy as np
 import trimesh
 from shapely import affinity
-from shapely.geometry import LineString
+from shapely.geometry import LineString, Point
 from shapely.ops import nearest_points, unary_union
 
 import cards
@@ -80,6 +85,45 @@ MIN_CUT = 0.8
 MIN_WEB = 0.8
 
 
+# Bigger than this does not go on the bed of the printer the 3MF is set up for.
+BED = 256.0
+
+# The things a stencil can be sized to.  Each is round, and the stencil is a
+# disc a little wider than its rim, so it rests on the rim instead of falling
+# in; the artwork is fitted to the opening -- the inside of a cup's wall, or
+# the whole top of a cake -- less the margin.  Dusting cocoa on a cappuccino
+# or icing sugar on a cake is what they are for.
+#
+#   rim      the outside diameter at the top, mm: what the stencil rests on
+#   opening  the diameter the artwork can show through on, mm
+#   over     how far the stencil overhangs the rim all round, mm -- something
+#            to hold it by, and a skirt that catches the overspray
+#   height   how tall the thing is, for the to-scale ghost in the preview
+#   prop     which ghost: cup, mug, bowl (a flared cup on a saucer), cupcake, cake
+#
+# Sizes are the usual ones -- measure yours if it matters and use "round".
+FITS = {
+    "espresso":   dict(name="Espresso cup", rim=68.0, opening=60.0, over=6.0,
+                       height=58.0, prop="cup"),
+    "mug":        dict(name="Coffee mug", rim=84.0, opening=76.0, over=8.0,
+                       height=95.0, prop="mug"),
+    "cappuccino": dict(name="Cappuccino cup", rim=100.0, opening=94.0, over=8.0,
+                       height=62.0, prop="bowl"),
+    "cupcake":    dict(name="Cupcake", rim=66.0, opening=62.0, over=6.0,
+                       height=62.0, prop="cupcake"),
+    "cake6":      dict(name='6" round cake', rim=152.4, opening=152.4, over=6.0,
+                       height=100.0, prop="cake"),
+    "cake8":      dict(name='8" round cake', rim=203.2, opening=203.2, over=6.0,
+                       height=100.0, prop="cake"),
+    "cake9":      dict(name='9" round cake', rim=228.6, opening=228.6, over=6.0,
+                       height=100.0, prop="cake"),
+    "cake10":     dict(name='10" round cake', rim=254.0, opening=254.0, over=6.0,
+                       height=100.0, prop="cake"),
+}
+# Not a thing, just the shape: a disc as wide as `w`, the margin round the cut.
+ROUND = "round"
+
+
 def fit(polys, box_w, box_h):
     """The shapes scaled to fill the box and centred in it, by their ink.
 
@@ -112,6 +156,24 @@ def tuck(polys, room, steps=12):
             break
         polys = [affinity.scale(p, 0.98, 0.98, origin=(0, 0)) for p in polys]
     return polys
+
+
+def in_circle(polys, d):
+    """The shapes as big as they go inside a circle `d` across.
+
+    The biggest rectangle of the artwork's own proportions that a circle
+    holds has its corners on the circle: w = d.a / sqrt(1 + a^2) for an
+    aspect a = w / h.  The ink itself is never that square, so tuck() has
+    nothing to do afterwards except on a pathological SVG.
+    """
+    x0, y0, x1, y1 = cards.extent(polys)
+    a = (x1 - x0) / max(y1 - y0, 1e-9)
+    h = d / np.hypot(a, 1.0)
+    return fit(polys, a * h, h)
+
+
+def disc(d):
+    return Point(0.0, 0.0).buffer(d / 2.0, quad_segs=48)
 
 
 def art_text(text, font, box_w, box_h):
@@ -197,8 +259,67 @@ def bridge_islands(plate, cut, width=BRIDGE):
     return cut, ties
 
 
+def turned(profile, sections=72):
+    """A solid of revolution about Z from an (r, z) outline that starts and
+    ends on the axis."""
+    return trimesh.creation.revolve(np.asarray(profile, dtype=float), sections=sections)
+
+
+def handle(at_r, z, size):
+    """A C of a cup handle standing out from a wall `at_r` from the axis,
+    centred at height `z`.  Flat-sided: it is a ghost to show scale by, and
+    the ring of a D is all the eye needs to read it as a handle."""
+    ring = Point(0.0, 0.0).buffer(size, quad_segs=16).difference(
+        Point(0.0, 0.0).buffer(size * 0.62, quad_segs=16))
+    c = ring.intersection(cards.box_2d(0.0, -size, size, size))
+    m = trimesh.creation.extrude_polygon(c, size * 0.36)
+    m.apply_translation((0.0, 0.0, -size * 0.18))
+    m.apply_transform(trimesh.transformations.rotation_matrix(np.pi / 2.0, (1, 0, 0)))
+    m.apply_translation((at_r - size * 0.3, 0.0, z))
+    return m
+
+
+def saucer(r, z):
+    return turned([(0, z - 7.0), (r * 0.55, z - 7.0), (r, z - 2.0), (r, z),
+                   (r * 0.6, z), (0, z)])
+
+
+def prop(thing):
+    """The thing the stencil goes on, to scale, with its top at z = 0 where
+    the stencil rests: a mug with a handle, a cup on a saucer, a cupcake, a
+    cake on a board.  Never printed -- it is there so the preview can say how
+    big the stencil is by showing it on what it is for."""
+    R, r, H = thing["rim"] / 2.0, thing["opening"] / 2.0, thing["height"]
+    kind = thing["prop"]
+    if kind == "cake":
+        board = turned([(0, -H - 4.0), (R + 18.0, -H - 4.0), (R + 18.0, -H), (0, -H)])
+        bevel = min(6.0, R * 0.08)
+        cake = turned([(0, -H), (R, -H), (R, -bevel), (R - bevel * 0.3, -bevel * 0.3),
+                       (R - bevel, 0.0), (0, 0.0)])
+        return trimesh.util.concatenate([board, cake])
+    if kind == "cupcake":
+        foot = R * 0.74
+        liner = [(0, -H), (foot, -H), (R * 0.94, -H * 0.5)]
+        dome = [(R * np.cos(t), -H * 0.5 + H * 0.5 * np.sin(t))
+                for t in np.linspace(0.0, np.pi / 2.0, 14)]
+        return turned(liner + dome[:-1] + [(0, 0.0)])
+    floor = 7.0
+    if kind == "bowl":
+        foot = R * 0.52
+        cup = turned([(0, -H), (foot, -H), (R - 1.0, -2.0), (R, 0.0), (r, 0.0),
+                      (foot - 3.0, -H + floor), (0, -H + floor)])
+        return trimesh.util.concatenate([cup, saucer(R * 1.55, -H),
+                                         handle(R * 0.82, -H * 0.45, H * 0.28)])
+    cup = turned([(0, -H), (R * 0.9, -H), (R, -H + 6.0), (R, 0.0), (r, 0.0),
+                  (r, -H + floor), (0, -H + floor)])
+    if kind == "mug":
+        return trimesh.util.concatenate([cup, handle(R, -H * 0.5, H * 0.3)])
+    return trimesh.util.concatenate([cup, saucer(R * 1.8, -H),
+                                     handle(R, -H * 0.5, H * 0.3)])
+
+
 def build(text="", svg=None, font=None, w=W, h=H, thick=THICK, margin=MARGIN,
-          radius=RADIUS, bridge=BRIDGE, colours=cards.COLOURS, label=""):
+          radius=RADIUS, bridge=BRIDGE, colours=cards.COLOURS, label="", fit=None):
     """One stencil, as printable parts plus the numbers worth knowing.
 
     Returns ([part], info) in cards.build()'s shape: one part, one colour,
@@ -207,6 +328,13 @@ def build(text="", svg=None, font=None, w=W, h=H, thick=THICK, margin=MARGIN,
     `margin` is the plate left round the cut; it never goes below EDGE, or the
     cut would meet the outside edge at a point and the plate would not close.
 
+    `fit` makes it a disc instead of a rectangle: a key of FITS sizes it to
+    that thing -- a mug, a cupcake, an 8" cake -- and ignores `w` and `h`;
+    "round" is a plain disc `w` across.  With a FITS key the margin is
+    measured in from the opening the artwork shows through, not from the
+    stencil's own edge, and the part carries a to-scale ghost of the thing
+    for the preview to stand it on.
+
     `svg` wins over `text` when both are given -- the artwork is the artwork.
     `font` is a face from typefaces.FACES or the path to a TTF; the heavier
     the face, the wider the cut and the fewer the bridges.
@@ -214,18 +342,42 @@ def build(text="", svg=None, font=None, w=W, h=H, thick=THICK, margin=MARGIN,
     w, h = float(w), float(h)
     thick = max(0.2, float(thick))
     margin = max(0.0, float(margin))
-    radius = max(0.0, min(float(radius), w / 2.0, h / 2.0))
-    margin = max(margin, EDGE)          # what is asked for, or what will close
-    box_w, box_h = w - 2.0 * margin, h - 2.0 * margin
-    if box_w <= 1.0 or box_h <= 1.0:
-        raise ValueError(f"a {w:g} x {h:g} mm plate has no room left inside a "
-                         f"{margin:g} mm margin")
+    fit = fit or None
+    if fit is not None and fit != ROUND and fit not in FITS:
+        raise ValueError(f"no such thing to fit: {fit}")
+    thing = FITS.get(fit)
 
-    plate_2d = cards.rounded_rect(w, h, radius)
-    room = plate_2d.buffer(-margin)
-    if room.is_empty:
-        raise ValueError(f"a {margin:g} mm margin leaves nothing of a "
-                         f"{w:g} x {h:g} mm plate")
+    if fit is None:
+        radius = max(0.0, min(float(radius), w / 2.0, h / 2.0))
+        margin = max(margin, EDGE)          # what is asked for, or what will close
+        box_w, box_h = w - 2.0 * margin, h - 2.0 * margin
+        if box_w <= 1.0 or box_h <= 1.0:
+            raise ValueError(f"a {w:g} x {h:g} mm plate has no room left inside a "
+                             f"{margin:g} mm margin")
+        plate_2d = cards.rounded_rect(w, h, radius)
+        room = plate_2d.buffer(-margin)
+        if room.is_empty:
+            raise ValueError(f"a {margin:g} mm margin leaves nothing of a "
+                             f"{w:g} x {h:g} mm plate")
+    else:
+        # A disc.  Sized to a thing, it is the rim plus the overhang, and the
+        # artwork is kept inside the opening; a plain round one is `w` across
+        # with the margin in from its edge, the way the rectangle's is.
+        if thing:
+            w = thing["rim"] + 2.0 * thing["over"]
+            room_d = thing["opening"] - 2.0 * margin
+        else:
+            room_d = w - 2.0 * max(margin, EDGE)
+        h = w
+        radius = w / 2.0
+        room_d = min(room_d, w - 2.0 * EDGE)
+        if room_d <= 1.0:
+            raise ValueError(f"a {margin:g} mm margin leaves no room for the artwork "
+                             f"on a {w:g} mm disc")
+        margin = (w - room_d) / 2.0
+        box_w = box_h = room_d
+        plate_2d = disc(w)
+        room = disc(room_d)
 
     face = typefaces.face(font)
     if svg:
@@ -236,6 +388,9 @@ def build(text="", svg=None, font=None, w=W, h=H, thick=THICK, margin=MARGIN,
         if not text:
             raise ValueError("a stencil needs some words, or an SVG")
         shapes, art_w, art_h, cap = art_text(text, face["path"], box_w, box_h)
+    if fit is not None:
+        shapes, art_w, art_h, k = in_circle(shapes, box_w)
+        cap *= k
 
     shapes = tuck(shapes, room)
     cut = unary_union(shapes)
@@ -255,6 +410,9 @@ def build(text="", svg=None, font=None, w=W, h=H, thick=THICK, margin=MARGIN,
                 assembled=np.eye(4))
     part["slots"] = cards.slot_meshes(part)
     part["mesh"] = part["slots"]["body"]
+    if thing:
+        # Not printed and not in any file: the preview stands the stencil on it.
+        part["prop"] = prop(thing)
     parts = [part]
 
     # What you paint through, and what you hold: both are measured, because a
@@ -285,6 +443,10 @@ def build(text="", svg=None, font=None, w=W, h=H, thick=THICK, margin=MARGIN,
         lines={} if svg else {"stencil": cards.measure(shapes, cap, text)},
         logo=None, qr=None, mark_stroke=0.0, tap_stroke=None, pause_z=None,
         holes=len(holes),
+        fit=fit, fit_name=thing["name"] if thing else ("Round" if fit else None),
+        thing=dict(rim=thing["rim"], opening=thing["opening"], height=thing["height"])
+        if thing else None,
+        too_big=bool(max(w, h) > BED), bed=BED,
         volume=round(part["mesh"].volume / 1000.0, 2),
         watertight=part["mesh"].is_watertight and part["mesh"].is_winding_consistent,
     )
