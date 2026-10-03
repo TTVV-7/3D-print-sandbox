@@ -470,6 +470,15 @@
   #font option[value="pixel"], #font[data-face="pixel"] { font-family: "sp-pixel", Inter, "Inter Variable", system-ui, sans-serif; }
   /* 48 faces, 141 KB of woff2 */
   /* ---- end face specimens ---- */
+
+  #reel { padding: 0; border: 0; background: none; overflow: visible; }
+  #reel::backdrop { background: rgba(12, 26, 46, .78); }
+  #reel video { display: block; height: min(86vh, 960px); max-width: 92vw; aspect-ratio: 9 / 16;
+    object-fit: contain; border-radius: var(--radius-200); background: #0c1a2e; }
+  #reel button { position: fixed; top: var(--space-400); right: var(--space-400); width: 40px; height: 40px;
+    border: 0; border-radius: var(--radius-full); background: rgba(255,255,255,.14); color: #fff;
+    font-size: 24px; line-height: 1; cursor: pointer; }
+  #reel button:hover { background: rgba(255,255,255,.26); }
 </style>
 </head>
 <body>
@@ -478,7 +487,8 @@
     <h1>Logo cards, keyrings, pet tags, signs</h1>
     <p class="sub">Pick a shape, fill it in, take the file away.</p>
     <p class="sub" style="margin-top:var(--space-200)"><a href="/case"
-       style="color:var(--text-secondary)">Phone cases &rarr;</a></p>
+       style="color:var(--text-secondary)">Phone cases &rarr;</a>
+       &middot; <a href="#" id="reel_open" style="color:var(--text-secondary)">&#9654; See it in action</a></p>
   </div>
 
   <div id="finder" role="search">
@@ -2850,6 +2860,33 @@ renderer.setAnimationLoop(() => {
 });
 // The page may already be on the product shot, waiting for this.
 if (!host.hidden) document.querySelector('#shot [data-shot="product"]').click();
+</script>
+<dialog id="reel" aria-label="Print Yours in action">
+  <button type="button" aria-label="Close">&times;</button>
+</dialog>
+<script>
+// The reel only downloads once someone asks for it.
+(() => {
+  const dlg = document.getElementById('reel');
+  let video;
+  document.getElementById('reel_open').addEventListener('click', e => {
+    e.preventDefault();
+    if (!video) {
+      video = Object.assign(document.createElement('video'), {
+        poster: '/assets/reel/print-yours-reel.jpg', muted: true, loop: true, playsInline: true, controls: true,
+      });
+      video.innerHTML = '<source src="/assets/reel/print-yours-reel.webm" type="video/webm">'
+                      + '<source src="/assets/reel/print-yours-reel.mp4" type="video/mp4">';
+      dlg.prepend(video);
+    }
+    dlg.showModal();
+    video.currentTime = 0;
+    video.play().catch(() => {});
+  });
+  dlg.querySelector('button').addEventListener('click', () => dlg.close());
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });
+  dlg.addEventListener('close', () => video && video.pause());
+})();
 </script>
 </body>
 </html>
