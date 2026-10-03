@@ -39,6 +39,26 @@
   h1 { font-size: 24px; line-height: 1.2; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
   .sub { color: var(--text-secondary); margin: var(--space-100) 0 0; }
 
+  /* The search box, as on index.html: a phone by name, a fit, or any one
+     setting, and the way there. */
+  #finder { position: relative; }
+  #finder > svg { position: absolute; left: 14px; top: 12px; width: 16px; height: 16px; fill: none;
+                  stroke: var(--text-secondary); stroke-width: 1.6; stroke-linecap: round; pointer-events: none; }
+  #find { padding-left: 38px; }
+  #found { position: absolute; left: 0; right: 0; top: calc(100% + 4px); z-index: 20; max-height: 360px; overflow-y: auto;
+           background: var(--bg-default); border: 1px solid var(--border-default); border-radius: var(--radius-200);
+           box-shadow: 0 8px 24px rgba(0, 0, 0, .12); padding: var(--space-100); }
+  #found > div { display: flex; flex-direction: column; gap: 1px; padding: var(--space-200) var(--space-300);
+                 border-radius: var(--radius-100); cursor: pointer; }
+  #found > div[aria-selected=true] { background: var(--bg-tertiary); }
+  #found b { font-weight: 600; font-size: 15px; }
+  #found span { font-size: 13px; color: var(--text-secondary); }
+  #found p { margin: 0; padding: var(--space-200) var(--space-300); font-size: 14px; color: var(--text-secondary); }
+  .found-here { animation: found-here 1.6s ease-out; border-radius: var(--radius-200); }
+  @keyframes found-here { 0%, 40% { box-shadow: 0 0 0 3px var(--warning-bg), 0 0 0 4px var(--border-secondary); }
+                          100% { box-shadow: 0 0 0 3px transparent, 0 0 0 4px transparent; } }
+  @media (prefers-reduced-motion: reduce) { .found-here { animation: none; } }
+
   /* Folding panel: the whole section closes behind its heading, because
      four of them open at once is a metre of scrolling before you reach the
      download buttons.  Same 0fr-to-1fr trick as the little ? disclosures,
@@ -398,6 +418,14 @@
     <div class="nav"><a href="/">&larr; The other generator</a></div>
     <h1>Phone cases</h1>
     <p class="sub">Pick a phone, paint the back with an SVG, print it face down.</p>
+  </div>
+
+  <div id="finder" role="search">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.5 10.5 14 14"/></svg>
+    <input type="text" id="find" autocomplete="off" spellcheck="false"
+           placeholder="Which phone? Try &ldquo;15 pro&rdquo; or &ldquo;camera&rdquo;"
+           aria-label="Search" role="combobox" aria-expanded="false" aria-controls="found" aria-autocomplete="list">
+    <div id="found" role="listbox" hidden></div>
   </div>
 
   <section class="fold" data-fold="phone">
@@ -1117,6 +1145,155 @@ function openFold(key) {
   const fold = document.querySelector(`.fold[data-fold="${key}"]`);
   if (fold && !fold.hasAttribute("data-open")) setFold(fold, true);
 }
+
+/* ----------------------------------------------------------- the search --
+   The same plain-words search as index.html.  Every phone in the catalogue
+   is findable by its name, every fit by its own, and every labelled setting
+   by its label.  Every word typed has to start a word of the result, so
+   "15 pro" finds the iPhone 15 Pro and "cam" the camera opening.  Picking a
+   phone selects it; picking anything else opens its panel and takes you to
+   it.  The other generator's shapes are here too, since people look for
+   them on the wrong page. */
+const SETTING_WORDS = {
+  phone: "phone model iphone apple",
+  artScale: "size bigger smaller zoom",
+  artRotate: "turn angle",
+  base: "body colour background",
+  filament: "material petg pla tpu",
+  art: "svg image picture logo upload file",
+};
+const OTHER_SHAPES = "logo card nfc keyring keychain name pet tag dog cat sign enclosure light box stencil";
+const SPELLING = { color: "colour", gray: "grey", center: "centre", centered: "centred" };
+const findWords = t => t.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(Boolean)
+  .map(w => w.replace(/^(colou?r|gray|center|centered)/, m => SPELLING[m] || m))
+  .map(w => w.length > 3 && w.endsWith("s") ? w.slice(0, -1) : w);
+
+function findables() {
+  const out = [];
+  for (const opt of $("phone").options) {
+    out.push({ title: opt.textContent, sub: "Phone", rank: 2,
+               words: findWords(`${opt.textContent} ${opt.value} apple`),
+               go: () => {
+                 $("phone").value = opt.value;
+                 $("phone").dispatchEvent(new Event("change"));
+                 openFold("phone");
+                 goTo($("phone").closest(".field"));
+               } });
+  }
+  for (const tile of $("fits").querySelectorAll(".tile")) {
+    const name = tile.querySelector("b").textContent;
+    out.push({ title: `${name[0].toUpperCase()}${name.slice(1)} fit`, sub: `Fit \u00b7 ${tile.querySelector("span").textContent.replace(/\s+/g, " ")}`,
+               rank: 1, words: findWords(`${name} fit`),
+               go: () => { tile.click(); openFold("phone"); goTo(tile); } });
+  }
+  out.push({ title: "Logo cards, keyrings, pet tags, signs, stencils", sub: "On the other generator", rank: 0,
+             words: findWords(OTHER_SHAPES), go: () => { location.href = "/"; } });
+  const seen = new Set();
+  for (const label of document.querySelectorAll(
+      "aside .field > label[for], aside .field > span:first-child, aside label.num, aside label.check > span")) {
+    const host = label.matches("label.check > span") ? label.parentElement
+               : label.matches("label.num") ? label : label.parentElement;
+    const title = [...label.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join("").trim();
+    if (!title || seen.has(title)) continue;
+    seen.add(title);
+    const fold = host.closest(".fold");
+    const control = label.htmlFor ? $(label.htmlFor) : host.querySelector("input, select");
+    out.push({ title, rank: 0,
+               sub: fold ? fold.querySelector(".foldtitle").textContent.replace(/^\d+\s*\u00b7\s*/, "") : "",
+               words: findWords(`${title} ${SETTING_WORDS[(control || {}).id] || ""}`),
+               go: () => { if (fold) openFold(fold.dataset.fold); goTo(host); } });
+  }
+  return out;
+}
+
+/* Take the setting into view and put the cursor in it, once its panel has
+   finished opening. */
+function goTo(host) {
+  setTimeout(() => {
+    host.scrollIntoView({ block: "center", behavior: "smooth" });
+    const control = host.matches("input, select, button") ? host : host.querySelector("input, select, textarea");
+    if (control) control.focus({ preventScroll: true });
+    flash(host);
+  }, 250);
+}
+function flash(el) {
+  el.classList.remove("found-here");
+  void el.offsetWidth;                  // restart the animation
+  el.classList.add("found-here");
+  el.addEventListener("animationend", () => el.classList.remove("found-here"), { once: true });
+}
+
+let found = [], foundAt = 0;
+function search() {
+  const q = findWords($("find").value);
+  const list = $("found");
+  if (!q.length) { closeFound(); return; }
+  found = findables()
+    .map(f => {
+      let score = f.rank;
+      for (const w of q) {
+        const hit = f.words.findIndex(x => x.startsWith(w));
+        if (hit < 0) return null;
+        score += (f.words[hit] === w ? 2 : 1) + (hit < 3 ? 1 : 0);
+      }
+      return { ...f, score };
+    })
+    .filter(Boolean).sort((a, b) => b.score - a.score).slice(0, 8);
+  foundAt = 0;
+  list.replaceChildren();
+  if (!found.length) {
+    list.innerHTML = `<p>Nothing here by that name &mdash; only iPhones so far. Try &ldquo;16 pro&rdquo;,
+                      &ldquo;SE&rdquo; or a setting like &ldquo;camera&rdquo;.</p>`;
+  }
+  found.forEach((f, i) => {
+    const row = document.createElement("div");
+    row.id = `found_${i}`;
+    row.setAttribute("role", "option");
+    row.innerHTML = `<b></b><span></span>`;
+    row.firstChild.textContent = f.title;
+    row.lastChild.textContent = f.sub;
+    row.addEventListener("pointerdown", e => { e.preventDefault(); choose(i); });
+    row.addEventListener("pointermove", () => mark(i));
+    list.append(row);
+  });
+  list.hidden = false;
+  $("find").setAttribute("aria-expanded", "true");
+  mark(0);
+}
+function mark(i) {
+  foundAt = i;
+  [...$("found").children].forEach((row, j) => row.setAttribute("aria-selected", String(j === i)));
+  const row = $(`found_${i}`);
+  if (row) { row.scrollIntoView({ block: "nearest" }); $("find").setAttribute("aria-activedescendant", row.id); }
+}
+function closeFound() {
+  $("found").hidden = true;
+  $("find").setAttribute("aria-expanded", "false");
+  $("find").removeAttribute("aria-activedescendant");
+}
+function choose(i) {
+  const f = found[i];
+  if (!f) return;
+  closeFound();
+  $("find").value = "";
+  $("find").blur();
+  f.go();
+}
+$("find").addEventListener("input", search);
+$("find").addEventListener("focus", () => { if ($("find").value) search(); });
+$("find").addEventListener("blur", closeFound);
+$("find").addEventListener("keydown", e => {
+  if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    e.preventDefault();
+    if ($("found").hidden) return search();
+    if (found.length) mark((foundAt + (e.key === "ArrowDown" ? 1 : found.length - 1)) % found.length);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    choose(foundAt);
+  } else if (e.key === "Escape") {
+    if ($("find").value) { $("find").value = ""; closeFound(); } else $("find").blur();
+  }
+});
 
 /* ---- the camera opening ----------------------------------------------- */
 
