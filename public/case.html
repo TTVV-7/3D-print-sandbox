@@ -43,7 +43,10 @@
      four of them open at once is a metre of scrolling before you reach the
      download buttons.  Same 0fr-to-1fr trick as the little ? disclosures,
      so the two behave the same way. */
-  .fold { padding: 0; gap: 0; overflow: hidden; }
+  /* flex: none, or the sidebar squeezes every panel to fit the window and
+     open ones get cut off and crushed into each other instead of the
+     sidebar scrolling. */
+  .fold { padding: 0; gap: 0; overflow: hidden; flex: none; }
   .foldhead {
     display: flex; align-items: center; gap: var(--space-300); width: 100%;
     font: inherit; text-align: left; cursor: pointer; border: 0;
