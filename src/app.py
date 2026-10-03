@@ -2,9 +2,10 @@
 
     python3 src/app.py            # then open http://127.0.0.1:8765
 
-Five shapes: the NFC logo card (src/logocard.py), a name keyring
+Six shapes: the NFC logo card (src/logocard.py), a name keyring
 (src/nametag.py), a pet collar tag (src/pettag.py), a sign enclosure
-(src/signbox.py) and a stencil (src/stencil.py).  The NFC keyring fob
+(src/signbox.py), a stencil (src/stencil.py) and a topographic map with pins
+on it (src/topo.py).  The NFC keyring fob
 (src/cards.py) is archived: src/gen_cards.py still writes one, the app does
 not.  Fill in the boxes, watch the part turn in the viewer,
 download it.  The 3MF carries each colour as a separate part, so the slicer opens it
@@ -38,6 +39,7 @@ import nametag
 import pettag
 import signbox
 import stencil
+import topo
 import typefaces
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -62,7 +64,10 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "sign_shape", "cable_side", "pet_nfc", "pet_chip",
             "art", "card_size", "card_border", "card_backing", "card_holes",
             "card_colours", "card_bg", "card_ring", "card_at", "card_nfc",
-            "card_chip", "card_back", "card_link", "card_both", "card_rises", "card_fit")
+            "card_chip", "card_back", "card_link", "card_both", "card_rises", "card_fit",
+            "topo_pins", "topo_centre", "topo_span", "topo_size", "topo_shape",
+            "topo_exag", "topo_base", "topo_depth", "topo_river", "topo_pin_h",
+            "topo_ocean", "topo_lakes", "topo_rivers", "topo_streams")
 
 # The shapes the page can ask for.  "card" is the NFC business card, remade
 # as src/logocard.py: the company's logo is the card's shape and colours.
@@ -70,7 +75,7 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
 # keyring fob with a name, company and phone on it -- are archived: their code
 # is all still in src/cards.py and `src/gen_cards.py --kind card|fob` still
 # writes either, but the app builds neither.
-KINDS = ("card", "name", "pet", "stencil", "sign")
+KINDS = ("card", "name", "pet", "stencil", "sign", "topo")
 ARCHIVED = ("fob",)
 # What a logo may be: SVG text, or an image as a browser's FileReader sends it.
 IMAGE = re.compile(r"data:image/(png|jpeg|webp|gif|bmp|svg\+xml)[;,]")
@@ -432,6 +437,32 @@ def model(params):
                     del RECENT[next(iter(RECENT))]
                 parts, info = RECENT[key]
                 return _finish(params, parts, info, num)
+            if kind == "topo":
+                # A topographic map: the ground, its water, and a pin on each
+                # place.  Places are looked up by name, so a typo is an error
+                # that says which line, not a map of somewhere else.
+                pins = params.get("topo_pins") or ""
+                if isinstance(pins, str):
+                    pins = pins.splitlines()
+                pins = [str(q).strip() for q in pins if str(q).strip()][:topo.MAX_PINS]
+                centre = str(params.get("topo_centre") or "").strip()
+                if not pins and not centre:
+                    raise ValueError("say where: a place in the middle, or a pin or two")
+                flag = lambda k, d: bool(params.get(k, d))         # noqa: E731
+                RECENT[key] = topo.build(
+                    pins, centre=centre, span=num("topo_span", 0.0) or None,
+                    size=num("topo_size", topo.SIZE),
+                    shape=params.get("topo_shape") or "rect",
+                    exaggerate=num("topo_exag", topo.EXAGGERATE),
+                    base=num("topo_base", topo.BASE), depth=num("topo_depth", topo.DEPTH),
+                    river=num("topo_river", topo.RIVER), pin_h=num("topo_pin_h", topo.PIN),
+                    ocean=flag("topo_ocean", True), lakes=flag("topo_lakes", True),
+                    rivers=flag("topo_rivers", True), streams=flag("topo_streams", False),
+                    colours=colours)
+                while len(RECENT) > 8:
+                    del RECENT[next(iter(RECENT))]
+                parts, info = RECENT[key]
+                return _finish(params, parts, info, num)
             raise ValueError(f"no builder for {kind}")          # every kind returns above
         parts, info = RECENT[key]
 
@@ -446,7 +477,7 @@ def _finish(params, parts, info, num):
     colours = palette(params)
     row_w = num("bed", 220.0) if params.get("batch") else None
     if params.get("format") == "3mf":
-        if params.get("kind") in ("pet", "card"):
+        if params.get("kind") in ("pet", "card", "topo"):
             # Each slot on its own filament, colours and materials named, so
             # a TPU tag with PETG lettering opens ready to slice as one print.
             # A sealed NFC chip needs the print to stop above its pocket;

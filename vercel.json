@@ -4,6 +4,7 @@
     { "source": "/case", "destination": "/case.html" }
   ],
   "functions": {
-    "api/case.py": { "maxDuration": 60 }
+    "api/case.py": { "maxDuration": 60 },
+    "api/model.py": { "maxDuration": 60 }
   }
 }

@@ -512,6 +512,10 @@
         <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/stencil.webp)"></span>
         <div><b>Stencil</b><span>a plate with the word cut through it</span></div>
       </button>
+      <button type="button" class="tile" data-kind="topo" aria-pressed="false">
+        <span class="icon3d" aria-hidden="true" style="--sprite:url(assets/tiles/topo.webp)"></span>
+        <div><b>Topo map</b><span>real terrain and water, with pins on your places</span></div>
+      </button>
     </div>
     <input type="hidden" id="kind" value="card">
     <p class="hint" id="shape_note">The business card, remade: your logo is the shape of it, in the
@@ -569,6 +573,20 @@
     <label class="field" data-for="fob"><span>Full front design (SVG)</span><input type="file" id="design_file" accept=".svg,image/svg+xml"></label>
     <p class="hint" data-for="fob" id="design_note">Replaces the whole front with your own artwork. Draw it on a
        rectangle in the body colour and it comes out at the rectangle's size.</p>
+    <label class="field" data-for="topo"><span>Pins, one place per line</span>
+      <textarea id="topo_pins" rows="4" spellcheck="false"
+        placeholder="Squamish, BC&#10;Whistler&#10;49.7016, -123.1558">Squamish, BC
+Whistler, BC</textarea>
+    </label>
+    <p class="hint" data-for="topo">A town, a peak, a lake, an address &mdash; anything OpenStreetMap
+       can find &mdash; or a latitude, longitude straight off a map app. Add the region if the name
+       is common. The map is looked up again when you click out of the box, not on every key.</p>
+    <label class="field" data-for="topo"><span>Middle of the map</span><input type="text" id="topo_centre" value="" autocomplete="off" placeholder="Empty: fit the map round the pins"></label>
+    <label class="field" data-for="topo"><span>Across, in km</span><input type="text" id="topo_span" value="" autocomplete="off" inputmode="decimal" placeholder="Empty: as much as the pins need"></label>
+    <p class="hint" data-for="topo">Empty, the map is fitted round the pins with a margin, so the outermost
+       one is not on the edge. Name a place to centre it there instead, and say how much ground it
+       covers &mdash; a valley is 10&ndash;30 km, a city and its coast 50, an island or a region a few
+       hundred. A span with pins and no middle is the least it will show.</p>
   </section>
 
   <section>
@@ -845,6 +863,49 @@
     <label class="field" data-for="fob"><span>Background pattern</span>
       <select id="look"></select>
     </label>
+    <label class="field" data-for="topo"><span>Shape</span>
+      <select id="topo_shape">
+        <option value="rect">Rectangle, 4 : 3</option>
+        <option value="square">Square</option>
+        <option value="round">Round</option>
+      </select>
+    </label>
+    <div class="field" data-for="topo"><span>Width</span>
+      <div class="slider"><input type="range" id="topo_size" min="60" max="250" step="5" value="150"><output id="topo_size_v">150 mm</output></div>
+    </div>
+    <div class="field" data-for="topo"><span>Height stretch</span>
+      <div class="slider"><input type="range" id="topo_exag" min="0.5" max="10" step="0.5" value="1.5"><output id="topo_exag_v">&times;1.5</output></div>
+    </div>
+    <p class="hint" data-for="topo">Real ground is flat at any size a printer makes: a 2,000 m mountain on a
+       20 km map, 150 mm wide, is 15 mm tall &mdash; and a 200 m hill is 1.5. So the heights are
+       stretched; &times;1 is true to scale. The tallest the relief gets is 60 mm, whatever the
+       stretch says, and the readout tells you when it was held back.</p>
+    <div class="field" data-for="topo"><span>Base</span>
+      <div class="slider"><input type="range" id="topo_base" min="1.5" max="10" step="0.5" value="3"><output id="topo_base_v">3 mm</output></div>
+    </div>
+    <label class="check" data-for="topo"><input type="checkbox" id="topo_ocean" checked><span>Ocean</span></label>
+    <label class="check" data-for="topo"><input type="checkbox" id="topo_lakes" checked><span>Lakes</span></label>
+    <label class="check" data-for="topo"><input type="checkbox" id="topo_rivers" checked><span>Rivers</span></label>
+    <label class="check" data-for="topo"><input type="checkbox" id="topo_streams"><span>Streams too</span></label>
+    <p class="hint" data-for="topo">The sea sits flat at sea level and every lake flat at its own level,
+       the way water does; rivers follow their valleys down. All of it is a layer of the water colour
+       at least as deep as the slider below, so it reads from the side as well as from above. Streams
+       are off by default: on a big map there are thousands and they turn the hills into a net.</p>
+    <div class="field" data-for="topo"><span>River width</span>
+      <div class="slider"><input type="range" id="topo_river" min="0.4" max="3" step="0.1" value="1"><output id="topo_river_v">1 mm</output></div>
+    </div>
+    <p class="hint" data-for="topo">A real river on a 20 km map is narrower than a hair, so every river is
+       drawn this wide instead &mdash; and a stream at most 0.6 mm. A wide river that OpenStreetMap
+       draws as an area keeps its real outline.</p>
+    <div class="field" data-for="topo"><span>Water depth</span>
+      <div class="slider"><input type="range" id="topo_depth" min="0.2" max="2" step="0.2" value="0.6"><output id="topo_depth_v">0.6 mm</output></div>
+    </div>
+    <div class="field" data-for="topo"><span>Pin height</span>
+      <div class="slider"><input type="range" id="topo_pin_h" min="0" max="20" step="1" value="8"><output id="topo_pin_h_v">8 mm</output></div>
+    </div>
+    <p class="hint" data-for="topo">Each pin is a map marker &mdash; a ball on a cone, point down &mdash;
+       standing on the ground at its place, set into it on a short stem. Its cone is steep enough to
+       print without supports. 0 leaves the pins off.</p>
     <div class="field" id="spool_field" hidden><span>Colours from the shelf</span>
       <label class="field spool-all"><span>Every colour in</span><select id="material"></select></label>
       <div class="spools" id="spools"></div>
@@ -886,6 +947,9 @@
        lettering <i>and</i> the diffuser behind it, and it wants a translucent or a white filament
        &mdash; they are one piece, and they are the only thing the light comes through. The other two
        are not used.</p>
+    <p class="hint" data-for="topo">Body is the land, Pattern the water and Primary the pins. A pale land
+       colour shows the relief best: the shadows do the work. The water is its own solid sitting in the
+       land, and the pins are set into both, so nothing overlaps and the slicer needs no painting.</p>
     <div class="field" id="rise_field"><span>Relief</span>
       <div class="slider"><input type="range" id="rise" min="0" max="2.5" step="0.1" value="0"><output id="rise_v">flush</output></div>
     </div>
@@ -1062,7 +1126,9 @@ const FIELDS = ["name", "company", "phone", "role", "email", "kind", "tap", "tag
                 "pet_style", "pet_shape", "pet_size", "pet_sides", "pet_note",
                 "pet_collar", "pet_slot", "pet_link", "pet_chip",
                 "card_size", "card_border", "card_backing", "card_colours", "card_ring",
-                "card_at", "card_chip", "card_back", "card_link", "card_fit"];
+                "card_at", "card_chip", "card_back", "card_link", "card_fit",
+                "topo_span", "topo_shape", "topo_size", "topo_exag", "topo_base",
+                "topo_river", "topo_depth", "topo_pin_h"];
 const COLOURS = ["c0", "c1", "c2", "c3"];
 const TAG_COLOUR = [0.42, 0.44, 0.47];   // the NFC tag ghost, which is not printed
 const PROP_COLOUR = [0.80, 0.78, 0.74];  // the mug or cake a stencil stands on, ditto
@@ -1561,6 +1627,9 @@ function setMode(next, snap) {
   // see one on the table, so the thing under it gives it its size.
   if (info && info.kind === "stencil" && info.thing)
     [yawTo, pitchTo] = mode === "glued" ? [0, -0.98] : mode === "apart" ? [0, -0.45] : CAMERA.plate;
+  // A map from above and a little to the south, low enough for the hills to
+  // throw shadows.
+  if (info && info.kind === "topo" && mode === "glued") [yawTo, pitchTo] = [0, -0.85];
   frameView();
   if (snap) { lift = liftTo; yaw = yawTo; pitch = pitchTo; focus = [...focusTo]; dist = distTo; }
 }
@@ -1688,6 +1757,7 @@ function readout() {
   if (info.kind === "pet") return petReadout(line);
   if (info.kind === "stencil") return cutReadout(line);
   if (info.kind === "sign") return signReadout(line);
+  if (info.kind === "topo") return topoReadout(line);
   const split = info.parts.length > 1;
   const needs = (info.logo || info.qr)
     ? (info.nozzle
@@ -1894,6 +1964,38 @@ function cutReadout(line) {
   ].join("");
 }
 
+/* A map is a patch of the world at a scale, with its heights stretched: what
+   it covers, how much, and which pins found their places. */
+function topoReadout(line) {
+  const km = v => v >= 100 ? Math.round(v) : v >= 10 ? v.toFixed(1) : v.toFixed(2);
+  const water = [info.ocean ? "the sea" : "",
+                 info.lakes ? `${info.lakes} lake${info.lakes === 1 ? "" : "s"}` : "",
+                 info.rivers ? `${info.rivers} river${info.rivers === 1 ? "" : "s"}` : ""]
+    .filter(Boolean);
+  const off = info.pins.filter(p => !p.on_map);
+  specs.innerHTML = [
+    line("map", info.shape === "round" ? `a disc ${mm(info.w)} mm across`
+                                       : `${mm(info.w)} &times; ${mm(info.h)} mm`),
+    line("covers", `${km(info.span_km)}${info.shape === "rect" ? ` &times; ${km(info.span_ns_km)}` : ""} km,
+                    1 : ${info.scale.toLocaleString()}`),
+    line("middle", `${info.centre[0].toFixed(4)}, ${info.centre[1].toFixed(4)}`),
+    line("ground", `${info.low_m.toLocaleString()} to ${info.high_m.toLocaleString()} m`),
+    line("relief", `${mm(info.relief)} mm at &times;${info.exaggerate} on a ${mm(info.base)} mm base`),
+    line("tallest", `${mm(info.total_z)} mm with the pins`),
+    line("water", water.length ? list(water) : "none here"),
+    info.pins.length ? line("pins", list(info.pins.map(p => p.on_map ? p.name : `<s>${p.name}</s>`))) : "",
+    line("grid", `${mm(info.cell)} mm`),
+    line("uses", `${info.volume.toFixed(1)} cm&sup3;`),
+    info.capped ? `<span class="warn">The stretch was held to &times;${info.exaggerate}: any more
+      and the relief would pass 60 mm.</span>` : "",
+    off.length ? `<span class="warn">${list(off.map(p => p.name))} ${off.length === 1 ? "is" : "are"}
+      off the map &mdash; make it bigger across, or clear the middle to fit the pins.</span>` : "",
+    info.water_note ? `<span class="warn">${info.water_note}</span>` : "",
+    info.too_big ? `<span class="warn">${mm(info.w)} mm is bigger than a ${info.bed} mm bed.</span>` : "",
+    `<span class="hint" style="display:block">${info.attribution}</span>`,
+  ].join("");
+}
+
 /* A sign has no cavity and no counters to lose -- what it has is a lit area, a
    sandwich of a face, and however much clear air is left inside for the light
    to spread in before it gets there. */
@@ -1995,6 +2097,12 @@ function formParams() {
   params.card_rises = $("card_stepped").checked
     ? Object.fromEntries(STEP_SLOTS.map(slot => [slot, +$(`card_rise_${slot}`).value])) : null;
   params.art = $("kind").value === "card" ? artData : "";
+  // The places are read when they are changed rather than as they are typed
+  // (see below): half a place name is a lookup of somewhere else.
+  params.topo_pins = $("topo_pins").value;
+  params.topo_centre = $("topo_centre").value;
+  for (const id of ["topo_ocean", "topo_lakes", "topo_rivers", "topo_streams"])
+    params[id] = $(id).checked;
   if ($("kind").value === "card") params.batch = "";    // one design, one card
   params.gzip = CAN_INFLATE;
   params.qr = $("qr").checked;
@@ -2010,7 +2118,10 @@ async function rebuild() {
   const params = formParams();
   const mine = ++seq;
   $("building").hidden = false;
-  $("building_note").hidden = $("kind").value !== "card";
+  $("building_note").hidden = !["card", "topo"].includes($("kind").value);
+  $("building_note").innerHTML = $("kind").value === "topo"
+    ? "A new place fetches its map first &mdash; up to half a minute; changes after that are quicker."
+    : "Complex logos can take more time &mdash; a detailed illustration up to a minute.";
   try {
     const res = await fetch("/api/model", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -2086,6 +2197,7 @@ const SHAPE_WORDS = {
   pet:     "pet tag dog cat puppy kitten collar id identity animal lost phone number bone",
   sign:    "sign enclosure light box lightbox led neon open shop store lamp backlit glow night lit letters",
   stencil: "stencil spray paint cut out cutout airbrush template lettering mask graffiti",
+  topo:    "topo topographic map terrain relief elevation mountain lake river ocean sea pin place location gps",
 };
 /* the words a setting's own label does not use, by the id of its control */
 const SETTING_WORDS = {
@@ -2260,7 +2372,7 @@ for (const slot of STEP_SLOTS)
 function stepsShown() {
   const card = $("kind").value === "card", stepped = card && $("card_stepped").checked;
   $("card_steps").hidden = !stepped;
-  $("rise_field").hidden = stepped;
+  $("rise_field").hidden = stepped || $("kind").value === "topo";   // a map's relief is its own
   $("card_back").disabled = $("card_both").checked;
   const names = Object.fromEntries(slotRows());
   for (const row of $("card_steps").querySelectorAll("[data-slot]")) {
@@ -2434,6 +2546,7 @@ const SLOT_LABELS = {
   pet:     [["c0", "Tag"], ["c2", "Name"], ["c3", "Phone and QR code"], ["c1", "Border"]],
   stencil: [["c0", "Plate"]],
   sign:    [["c0", "Case"], ["c2", "Letters and diffuser"]],
+  topo:    [["c0", "Land"], ["c1", "Water"], ["c2", "Pins"]],
 };
 const spoolMaterial = (id = "c0") => slotMat[id] || "";
 const hexDist = (a, b) => rgb(a).reduce((t, v, i) => t + (v - rgb(b)[i]) ** 2, 0);
@@ -2555,8 +2668,9 @@ function materialFor() {
     $("material").value = tpu === petg ? tpu : "";
     spoolsChosen(true);
   } else allIn(kind === "pet" ? first("PETG", "PLA")
-               // a logo wants the shelf with the most colours on it
-               : kind === "card" ? materials().reduce((a, b) =>
+               // a logo wants the shelf with the most colours on it, and a map
+               // wants one with a blue on it
+               : kind === "card" || kind === "topo" ? materials().reduce((a, b) =>
                    SPOOLS.filter(x => x.material === b).length >
                    SPOOLS.filter(x => x.material === a).length ? b : a)
                : first("PLA"));
@@ -2614,6 +2728,7 @@ function shapeChosen() {
     pet: "A collar tag: the pet's name on the front and the phone number \u2014 and a QR code, if you want one \u2014 on the back. Every letter is inlaid flush, so nothing wears off, and all the colour changes happen in the first and last three layers.",
     name: "No plate and no tag: the name itself is the object. It comes out as wide as the word is long, so a short one is a keyring and a long one is a luggage tag.",
     stencil: "A plate with the words \u2014 or an SVG \u2014 cut clean through it, to paint or spray through. Every counter is an island once the cut goes through, so each one gets a bridge holding it to the plate.",
+    topo: "A piece of the real world in relief: the ground from satellite elevation data, the sea, lakes and rivers from OpenStreetMap in a second colour, and a pin standing on each place you name. Print it in three colours, or in one and paint the water.",
     sign: "A shallow box with the word lit through its own face: an opaque layer with the letters taken out of it, the letters filled back in in something translucent, and a diffuser sheet behind the lot. Put an LED strip inside and run the lead out of the notch.",
   }[kind];
   // The one text box is the name on a fob, the word on a keyring, and the
@@ -2621,7 +2736,8 @@ function shapeChosen() {
   $("name_label").textContent = { stencil: "Words", sign: "Words", name: "Name",
                                   pet: "Pet's name" }[kind] || "Name";
   $("who").innerHTML = "2 \u00b7 " + ({ card: "Your logo", stencil: "What it says", sign: "What it says",
-                                      name: "The word", pet: "What it says" }[kind] || "Who you are");
+                                      name: "The word", pet: "What it says", topo: "Where" }[kind]
+                                    || "Who you are");
   spoolsChosen();
   stepsShown();
   // The stencil's two plate sliders are the sign's face; a round stencil's
@@ -2651,6 +2767,7 @@ const KIND_COLOURS = {
   pet:     [INK, FLAME, PAPER, FLAME],
   sign:    [INK, INK, PAPER, PAPER],
   stencil: [FLAME, FLAME, FLAME, FLAME],
+  topo:    [PAPER, "#5aa9e6", FLAME, FLAME],     // paper land, sky-blue water, flame pins
 };
 for (const tile of document.querySelectorAll(".tile"))
   tile.addEventListener("click", () => {
@@ -2758,6 +2875,19 @@ $("cap").addEventListener("input", () => {
       "comes out.";
 });
 faceChosen();
+/* The map's sliders, and its places: those rebuild when they are changed --
+   on leaving the box, or Enter in the one-line one -- not on every key. */
+const TOPO_UNITS = { topo_size: " mm", topo_base: " mm", topo_river: " mm", topo_depth: " mm",
+                     topo_pin_h: " mm" };
+for (const [id, unit] of Object.entries(TOPO_UNITS))
+  $(id).addEventListener("input", () => {
+    $(`${id}_v`).textContent = id === "topo_pin_h" && !+$(id).value ? "no pins" : `${$(id).value}${unit}`;
+  });
+$("topo_exag").addEventListener("input", () => { $("topo_exag_v").innerHTML = `&times;${$("topo_exag").value}`; });
+for (const id of ["topo_pins", "topo_centre"]) $(id).addEventListener("change", queue);
+$("topo_centre").addEventListener("keydown", e => { if (e.key === "Enter") $("topo_centre").blur(); });
+for (const id of ["topo_ocean", "topo_lakes", "topo_rivers", "topo_streams"])
+  $(id).addEventListener("change", queue);
 $("ring_d").addEventListener("input", () => {
   $("ring_v").textContent = +$("ring_d").value ? `${$("ring_d").value} mm` : "none";
 });
@@ -2769,6 +2899,11 @@ function stem() {
     const what = (artName || "logo").toLowerCase()
       .replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "logo";
     return `${what}_nfc_card` + ($("card_fit").value === "halves" && $("card_nfc").checked ? "_halves" : "");
+  }
+  if ($("kind").value === "topo") {
+    const first = ($("topo_centre").value || $("topo_pins").value.split("\n")[0] || "topo")
+      .split(",")[0].toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "place";
+    return `${first}_topo_map`;
   }
   if ($("batch").value.trim()) return `batch_${$("kind").value}`;
   for (const kind of ["stencil", "sign"])

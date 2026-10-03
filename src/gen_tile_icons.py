@@ -4,7 +4,7 @@
     python3 src/gen_tile_icons.py card     # just the ones named
 
 Each icon is the real thing -- the logo card, the fob, the keyring, the pet tag on its split
-ring, the sign, the stencil -- built by its own generator, lit the way the
+ring, the sign, the stencil, the topo map -- built by its own generator, lit the way the
 pet tag's product shot is, and rendered at FRAMES angles as it sways.  The
 page shows the first frame as the icon, and on hover steps through the rest
 with a CSS animation.  So the tiles get a turning 3D object with no 3D
@@ -33,6 +33,7 @@ import nametag
 import pettag
 import signbox
 import stencil
+import topo
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "public" / "assets" / "tiles"
@@ -67,6 +68,12 @@ ICONS = {
                     colours=(INK, INK, PAPER, PAPER), glow=("primary",)),
     "stencil": dict(build=lambda: stencil.build("SHOP"),
                     colours=(FLAME, FLAME, FLAME, FLAME)),
+    # Howe Sound and the mountains round it, with a pin on Squamish.  Needs
+    # the network the first time: the map is fetched, not drawn.
+    "topo":    dict(build=lambda: topo.build(["Squamish, BC"], centre="Squamish, BC",
+                                             span=28, size=80, shape="round",
+                                             exaggerate=2.5, pin_h=14),
+                    colours=(PAPER, "#5aa9e6", FLAME, FLAME)),
 }
 
 
