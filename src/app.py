@@ -55,7 +55,7 @@ GEOMETRY = ("kind", "name", "company", "phone", "role", "email", "tap", "tag_w",
             "tag_h", "tag_thick", "tag_mode", "border", "rise", "font", "link", "qr",
             "logo", "batch", "design", "look", "layout", "placeholder",
             "cap", "ring_d", "outline",
-            "plate_w", "plate_h", "margin", "bridge", "thick",
+            "plate_w", "plate_h", "margin", "bridge", "thick", "stencil_fit",
             "depth", "wall", "diffuse", "lid", "cable", "mount",
             "pet_shape", "pet_style", "pet_size", "pet_sides", "pet_note",
             "pet_link", "pet_border", "pet_collar", "pet_slot",
@@ -157,6 +157,16 @@ def preview(parts, info, row_w):
                                       int(len(slab.faces))]],
                                   plate=None,
                                   assembled=[round(float(v), 6) for v in place.ravel()]))
+        if part.get("prop") is not None:
+            # What a stencil sized to a mug or a cake is standing on, to scale:
+            # the one thing on screen that says how big the part really is.
+            meshes.append(part["prop"])
+            described.append(dict(name="prop", card=part.get("card", 0), prop=True,
+                                  slots=[[len(cards.SLOTS) + 1, "prop", "prop",
+                                          int(len(part["prop"].faces))]],
+                                  plate=None,
+                                  assembled=[round(float(v), 6)
+                                             for v in assembled[id(part)].ravel()]))
     mesh = trimesh.util.concatenate(meshes) if len(meshes) > 1 else meshes[0]
     return mesh.export(file_type="stl"), described
 
@@ -356,6 +366,8 @@ def model(params):
                              thick=num("thick", stencil.THICK),
                              margin=num("margin", stencil.MARGIN),
                              bridge=num("bridge", stencil.BRIDGE),
+                             # a disc sized to a mug or a cake, or the rectangle
+                             fit=params.get("stencil_fit") or None,
                              colours=colours)
                 if params.get("batch"):
                     rows = cards.parse_batch(params["batch"])

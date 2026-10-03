@@ -67,6 +67,9 @@ def report_stencil(name, info):
     else:
         print(f"      words    {info['text']!r} in {info['typeface_name']}, "
               f"{info['cap']:.1f} mm caps, {info['art'][0]:.1f} x {info['art'][1]:.1f} mm")
+    if info["thing"]:
+        print(f"      fits     {info['fit_name']}, {info['thing']['rim']:.0f} mm rim"
+              + (f" -- over the {info['bed']:.0f} mm bed" if info["too_big"] else ""))
     print(f"      plate    {info['thick']:.1f} mm thick, {info['margin']:.1f} mm margin, "
           f"{info['open_area']:.0f}% of it cut away")
     print(f"      bridges  {info['bridges']} at {info['bridge']:.1f} mm"
@@ -223,6 +226,10 @@ def main():
     ap.add_argument("--bridge", type=float, default=stencil.BRIDGE,
                     help=f"bar left across each island, mm; 0 leaves them loose "
                          f"(default {stencil.BRIDGE:g})")
+    ap.add_argument("--fit", choices=[stencil.ROUND, *stencil.FITS],
+                    help="stencil: a disc sized to what it goes on -- "
+                         + ", ".join(stencil.FITS) + " -- or 'round' for a disc "
+                         "as wide as --size says")
     ap.add_argument("--thick", type=float, default=stencil.THICK,
                     help=f"stencil plate thickness, mm (default {stencil.THICK:g})")
     ap.add_argument("--tag", default=None, metavar="WxH",
@@ -396,7 +403,7 @@ def main():
         art = Path(args.design).read_text() if args.design else None
         common = dict(svg=art, font=args.font, w=w, h=h, thick=args.thick,
                       margin=stencil.MARGIN if args.margin is None else args.margin,
-                      bridge=args.bridge)
+                      bridge=args.bridge, fit=args.fit)
         if args.batch:
             rows = cards.parse_batch(Path(args.batch).read_text())
             print(f"building {len(rows)} stencils:")

@@ -1414,6 +1414,30 @@ Two numbers the readout gives you and you should believe:
   stroke width, because that sliver between the L and the A is what tears
   first.  Under 0.8 mm it will not survive being washed.
 
+## Sized to a mug or a cake
+
+*Fits* turns the plate into a disc sized to the thing it goes on, for dusting
+cocoa over a coffee or icing sugar over a cake.  The disc is a little wider
+than the rim, so it rests there instead of dropping in, and the artwork is
+fitted to the opening -- inside a cup's wall, or the whole top of a cake --
+less the margin.  The preview stands the stencil on the thing, to scale: a mug
+with its handle, a cup on its saucer, a cake on its board.  That ghost is only
+on screen; the 3MF and STL are the stencil alone.
+
+![a stencil on a coffee mug and on an 8-inch cake](previews/stencil_fits.png)
+
+| Fits | Rim | Stencil |
+|---|---|---|
+| Espresso cup | 68 mm | Ø80 mm |
+| Coffee mug | 84 mm | Ø100 mm |
+| Cappuccino cup | 100 mm | Ø116 mm |
+| Cupcake | 66 mm | Ø78 mm |
+| 6" / 8" / 9" round cake | 152 / 203 / 229 mm | Ø164 / 215 / 241 mm |
+| 10" round cake | 254 mm | Ø266 mm -- over a 256 mm bed, and the readout says so |
+
+These are the usual sizes.  If yours is different, measure it and pick *A round
+plate*, whose one slider is the diameter.
+
 ## Printing them
 
 Flat on the plate, no supports, and no brim unless the bed is cold: a stencil
@@ -1433,7 +1457,9 @@ writes `stl/shop_stencil.3mf` and `.stl`.  `--size 160x50` for the plate,
 `--margin` for the frame round the cut, `--bridge 0` to leave the islands
 loose, `--thick` for the plate, `--font condensed` (or any of the
 [forty-eight faces](#the-forty-eight-faces), or a path to a TTF) for how it is set, and
-`--design arrow.svg` to cut artwork instead of words.  `--batch words.txt`
+`--design arrow.svg` to cut artwork instead of words.  `--fit mug` (or
+`espresso`, `cappuccino`, `cupcake`, `cake6`, `cake8`, `cake9`, `cake10`) sizes
+it to that thing, and `--fit round --size 150x150` is a plain disc.  `--batch words.txt`
 puts a set of them on one plate.
 
 ---
