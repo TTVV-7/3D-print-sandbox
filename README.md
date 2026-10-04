@@ -346,7 +346,8 @@ the dependencies; `.vercelignore` keeps the valve-cap STLs out of the build.
 Zero-config, with one thing that is easy to get wrong: Vercel finds the
 handler by looking *inside* the entrypoint for a class defined there -- import
 one under the name and the file builds as nothing, silently.  It lives at
-**https://3-d-print-sandbox.vercel.app** -- the Vercel project is linked to
+**https://design.printyours.ca** (also still at
+https://3-d-print-sandbox.vercel.app) -- the Vercel project is linked to
 this repo, so every push builds: the default branch goes to that address, any
 other branch gets a preview address of its own (which asks for a Vercel login;
 the production one is public).  The URL then works from any phone or laptop
