@@ -2828,6 +2828,16 @@ async function download(format, type, ext) {
 $("save_stl").addEventListener("click", () => download("stl", "model/stl", "stl"));
 $("save").addEventListener("click", () => download("3mf", "model/3mf", "3mf"));
 
+/* ?shape=keyring opens on that shape, so a link from printyours.ca lands on
+   the thing it showed rather than the card.  The tile's own names work too. */
+{
+  const SHAPE_PARAM = { fob: "card", card: "card", keyring: "name", name: "name",
+                        pet: "pet", tag: "pet", sign: "sign", stencil: "stencil" };
+  const kind = SHAPE_PARAM[(new URLSearchParams(location.search).get("shape") || "").toLowerCase()];
+  const tile = kind && document.querySelector(`.tile[data-kind="${kind}"]`);
+  if (tile) { tile.click(); clearTimeout(pending); }   // the build below covers it
+}
+
 rebuild();
 </script>
 
