@@ -506,6 +506,12 @@ class Handler(BaseHTTPRequestHandler):
             self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8")
         elif path == "/filaments.json":
             self._send(200, SPOOLS.read_bytes(), "application/json")
+        elif path in ("/account.js", "/accounts.json"):
+            # Sign-in and history (public/account.js), and which Supabase
+            # project it talks to -- static files on Vercel, served here too.
+            f = ROOT / "public" / path.lstrip("/")
+            self._send(200, f.read_bytes(),
+                       "application/json" if f.suffix == ".json" else "text/javascript")
         elif path.startswith("/assets/"):
             # Static files under public/assets -- the tile icons.  Resolved and
             # checked, so a path with .. in it cannot walk out of the folder.

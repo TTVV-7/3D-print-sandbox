@@ -1168,6 +1168,37 @@ the entry.  Match `hex` to the real spool by eye, next to the screen -- the
 colour on the box is marketing.  **The list that ships is a starting point,
 not your shelf**: replace it with what you have.
 
+## Accounts and history
+
+Sign in with Google, and every file you download is kept: *History*, under
+the title, lists them newest first, and *Open* puts that design back in the
+form -- the shape, every box, the uploaded logo, the colours and the spools --
+and rebuilds it.  What is saved is the settings, not the 3MF or STL; the
+generators make the same part from the same inputs, so a row is a few kB (a
+few hundred with a logo image on it).  Downloading the 3MF and then the STL
+of the same design is one row, not two.
+
+It runs on [Supabase](https://supabase.com), straight from the page
+(`public/account.js`), so the Python functions do not change and nothing new
+has to be deployed.  It is **off until `public/accounts.json` names a
+project**; with that file's two values empty the page has no sign-in button
+and behaves exactly as before.  To switch it on:
+
+1. Make a Supabase project (the free tier is plenty).
+2. SQL Editor: run `supabase/schema.sql`.  It makes the `generations` table
+   and the row-level security that lets each person read, add and delete
+   their own rows and nobody else's.
+3. Google Cloud console > APIs & Services > Credentials: an OAuth client ID,
+   type *Web application*, with Supabase's callback
+   (`https://<project>.supabase.co/auth/v1/callback`) as its redirect URI.
+4. Supabase > Authentication > Providers > Google: turn it on and paste the
+   client ID and secret.  Authentication > URL Configuration: the site's own
+   address as the Site URL, and add `http://127.0.0.1:8765` to the redirect
+   URLs to sign in on the local app too.
+5. Supabase > Project Settings > API: copy the project URL and the `anon`
+   key into `public/accounts.json`.  The anon key is meant to be public --
+   the row-level security is the lock.
+
 ## Sketchfab models for the site
 
 `src/sketchfab.py` finds and downloads models from Sketchfab into

@@ -1,0 +1,5 @@
+{
+  "_": "Sign in with Google and saved history (public/account.js). Fill both in from Supabase > Project Settings > API to switch it on; leave them empty and the page has no accounts. The anon key is meant to be public -- row-level security in supabase/schema.sql is what keeps each person's history their own.",
+  "supabase_url": "",
+  "supabase_anon_key": ""
+}
