@@ -30,6 +30,13 @@
     document.head.append(s);
   }).catch(() => null);
   if (!window.supabase) return;
+  // A sign-in that failed on Supabase's side (a wrong Google secret, a
+  // redirect it would not allow) comes back as ?error_description=... or
+  // #error_description=... -- read it before the client tidies the URL, so
+  // the page says why instead of quietly showing the button again.
+  const back = new URLSearchParams(location.search + "&" + location.hash.slice(1));
+  const failed = back.get("error_description") || back.get("error");
+  if (failed) history.replaceState(null, "", location.pathname);
   const db = window.supabase.createClient(cfg.supabase_url, cfg.supabase_anon_key);
 
   const bar = $("account"), signIn = $("sign_in"), who = $("signed_in"), list = $("history_list");
@@ -50,6 +57,7 @@
   db.auth.onAuthStateChange((_event, session) => { user = session?.user || null; shown(); });
   user = (await db.auth.getSession()).data.session?.user || null;
   shown();
+  if (failed && !user) $("sign_in_error").textContent = `Sign-in didn't work: ${failed}`;
 
   signIn.addEventListener("click", () => db.auth.signInWithOAuth({
     provider: "google", options: { redirectTo: location.origin + location.pathname },

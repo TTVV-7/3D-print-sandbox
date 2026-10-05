@@ -477,6 +477,8 @@
              margin-top: var(--space-300); font-size: 14px; color: var(--text-secondary); }
   #account .button { min-height: 32px; padding: var(--space-100) var(--space-300); font-size: 14px; }
   #signed_in { display: flex; align-items: center; gap: var(--space-200); flex-wrap: wrap; }
+  #sign_in_error { color: var(--danger); }
+  #sign_in_error:empty { display: none; }
   #signed_name { font-weight: 600; color: var(--text-default); }
   #history { width: min(560px, calc(100vw - 32px)); max-height: 80vh; padding: var(--space-600);
              border: 1px solid var(--border-default); border-radius: var(--radius-200);
@@ -510,6 +512,7 @@
        &middot; <a href="#" id="reel_open" style="color:var(--text-secondary)">&#9654; See it in action</a></p>
     <div id="account" hidden>
       <button type="button" class="button neutral" id="sign_in" hidden>Sign in with Google to keep your history</button>
+      <span id="sign_in_error" class="err" role="alert"></span>
       <span id="signed_in" hidden>
         <span id="signed_name"></span>
         <button type="button" class="button neutral" id="history_open">History</button>
