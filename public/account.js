@@ -24,7 +24,7 @@
 
   await new Promise((ok, fail) => {
     const s = document.createElement("script");
-    s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js";
+    s.src = "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js";
     s.onload = ok;
     s.onerror = fail;
     document.head.append(s);
@@ -67,7 +67,7 @@
     if (key === lastSaved) return;
     lastSaved = key;
     const title = stem().replace(/_/g, " ");
-    const { error } = await db.from("generations").insert({ kind: kept.kind, title, format, params: kept });
+    const { error } = await db.from("generations").insert({ site: location.hostname, kind: kept.kind, title, format, params: kept });
     if (error) { lastSaved = ""; console.warn("history not saved:", error.message); }
   };
 

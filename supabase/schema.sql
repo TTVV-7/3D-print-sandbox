@@ -5,6 +5,7 @@
 create table if not exists public.generations (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  site        text,           -- which site saved it: its hostname, e.g. printyours.ca
   kind        text not null,
   title       text not null,
   format      text,
