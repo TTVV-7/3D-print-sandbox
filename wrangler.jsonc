@@ -1,0 +1,21 @@
+// Cloudflare Workers config for the sandbox. Vercel ignores this file; see
+// cloudflare/worker.js for what runs where.
+{
+  "$schema": "https://unpkg.com/wrangler/config-schema.json",
+  "name": "3d-print-sandbox",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    // Pages, fonts and filaments.json, as public/ is on Vercel. /case serves
+    // case.html automatically, as vercel.json's rewrite does.
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "vars": {
+    // Where the Python generators run. Point at whichever Vercel deployment
+    // should answer: the production URL once there is one, or a branch URL.
+    "VERCEL_API_ORIGIN": "https://3-d-print-sandbox.vercel.app"
+  },
+  "observability": { "enabled": true }
+}
