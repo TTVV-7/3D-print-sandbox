@@ -1,6 +1,6 @@
 """Set one name in every face, as the keyring, for previews/keyring_faces.png.
 
-The README's picture of the faces is not a font specimen: it is forty-eight
+The README's picture of the faces is not a font specimen: it is seventy-eight
 actual keyrings, built by nametag.build and rendered straight down, so what the
 picture shows is the plastic -- the outline round the word, the ring tab, the
 counters that survived the weld and the ones that did not.

@@ -1,6 +1,6 @@
-The forty display faces in this directory are all under the SIL Open
+The sixty-eight display faces in this directory are all under the SIL Open
 Font Licence, version 1.1.  The licence text is identical for each, so it is
-given once at the bottom rather than forty times; the copyright and
+given once at the bottom rather than sixty-eight times; the copyright and
 Reserved Font Name notices, which are not identical, are all listed here.
 
 Each font was taken unmodified from the Google Fonts repository
@@ -19,9 +19,16 @@ authoritative copy of this same licence.
     Copyright (c) 2012, Brian J. Bonislawsky DBA Astigmatic (AOETI)
     (astigma@astigmatic.com), with Reserved Font Names "Audiowide"
 
+  Bahianita           Bahianita-Regular.ttf
+    Copyright 2018 The Bahianita Project Authors
+    (https://github.com/Omnibus-Type/Bahiana/Bahianita)
+
   Bangers             Bangers-Regular.ttf
     Copyright 2010 The Bangers Project Authors
     (https://github.com/googlefonts/bangers)
+
+  Barrio              Barrio-Regular.ttf
+    Copyright 2016 The Barrio Project Authors (omnibus.type@gmail.com)
 
   Black Ops One       BlackOpsOne-Regular.ttf
     Copyright 2022 The Black-Ops Project Authors
@@ -49,20 +56,62 @@ authoritative copy of this same licence.
   Creepster           Creepster-Regular.ttf
     Copyright (c) 2011, Font Diner, Inc (diner@fontdiner.com)
 
+  Diplomata           Diplomata-Regular.ttf
+    Copyright 2011 The Diplomata Project Authors
+    (https://github.com/etunni/diplomata), with Reserved Font Name
+    "Diplomata"
+
   Eagle Lake          EagleLake-Regular.ttf
     Copyright (c) 2012, Brian J. Bonislawsky DBA Astigmatic (AOETI)
     (astigma@astigmatic.com), with Reserved Font Names "Eagle Lake"
 
+  Eater               Eater-Regular.ttf
+    Copyright (c) 2011, Typomondo, with Reserved Font Name "Eater".
+
   Emblema One         EmblemaOne-Regular.ttf
     Copyright (c) 2011 by Sorkin Type Co (www.sorkintype.com)
+
+  Ewert               Ewert-Regular.ttf
+    Copyright (c) 2011 Johan Kallas (johankallas@gmail.com), Copyright (c)
+    2011 Mihkel Virkus (mihkelvirkus@gmail.com), with Reserved Font Name
+    Ewert.
+
+  Fascinate Inline    FascinateInline-Regular.ttf
+    Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
+    (astigma@astigmatic.com), with Reserved Font Names "Fascinate" and
+    "Fascinate Inline"
+
+  Faster One          FasterOne-Regular.ttf
+    Copyright 2012 The Faster Project Authors
+    (https://github.com/etunni/faster), with Reserved Font Name 'Faster'
 
   Federant            Federant-Regular.ttf
     Copyright (c) 2011, Cyreal (www.cyreal.org),
     with Reserved Font Name 'Federant'
 
+  Freckle Face        FreckleFace-Regular.ttf
+    Copyright (c) 2012, Brian J. Bonislawsky DBA Astigmatic (AOETI)
+    (astigma@astigmatic.com), with Reserved Font Name 'Freckle Face'
+
+  Frijole             Frijole-Regular.ttf
+    Copyright (c) 2011, Sideshow (a DBA of Font Diner, Inc)
+    (www.fontdiner.com), with Reserved Font Name "Frijole".
+
   Graduate            Graduate-Regular.ttf
     Copyright 2012 The Graduate Project Authors
     (https://github.com/etunni/graduate), with Reserved Font Name "Graduate"
+
+  Griffy              Griffy-Regular.ttf
+    Copyright (c) 2012, Font Diner (www.fontdiner.com), with Reserved Font
+    Name "Griffy".
+
+  Henny Penny         HennyPenny-Regular.ttf
+    Copyright (c) 2011, BrownFox (gayaneh.b@gmail.com|www.brownfox.org),
+    with Reserved Font Names "Henny Penny"
+
+  Jolly Lodger        JollyLodger-Regular.ttf
+    Copyright (c) 2012, Font Diner (www.fontdiner.com), with Reserved Font
+    Name "Jolly Lodger".
 
   Limelight           Limelight-Regular.ttf
     Copyright (c) 2011 by Sorkin Type Co (www.sorkintype.com),
@@ -72,6 +121,11 @@ authoritative copy of this same licence.
     Copyright 2010 The Lobster Project Authors
     (https://github.com/impallari/The-Lobster-Font),
     with Reserved Font Name "Lobster"
+
+  Londrina Shadow     LondrinaShadow-Regular.ttf
+    Copyright 2011 The Londrina Shadow Authors
+    (https://github.com/marcelommp/Londrina-Typeface), with Reserved Font
+    Name "Londrina Shadow"
 
   MedievalSharp       MedievalSharp.ttf
     Copyright (c) 2011, wmk69 (wmk69@o2.pl)
@@ -83,6 +137,11 @@ authoritative copy of this same licence.
   Miltonian Tattoo    MiltonianTattoo-Regular.ttf
     Copyright (c) 2011 by Pablo Impallari (www.impallari.com,
     impallari@gmail.com).  Igino Marini (www.ikern.com)
+
+  Monofett            Monofett-Regular.ttf
+    Copyright 2010 The Monofett Project Authors
+    (https://github.com/googlefonts/monofett), with Reserved Font Name
+    Monofett.
 
   Monoton             Monoton-Regular.ttf
     Copyright (c) 2011 by vernon adams (vern@newtypography.co.uk)
@@ -106,6 +165,10 @@ authoritative copy of this same licence.
     Copyright (c) 2012, Rodrigo Fuenzalida, Nicolas Massi
     (www.taip.com.ar / abc.taip.com.ar), with Reserved Font Name 'Pirata'
 
+  Plaster             Plaster-Regular.ttf
+    Copyright (c) 2011 by Sorkin Type Co (www.sorkintype.com), with
+    Reserved Font Name "Plaster".
+
   Press Start 2P      PressStart2P-Regular.ttf
     Copyright 2012 The Press Start 2P Project Authors
     (cody@zone38.net), with Reserved Font Name "Press Start 2P"
@@ -115,9 +178,43 @@ authoritative copy of this same licence.
     Rodrigo Fuenzalida (www.rfuenzalida.com),
     with Reserved Font Name Racing Sans
 
+  Ranchers            Ranchers-Regular.ttf
+    Copyright (c) 2012, Pablo Impallari
+    (www.impallari.com|impallari@gmail.com), Copyright (c) 2012, Brenda
+    Gallo. (gbrenda1987@gmail.com), with Reserved Font Name Ranchers.
+
+  Ribeye Marrow       RibeyeMarrow-Regular.ttf
+    Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
+    (astigma@astigmatic.com), with Reserved Font Names "Ribeye" and
+    "Ribeye Marrow"
+
   Righteous           Righteous-Regular.ttf
     Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
     (astigma@astigmatic.com), with Reserved Font Names "Righteous"
+
+  Rubik Beastly       RubikBeastly-Regular.ttf
+    Copyright 2020 The Rubik Filtered Project Authors
+    (https://https://github.com/NaN-xyz/Rubik-Filtered)
+
+  Rubik Bubbles       RubikBubbles-Regular.ttf
+    Copyright 2020 The Rubik Filtered Project Authors
+    (https://https://github.com/NaN-xyz/Rubik-Filtered)
+
+  Rubik Burned        RubikBurned-Regular.ttf
+    Copyright 2020 The Rubik Filtered Project Authors
+    (https://https://github.com/NaN-xyz/Rubik-Filtered)
+
+  Rubik Moonrocks     RubikMoonrocks-Regular.ttf
+    Copyright 2020 The Rubik Filtered Project Authors
+    (https://https://github.com/NaN-xyz/Rubik-Filtered)
+
+  Rubik Spray Paint   RubikSprayPaint-Regular.ttf
+    Copyright 2020 The Rubik Filtered Project Authors
+    (https://https://github.com/NaN-xyz/Rubik-Filtered)
+
+  Rubik Vinyl         RubikVinyl-Regular.ttf
+    Copyright 2020 The Rubik Filtered Project Authors
+    (https://https://github.com/NaN-xyz/Rubik-Filtered)
 
   Rye                 Rye-Regular.ttf
     Copyright (c) 2011 by Sorkin Type Co (www.sorkintype.com)
@@ -130,12 +227,28 @@ authoritative copy of this same licence.
     Copyright 2011 The Sancreek Project Authors
     (https://github.com/googlefonts/sancreek)
 
+  Sedgwick Ave Display SedgwickAveDisplay-Regular.ttf
+    Copyright 2017 The Sedgwick Ave Project Authors
+    (https://github.com/googlefonts/sedgwickave)
+
+  Shojumaru           Shojumaru-Regular.ttf
+    Copyright (c) 2012 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
+    (astigma@astigmatic.com), with Reserved Font Names "Shojumaru"
+
   Shrikhand           Shrikhand-Regular.ttf
     Copyright (c) 2015 Jonny Pinhorn (jonpinhorn.typedesign@gmail.com)
 
   Silkscreen          Silkscreen-Regular.ttf
     Copyright 2001 The Silkscreen Project Authors
     (https://github.com/googlefonts/silkscreen)
+
+  Snowburst One       SnowburstOne-Regular.ttf
+    Copyright (c) 2012 by Sorkin Type Co (www.sorkintype.com), with
+    Reserved Font Name 'Snowburst'
+
+  Spicy Rice          SpicyRice-Regular.ttf
+    Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)
+    (astigma@astigmatic.com), with Reserved Font Names "Spicy Rice"
 
   Stardos Stencil     StardosStencil-Regular.ttf
     Copyright (c) 2011 by vernon adams (vern@newtypography.co.uk),
@@ -144,6 +257,10 @@ authoritative copy of this same licence.
   Titan One           TitanOne-Regular.ttf
     Copyright (c) 2011, Rodrigo Fuenzalida (www.rfuenzalida.com),
     with Reserved Font Name Titan
+
+  Trade Winds         TradeWinds-Regular.ttf
+    Copyright (c) 2011, Sideshow (a DBA of Font Diner, Inc)
+    (www.fontdiner.com), with Reserved Font Name "Trade Winds".
 
   Uncial Antiqua      UncialAntiqua-Regular.ttf
     Copyright (c) 2011 by Brian J. Bonislawsky DBA Astigmatic (AOETI)

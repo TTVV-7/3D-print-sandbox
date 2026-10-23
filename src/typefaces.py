@@ -41,21 +41,23 @@ the weld behaves the same way.  What they change is how the word reads.  So
 they are banded from two things about a face that can be measured -- how heavy
 its stem is and how narrow its letters are -- and then left to the eye.
 
-There are forty-eight faces: the six plain ones the keyring started with, and
-forty-two display faces for when a name wants to be a thing rather than a
-label.  Six of the forty-two have a `min_cap` of 26 mm, the top of the
+There are seventy-eight faces: the six plain ones the keyring started with,
+and seventy-two display faces for when a name wants to be a thing rather than
+a label.  Eighteen of the seventy-two have a `min_cap` of 26 mm, the top of the
 sweep, which is the sweep's way of saying that no letter height on the slider
 keeps that face's counters open -- a face drawn as four parallel lines has
-nothing the weld will leave alone.  They are kept anyway, because the stencil
+nothing the weld will leave alone, and one drawn as speckle or fur is
+hundreds of holes the weld was always going to fill.  They are kept anyway, because the stencil
 cuts them straight through a plate where the bridges do the holding, and
 because the readout tells the truth about what closed.
 
 Everything here ships in src/fonts next to the code, for the same reason the
 sans always did: a hosted function is guaranteed to carry its source and not
 necessarily anything else, and Vercel has no system fonts at all.  Licences sit
-beside the fonts: Chewy, Luckiest Guy and Permanent Marker are Apache 2.0 and
-each have their own file, everything else is under the SIL Open Font Licence --
-the five original ones each with their own file too, the forty OFL display
+beside the fonts: Chewy, Luckiest Guy, Permanent Marker, Smokum and Fontdiner
+Swanky are Apache 2.0 and each have their own file, everything else is under
+the SIL Open Font Licence -- the five original ones each with their own file
+too, the sixty-eight OFL display
 faces together in LICENSE-Complicated.txt, which carries the licence text once
 and every one of their copyright lines.
 """
@@ -590,6 +592,313 @@ FACES = {
         file="Silkscreen-Regular.ttf",
         weld=0.5, gap=-0.15, min_cap=10.0,
         licence="SIL Open Font Licence 1.1, The Silkscreen Project Authors"),
+    # ------------------------------------------------------- thirty wilder ones
+    # Measured by the same sweep as everything above, and kept on the same
+    # terms: twelve of them come back pinned at 26 mm, and that is the price of
+    # a face drawn as speckle, fur, craters or overspray.  Those textures are
+    # hundreds of tiny holes, the weld fills most of them at any height, and
+    # what a keyring gets is the rough-edged solid letter underneath -- which
+    # still looks like the face -- while the stencil cuts the texture whole.
+    #
+    # Each was also built as a keyring at every height from 10 to 26 mm, as a
+    # stencil, a sign and a pet tag.  Six more Google faces were tried and left
+    # out because some of those builds came back as open meshes (Bungee Inline,
+    # Rubik Glitch, Iso, Maze, Puddles and Wet Paint), and one, Codystar,
+    # because a face drawn as dots took longer to measure than a request has.
+    "gore": dict(
+        group="Horror",
+        label="Gore",
+        font="Eater",
+        note="Horror capitals with the paint flung at them rather than "
+             "dripped.  The splatter is a lot of small holes, and about half "
+             "of them fill in even at the top of the slider -- the letter "
+             "survives, the spatter thins out.  Cut as a stencil it keeps all "
+             "of it.",
+        file="Eater-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, Typomondo"),
+    "beastly": dict(
+        group="Horror",
+        label="Beastly",
+        font="Rubik Beastly",
+        note="Rubik with fur grown out of every stroke.  The fur is drawn as "
+             "hundreds of tiny gaps and the weld fills nearly all of them, so "
+             "a keyring prints as a shaggy solid word with a spiky edge; the "
+             "stencil keeps more of the beast.",
+        file="RubikBeastly-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Rubik Filtered Project Authors"),
+    "burned": dict(
+        group="Horror",
+        label="Burned",
+        font="Rubik Burned",
+        note="Hollow Rubik letters with holes burned through them.  A few of "
+             "the burns close at any height, but most of the char is still "
+             "there at 26 mm.",
+        file="RubikBurned-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Rubik Filtered Project Authors"),
+    "spooky": dict(
+        group="Horror",
+        label="Spooky",
+        font="Griffy",
+        note="Halloween storybook lettering, a curl on every stroke -- spooky "
+             "rather than gory.  The pick of the horror faces for a small "
+             "keyring: 10 mm.  Latin-1 only.",
+        file="Griffy-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Font Diner, Inc"),
+    "speckle": dict(
+        group="Comic",
+        label="Speckle",
+        font="Frijole",
+        note="Chunky, rough-edged capitals speckled all over with tiny holes, "
+             "like a worn rubber stamp.  The weld fills the speckles at every "
+             "height, so a keyring prints as the rough solid letter "
+             "underneath; the stencil is where the speckles live.  Latin-1 "
+             "only.",
+        file="Frijole-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, Font Diner, Inc"),
+    "storybook": dict(
+        group="Comic",
+        label="Storybook",
+        font="Henny Penny",
+        note="A fairy-tale face where no two letters sit at quite the same "
+             "height.  12 mm.  Latin-1 only.",
+        file="HennyPenny-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=12.0,
+        licence="SIL Open Font Licence 1.1, Brownfox"),
+    "freckle": dict(
+        group="Comic",
+        label="Freckle",
+        font="Freckle Face",
+        note="Bouncy hand-inked lettering with a lumpy edge.  13 mm.",
+        file="FreckleFace-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=13.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "spicy": dict(
+        group="Comic",
+        label="Spicy",
+        font="Spicy Rice",
+        note="Fat cartoon lettering with sharp little corners.  Heavy for its "
+             "counters, the way the other fat comic faces are, so it wants 18 "
+             "mm.",
+        file="SpicyRice-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=18.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "moonrock": dict(
+        group="Comic",
+        label="Moonrock",
+        font="Rubik Moonrocks",
+        note="Rubik as cratered moon rock.  The craters are hundreds of small "
+             "holes and the weld fills about three quarters of them even at 26"
+             " mm, so below that it prints as smooth rock.  Wants a big "
+             "letter, or the stencil.",
+        file="RubikMoonrocks-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Rubik Filtered Project Authors"),
+    "bubbles": dict(
+        group="Comic",
+        label="Bubbles",
+        font="Rubik Bubbles",
+        note="Rubik blown up into soft round bubbles.  Its floor is the top of"
+             " the slider only because the heaviest weld shuts a couple of "
+             "counters there; at the lightest weld nothing closes at all.",
+        file="RubikBubbles-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Rubik Filtered Project Authors"),
+    "rancher": dict(
+        group="Comic",
+        label="Rancher",
+        font="Ranchers",
+        note="Tall, narrow, heavy capitals with rounded corners, for a long "
+             "name that should still shout.  18 mm.",
+        file="Ranchers-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=18.0,
+        licence="SIL Open Font Licence 1.1, Pablo Impallari, Brenda Gallo"),
+    "woodtype": dict(
+        group="Western",
+        label="Woodtype",
+        font="Ewert",
+        note="Ornamental wood type, every letter carved with its own cut-outs."
+             "  Nine of over a hundred close at the top of the slider; below "
+             "that the patterns go first and the block stays.  Latin-1 only.",
+        file="Ewert-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, Johan Kallas, Mihkel Virkus"),
+    "wanted": dict(
+        group="Western",
+        label="Wanted",
+        font="Smokum",
+        note="Condensed wanted-poster slab with spurs on the serifs.  14 mm.",
+        file="Smokum-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=14.0,
+        licence="Apache Licence 2.0, Brian J. Bonislawsky (Astigmatic)"),
+    "marrow": dict(
+        group="Western",
+        label="Marrow",
+        font="Ribeye Marrow",
+        note="Western display drawn as an outline round a hollow letter.  The "
+             "hollows are counters too, which is why it wants 19 mm.",
+        file="RibeyeMarrow-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=19.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "fascinate": dict(
+        group="Retro",
+        label="Fascinate",
+        font="Fascinate Inline",
+        note="Deco capitals with an inline cut down the heavy strokes.  Pinned"
+             " at the top of the slider, but only by the heaviest weld: at the"
+             " lightest one every inline survives at 26 mm.",
+        file="FascinateInline-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "speed": dict(
+        group="Retro",
+        label="Speed",
+        font="Faster One",
+        note="Italic capitals with speed lines streaking off the back of every"
+             " letter.  The streaks are separate slivers and the weld ties "
+             "them in.  20 mm.",
+        file="FasterOne-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=20.0,
+        licence="SIL Open Font Licence 1.1, The Faster Project Authors"),
+    "swanky": dict(
+        group="Retro",
+        label="Swanky",
+        font="Fontdiner Swanky",
+        note="Fifties diner-sign lettering, all bounce and flared terminals.  "
+             "12 mm.  Latin-1 only.",
+        file="FontdinerSwanky-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=12.0,
+        licence="Apache Licence 2.0, Font Diner, Inc"),
+    "tape": dict(
+        group="Retro",
+        label="Tape",
+        font="Monofett",
+        note="Letters knocked out of a black rounded bar, like embossing tape."
+             "  On a keyring the bar is the body and the letters are the holes"
+             " in it.  16 mm.",
+        file="Monofett-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=16.0,
+        licence="SIL Open Font Licence 1.1, The Monofett Project Authors"),
+    "diplomat": dict(
+        group="Ornate",
+        label="Diplomat",
+        font="Diplomata",
+        note="An extremely wide, high-contrast didone, the lettering off a "
+             "banknote.  The hairlines want 24 mm, and the width means a long "
+             "name runs a long way.",
+        file="Diplomata-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=24.0,
+        licence="SIL Open Font Licence 1.1, The Diplomata Project Authors"),
+    "whimsy": dict(
+        group="Ornate",
+        label="Whimsy",
+        font="Snowburst One",
+        note="Light, quirky hand-drawn letters with little curls.  Thin, so "
+             "the weld is most of what prints, but nothing closes: 10 mm.  "
+             "Latin-1 only.",
+        file="SnowburstOne-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Sorkin Type Co"),
+    "pop": dict(
+        group="Dimensional",
+        label="Pop",
+        font="Londrina Shadow",
+        note="Outlined letters with a drop shadow, drawn as a lot of thin "
+             "rings.  A few rings close at the top of the slider and more "
+             "below it, where the letter fills in.  Latin-1 only.",
+        file="LondrinaShadow-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Londrina Shadow Authors"),
+    "vinyl": dict(
+        group="Dimensional",
+        label="Vinyl",
+        font="Rubik Vinyl",
+        note="Hollow Rubik letters stacked on a solid copy of themselves, like"
+             " a sticker on its own shadow.  Five counters close at 26 mm; "
+             "below that the hollow fills first.",
+        file="RubikVinyl-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Rubik Filtered Project Authors"),
+    "plaster": dict(
+        group="Stencil",
+        label="Plaster",
+        font="Plaster",
+        note="Wide geometric capitals with every counter left open to the "
+             "outside, so there is nothing for the weld to shut: 10 mm, the "
+             "stencil trick in a face that does not look like a stencil.",
+        file="Plaster-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=10.0,
+        licence="SIL Open Font Licence 1.1, Sorkin Type Co"),
+    "tag": dict(
+        group="Graffiti",
+        label="Tag",
+        font="Sedgwick Ave Display",
+        note="Marker-drawn graffiti handstyle, the letters a tag is made of.  "
+             "Five counters close even at 26 mm, mostly in the round letters.",
+        file="SedgwickAveDisplay-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Sedgwick Ave Project Authors"),
+    "spraycan": dict(
+        group="Graffiti",
+        label="Spray Can",
+        font="Rubik Spray Paint",
+        note="Rubik sprayed on, with overspray speckled round every letter.  "
+             "The speckle is hundreds of tiny holes and the weld fills almost "
+             "all of them, so a keyring gets the fuzzy outline and the stencil"
+             " gets the spray.",
+        file="RubikSprayPaint-Regular.ttf",
+        weld=0.35, gap=0.25, min_cap=26.0,
+        licence="SIL Open Font Licence 1.1, The Rubik Filtered Project Authors"),
+    "cutout": dict(
+        group="Graffiti",
+        label="Cut-out",
+        font="Barrio",
+        note="Capitals that look cut from paper with scissors, no two the same"
+             " weight.  13 mm.",
+        file="Barrio-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=13.0,
+        licence="SIL Open Font Licence 1.1, The Barrio Project Authors"),
+    "signpaint": dict(
+        group="Graffiti",
+        label="Sign Paint",
+        font="Bahianita",
+        note="Narrow hand-painted shop-sign lettering, quick and a little "
+             "uneven.  Mostly stems, so it gets daylight between the letters."
+             "  16 mm.",
+        file="Bahianita-Regular.ttf",
+        weld=0.4, gap=0.3, min_cap=16.0,
+        licence="SIL Open Font Licence 1.1, The Bahianita Project Authors"),
+    "tiki": dict(
+        group="Adventure",
+        label="Tiki",
+        font="Trade Winds",
+        note="Slanted tiki-bar lettering with a carved, chipped edge -- pirate"
+             " treasure maps and island rum.  11 mm.  Latin-1 only.",
+        file="TradeWinds-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=11.0,
+        licence="SIL Open Font Licence 1.1, Font Diner, Inc"),
+    "dojo": dict(
+        group="Adventure",
+        label="Dojo",
+        font="Shojumaru",
+        note="Wide brush capitals in the style of a martial-arts film title.  "
+             "15 mm.",
+        file="Shojumaru-Regular.ttf",
+        weld=0.4, gap=-0.15, min_cap=15.0,
+        licence="SIL Open Font Licence 1.1, Brian J. Bonislawsky (Astigmatic)"),
+    "jolly": dict(
+        group="Adventure",
+        label="Jolly",
+        font="Jolly Lodger",
+        note="Tall, wonky hand-cut capitals off a haunted house or a pirate's "
+             "chest.  14 mm.  Latin-1 only.",
+        file="JollyLodger-Regular.ttf",
+        weld=0.5, gap=-0.15, min_cap=14.0,
+        licence="SIL Open Font Licence 1.1, Font Diner, Inc"),
 }
 
 DEFAULT = "sans"

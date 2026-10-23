@@ -18,7 +18,7 @@ mesh.
   between them.  The app no longer offers it; `src/gen_cards.py` still writes
   one, and everything below about it still holds.
 - **[Name keyrings](#name-keyrings)** -- the word itself, welded into one
-  printable piece, with a tab for the ring, in one of forty-eight faces.  Same
+  printable piece, with a tab for the ring, in one of seventy-eight faces.  Same
   app, second shape.
 - **[Pet tags](#pet-tags)** -- a collar tag with the pet's name on the front and
   the phone number, and a QR code if you want one, on the back; or a slide-on
@@ -518,9 +518,9 @@ outlines as curves, flattened, not rasterised and re-traced.  A card is always
 set in the sans: whichever of Liberation Sans Bold, DejaVu Sans Bold or Arial
 Bold is on the machine, `--font` for any other.  A heavy sans is the right
 answer here, because every stroke has to survive as a 0.6 mm-deep inlay.  The
-[name keyrings](#the-forty-eight-faces), whose letters are ten times the size
-and are the object rather than a label on one, have forty-eight to choose
-from -- six plain and forty-two display faces.
+[name keyrings](#the-seventy-eight-faces), whose letters are ten times the size
+and are the object rather than a label on one, have seventy-eight to choose
+from -- six plain and seventy-two display faces.
 
 ## The tag, and the arcs
 
@@ -776,12 +776,15 @@ Everything about it is one number in `src/nametag.py`: `CAP`, `THICK`, `RISE`,
 `WELD`, `GAP` for how tight the setting is, `BRIDGE` for the tie, `RING_D` and
 `RING_WALL` for the tab.
 
-## The forty-eight faces
+## The seventy-eight faces
 
 ![the same name in all of them](previews/keyring_faces.png)
 
-Six plain faces to set a name in, and forty-two display faces for when the
-name wants to be a thing rather than a label.
+Six plain faces to set a name in, and seventy-two display faces for when
+the name wants to be a thing rather than a label.  Thirty of those are the
+wild ones -- fur, splatter, craters, overspray, speed lines, graffiti -- and
+they sit in the same groups as the rest, plus two of their own, Graffiti and
+Adventure.
 
 Two of the newer ones are worth knowing before you pick by eye.  The stencil
 faces measure as well as the plain sans -- 10 mm, all three -- because a
@@ -825,6 +828,8 @@ small counters by construction.
 | Emblem | Emblema One | 10 mm | Heavy inline capitals. Fat enough that the weld is barely needed, and it still sets at 10 mm — the best of the complicated ones on a small keyring. |
 | Nouveau | Federant | 10 mm | Art-nouveau capitals with a flick on every terminal. Latin-1 only. |
 | Roman | Cinzel Decorative | 10 mm | Classical Roman capitals with a swash and a leaf on the terminals, the lettering off a monument. 10 mm. |
+| Diplomat | Diplomata | 24 mm | An extremely wide, high-contrast didone, the lettering off a banknote. The hairlines want 24 mm, and the width means a long name runs a long way. |
+| Whimsy | Snowburst One | 10 mm | Light, quirky hand-drawn letters with little curls. Thin, so the weld is most of what prints, but nothing closes: 10 mm. Latin-1 only. |
 
 ### Western
 
@@ -835,6 +840,9 @@ small counters by construction.
 | Caesar | Caesar Dressing | 14 mm | Roughly chiselled Roman capitals, as though cut with a blunt tool. 14 mm, the same as the sans's own default. Latin-1 only. |
 | Stone | Piedra | 20 mm | Letters drawn as cut stone with a crack through each one. The cracks are counters, so it wants 20 mm to keep them. Latin-1 only. |
 | Varsity | Graduate | 10 mm | Collegiate slab, the letter off an American jacket. The one face in this group that sets at 10 mm — the rest of the western faces are inlined or spurred and pay for it. |
+| Woodtype | Ewert | 26 mm | Ornamental wood type, every letter carved with its own cut-outs. Nine of over a hundred close at the top of the slider; below that the patterns go first and the block stays. Latin-1 only. |
+| Wanted | Smokum | 14 mm | Condensed wanted-poster slab with spurs on the serifs. 14 mm. |
+| Marrow | Ribeye Marrow | 19 mm | Western display drawn as an outline round a hollow letter. The hollows are counters too, which is why it wants 19 mm. |
 
 ### Horror
 
@@ -844,6 +852,10 @@ small counters by construction.
 | Bones | Butcherman | 26 mm | Scratched horror capitals drawn as loose strokes, so its counters are gaps rather than holes. It loses a dozen of them even at the top of the slider, and more than twice that at 10 mm. |
 | Creep | Creepster | 22 mm | Lumpy horror lettering with a dripping crossbar. 22 mm and the bowls come back. Latin-1 only. |
 | Metal | Metal Mania | 26 mm | Spiky metal-band lettering drawn as a great many small pieces, and the slowest of the set to build. Four counters shut whatever the height, which is what keeps its floor at the top. Latin-1 only. |
+| Gore | Eater | 26 mm | Horror capitals with the paint flung at them rather than dripped. The splatter is a lot of small holes, and about half of them fill in even at the top of the slider — the letter survives, the spatter thins out. Cut as a stencil it keeps all of it. |
+| Beastly | Rubik Beastly | 26 mm | Rubik with fur grown out of every stroke. The fur is drawn as hundreds of tiny gaps and the weld fills nearly all of them, so a keyring prints as a shaggy solid word with a spiky edge; the stencil keeps more of the beast. |
+| Burned | Rubik Burned | 26 mm | Hollow Rubik letters with holes burned through them. A few of the burns close at any height, but most of the char is still there at 26 mm. |
+| Spooky | Griffy | 10 mm | Halloween storybook lettering, a curl on every stroke — spooky rather than gory. The pick of the horror faces for a small keyring: 10 mm. Latin-1 only. |
 
 ### Dimensional
 
@@ -852,6 +864,8 @@ small counters by construction.
 | Neon | Monoton | 26 mm | Four parallel lines to a stroke, like a neon tube. The tubes do survive at the top of the slider — wind the weld back to 0.35 and nothing closes at all — but under 26 mm the weld fills between them and the letter goes solid. |
 | Shadow | Vast Shadow | 10 mm | A fat slab with a cast shadow behind it. The shadow is a second piece per letter, so the word comes out in more pieces than it has letters and the bridges do more work than usual — but the counters themselves are fine, and it sets at 10 mm. Latin-1 only. |
 | Bevel | Bungee Shade | 26 mm | Three-dimensional block capitals with an extruded side. The extrusion reads at the top of the slider, at the cost of about eight counters; below that it fills in and what is left is the plain block. |
+| Pop | Londrina Shadow | 26 mm | Outlined letters with a drop shadow, drawn as a lot of thin rings. A few rings close at the top of the slider and more below it, where the letter fills in. Latin-1 only. |
+| Vinyl | Rubik Vinyl | 26 mm | Hollow Rubik letters stacked on a solid copy of themselves, like a sticker on its own shadow. Five counters close at 26 mm; below that the hollow fills first. |
 ### Comic
 
 | Face | Set in | Wants | What it is |
@@ -861,6 +875,13 @@ small counters by construction.
 | Lucky | Luckiest Guy | 22 mm | Comic-book capitals, the ones on the cover rather than in the speech bubble. 22 mm, for the same reason as Titan One. |
 | Chunky | Bowlby One | 13 mm | Heavy grotesque with round bowls, and the one comic face that sets small — 13 mm, because its counters stayed holes instead of narrowing to slots. The pick of the group for a keyring. Latin-1 only. |
 | Marker | Permanent Marker | 18 mm | Felt-tip handwriting with a dry edge to every stroke. The letters lean into each other before the weld is asked for anything, the way the script does. Latin-1 only. |
+| Speckle | Frijole | 26 mm | Chunky, rough-edged capitals speckled all over with tiny holes, like a worn rubber stamp. The weld fills the speckles at every height, so a keyring prints as the rough solid letter underneath; the stencil is where the speckles live. Latin-1 only. |
+| Storybook | Henny Penny | 12 mm | A fairy-tale face where no two letters sit at quite the same height. 12 mm. Latin-1 only. |
+| Freckle | Freckle Face | 13 mm | Bouncy hand-inked lettering with a lumpy edge. 13 mm. |
+| Spicy | Spicy Rice | 18 mm | Fat cartoon lettering with sharp little corners. Heavy for its counters, the way the other fat comic faces are, so it wants 18 mm. |
+| Moonrock | Rubik Moonrocks | 26 mm | Rubik as cratered moon rock. The craters are hundreds of small holes and the weld fills about three quarters of them even at 26 mm, so below that it prints as smooth rock. Wants a big letter, or the stencil. |
+| Bubbles | Rubik Bubbles | 26 mm | Rubik blown up into soft round bubbles. Its floor is the top of the slider only because the heaviest weld shuts a couple of counters there; at the lightest weld nothing closes at all. |
+| Rancher | Ranchers | 18 mm | Tall, narrow, heavy capitals with rounded corners, for a long name that should still shout. 18 mm. |
 
 ### Stencil
 
@@ -869,6 +890,7 @@ small counters by construction.
 | Stencil | Stardos Stencil | 10 mm | A serif cut into stencil strips. Ties the plain sans at 10 mm, the best in the set outside Plain, because a broken counter is open to the outside and the weld cannot close it. Its breaks are fine, though, so they read better on the stencil plate than on a small keyring. Latin-1 only. |
 | Spray | Saira Stencil One | 10 mm | Heavier stencil with wide breaks you can see at any size — the one to pick if you want the stencil to read as a stencil. 10 mm, on the same trick. |
 | Military | Black Ops One | 10 mm | Stencilled military slab, the kind sprayed on a crate. Fat enough that the weld is barely needed and broken enough that it would not matter: 10 mm. |
+| Plaster | Plaster | 10 mm | Wide geometric capitals with every counter left open to the outside, so there is nothing for the weld to shut: 10 mm, the stencil trick in a face that does not look like a stencil. |
 
 ### Retro
 
@@ -879,6 +901,10 @@ small counters by construction.
 | Marquee | Limelight | 10 mm | High-contrast deco display, the lettering on a theatre front. Sets at 10 mm despite the hairlines, because what it has instead of small counters is large ones. |
 | Groovy | Shrikhand | 16 mm | Heavy slanted display with a seventies bulge to every curve. 16 mm. |
 | Racing | Racing Sans One | 11 mm | Italic speed-lettering off the side of a car. The slant means no two letters meet square, which is exactly the case the negative gap is for. 11 mm. |
+| Fascinate | Fascinate Inline | 26 mm | Deco capitals with an inline cut down the heavy strokes. Pinned at the top of the slider, but only by the heaviest weld: at the lightest one every inline survives at 26 mm. |
+| Speed | Faster One | 20 mm | Italic capitals with speed lines streaking off the back of every letter. The streaks are separate slivers and the weld ties them in. 20 mm. |
+| Swanky | Fontdiner Swanky | 12 mm | Fifties diner-sign lettering, all bounce and flared terminals. 12 mm. Latin-1 only. |
+| Tape | Monofett | 16 mm | Letters knocked out of a black rounded bar, like embossing tape. On a keyring the bar is the body and the letters are the holes in it. 16 mm. |
 
 ### Tech
 
@@ -888,6 +914,23 @@ small counters by construction.
 | Techno | Audiowide | 10 mm | Rounded techno capitals with a slot cut in the heavy strokes. 10 mm. |
 | Arcade | Press Start 2P | 11 mm | An eight-bit face, every stroke a whole number of pixels wide. Its counters are square, and a square shrinks evenly where a round bowl pinches at the ends, which is why a face made of blocks measures better than the fat ones do — 11 mm. Sets wide: a long name runs on. |
 | Pixel | Silkscreen | 10 mm | A smaller, tighter pixel face than the arcade one, drawn for a screen that did not have many. 10 mm. Latin-1 only. |
+
+### Graffiti
+
+| Face | Set in | Wants | What it is |
+|---|---|---|---|
+| Tag | Sedgwick Ave Display | 26 mm | Marker-drawn graffiti handstyle, the letters a tag is made of. Five counters close even at 26 mm, mostly in the round letters. |
+| Spray Can | Rubik Spray Paint | 26 mm | Rubik sprayed on, with overspray speckled round every letter. The speckle is hundreds of tiny holes and the weld fills almost all of them, so a keyring gets the fuzzy outline and the stencil gets the spray. |
+| Cut-out | Barrio | 13 mm | Capitals that look cut from paper with scissors, no two the same weight. 13 mm. |
+| Sign Paint | Bahianita | 16 mm | Narrow hand-painted shop-sign lettering, quick and a little uneven. Mostly stems, so it gets daylight between the letters. 16 mm. |
+
+### Adventure
+
+| Face | Set in | Wants | What it is |
+|---|---|---|---|
+| Tiki | Trade Winds | 11 mm | Slanted tiki-bar lettering with a carved, chipped edge — pirate treasure maps and island rum. 11 mm. Latin-1 only. |
+| Dojo | Shojumaru | 15 mm | Wide brush capitals in the style of a martial-arts film title. 15 mm. |
+| Jolly | Jolly Lodger | 14 mm | Tall, wonky hand-cut capitals off a haunted house or a pirate's chest. 14 mm. Latin-1 only. |
 
 The **wants** column is the thing to take seriously, and it is measured rather
 than opinion.  The weld that makes a word one piece shrinks every counter --
@@ -920,13 +963,18 @@ bridges by at most one.  What they change is how the word reads, which is a
 judgment.  They are banded from how heavy a face's stem is and how narrow its
 letters are, and then left to the eye.
 
-Six of the display faces -- Tattoo, Western, Bones, Metal, Neon and Bevel --
-have a floor of 26 mm, the top of the slider.  That is the sweep saying there
-is no letter height at which *every* counter stays open, and it is a true
-thing about a face drawn as four parallel lines or as a letter plus its own
-cast shadow.  How much it costs varies a lot and the table says which: Rye
-loses its inline on every letter, Miltonian Tattoo loses two counters in the
-whole sweep.  They are kept because the readout tells you what closed, and
+Eighteen of the display faces have a floor of 26 mm, the top of the slider:
+Tattoo, Western, Bones, Metal, Neon and Bevel, and twelve of the wild ones --
+Gore, Beastly, Burned, Speckle, Moonrock, Bubbles, Woodtype, Fascinate, Pop,
+Vinyl, Tag and Spray Can.  That is the sweep saying there is no letter height
+at which *every* counter stays open, and it is a true thing about a face drawn
+as four parallel lines or as a letter plus its own cast shadow.  How much it
+costs varies a lot and the table says which: Rye loses its inline on every
+letter, Miltonian Tattoo loses two counters in the whole sweep.  The textured
+wild faces are the extreme case: speckle, fur, craters and overspray are drawn
+as hundreds of tiny holes, the weld fills most of them at any height, and what
+a keyring gets is the rough-edged solid letter underneath, which still reads
+as the face.  They are kept because the readout tells you what closed, and
 because the stencil cuts them straight through a plate where none of this
 applies -- a face too fine to weld into a solid word is often the best thing
 to cut.
@@ -934,7 +982,7 @@ to cut.
 ### The picker is the specimen sheet
 
 Every face's name in the picker is set in that face, so the list shows you what
-it is choosing between rather than describing it.  Forty-eight typefaces all
+it is choosing between rather than describing it.  Seventy-eight typefaces all
 written in one typeface is a list of words; written in themselves it is a
 specimen sheet, and you pick Fraktur because the word is sitting there in
 blackletter.
@@ -942,11 +990,11 @@ blackletter.
 A face only ever has to spell its own name there, and that is all of it that
 ships: `src/gen_specimens.py` subsets each TTF to the couple of dozen
 characters in its own label, encodes it as woff2 and writes it into
-`public/index.html` as a data URI.  Forty-eight faces come to about 141 KB
-that way against 5.3 MB for the files themselves, which is what makes this possible
+`public/index.html` as a data URI.  Seventy-eight faces come to about 273 KB
+that way against 11 MB for the files themselves, which is what makes this possible
 at all -- and because it is inline, the page is still one static file with
-nothing new to serve.  It does cost: the page goes from 25 KB gzipped to about
-120 KB, nearly all of it font data that is already compressed.
+nothing new to serve.  It does cost: the page goes from 50 KB gzipped to about
+330 KB, nearly all of it font data that is already compressed.
 
 ```
 python3 src/gen_specimens.py          # rewrite the block after adding a face
@@ -970,13 +1018,13 @@ Picking a face moves the letter-height slider to that floor.  You can drag it
 back down -- nothing here refuses -- and the readout will tell you how many
 counters filled in when you do.
 
-The faces ship in `src/fonts` beside the code, so the same forty-eight are
+The faces ship in `src/fonts` beside the code, so the same seventy-eight are
 there on your machine and on Vercel, which has no system fonts at all.  Chewy,
-Luckiest Guy and Permanent Marker are under the Apache Licence 2.0 and
-everything else under the SIL Open Font Licence: those three and the five
-original ones each have their own licence file, and the forty OFL display
-faces share `LICENSE-Complicated.txt`, which carries the licence text once and
-all forty copyright lines.  `--font
+Luckiest Guy, Permanent Marker, Smokum and Fontdiner Swanky are under the
+Apache Licence 2.0 and everything else under the SIL Open Font Licence: those
+five and the five original ones each have their own licence file, and the
+sixty-eight OFL display faces share `LICENSE-Complicated.txt`, which carries
+the licence text once and all sixty-eight copyright lines.  `--font
 path/to/Your.ttf` from the command line takes any other TTF, with `CAP` and
 `WELD` as its defaults, since nothing has been measured for it.
 
@@ -1011,7 +1059,7 @@ python3 src/gen_cards.py --kind name --name "Freddie"
 ```
 
 writes `stl/freddie_keyring.3mf` and `.stl`.  `--font script` (or any of the
-[forty-eight faces](#the-forty-eight-faces), or a path to a TTF of your own)
+[seventy-eight faces](#the-seventy-eight-faces), or a path to a TTF of your own)
 for the face, `--cap 20` for bigger letters, `--ring 0` for no tab, `--flat`
 for the single-colour version, `--rise` for how proud the letters sit,
 `--colours "#2fbf3f,,#ffffff"` for the two colours, and `--batch names.txt`
@@ -1456,7 +1504,7 @@ python3 src/gen_cards.py --kind stencil --name "SHOP"
 writes `stl/shop_stencil.3mf` and `.stl`.  `--size 160x50` for the plate,
 `--margin` for the frame round the cut, `--bridge 0` to leave the islands
 loose, `--thick` for the plate, `--font condensed` (or any of the
-[forty-eight faces](#the-forty-eight-faces), or a path to a TTF) for how it is set, and
+[seventy-eight faces](#the-seventy-eight-faces), or a path to a TTF) for how it is set, and
 `--design arrow.svg` to cut artwork instead of words.  `--fit mug` (or
 `espresso`, `cappuccino`, `cupcake`, `cake6`, `cake8`, `cake9`, `cake10`) sizes
 it to that thing, and `--fit round --size 150x150` is a plain disc.  `--batch words.txt`
