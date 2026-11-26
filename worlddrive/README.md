@@ -13,6 +13,7 @@ The parts are made by `src/logocard.py`, the same code as the NFC logo cards.
 | `wd_mark_keychain_nfc` | The same, 50 mm, two halves with a 25 mm NTAG sticker glued between them. Write `https://worlddrive.app` to the tag and a tap opens the game. Tap arcs on the back | 50 × 49 × 3 mm |
 | `wd_wordmark_keychain` | The mark plus WORLD / DRIVE on a rounded tag, ring hole on the left | 80 × 35 × 3 mm |
 | `wd_coaster_mark` | The mark on a plain navy disc | Ø100 × 4 mm |
+| `wd_logo_keychain` | The site's current mark as a keychain in relief: the ocean lowest, the continents a step above it, the road lifted off the world, and the car above the road, with its windows set into its top ([side view](previews/wd_logo_keychain_side.png)). Steps 0.4 / 0.8 / 1.2 / 1.8 mm over a 3 mm body (`RELIEF` in `designs.py`). Ring tab top left. Print it **back down** | 55 × 54 × 4.8 mm |
 | `wd_coaster_logo` | The site's current mark as the coaster: the globe with its continents, the road down the front of it with the car, and the orbit ring, die-cut to that shape. The globe stands 1.2 mm above the road and keylines, so the mug sits on it ([side view](previews/wd_coaster_logo_side.png)). Print it **back down** (as exported), not face down: the raised globe is the top | 110 × 107 × 4.8 mm |
 | `wd_coaster_badge` | WORLD DRIVE over the top, worlddrive.app underneath, yellow rim | Ø100 × 4 mm |
 
@@ -56,7 +57,10 @@ at the top.
 `wd_coaster_logo` isn't drawn here like the others: it's traced from the site's
 own logo, `art/mark_source.png` (Neptune-digital-twin's
 `exports/worlddrive-mark-transparent.png`), by `trace_mark.py`, which writes
-`art/mark_logo.svg` for `designs.py`. The logo's five colours go to the four
+`art/mark_logo.svg` for `designs.py`, and the same pieces kept apart and made printable at
+keychain size in `art/mark_logo_keychain.json`, for the relief keychain (`relief_keychain()`
+in `designs.py`: logocard's inlays for the ocean, continents and road, and the car as a navy
+block of the body standing up off the face). The logo's five colours go to the four
 filaments: navy for the outlines, lane dashes and car; blue for the ocean;
 yellow for the road and orbit ring; light blue (`#8cc4ff`) for the continents
 and the car's windows and headlights. Nothing on it is under 0.6 mm wide. If

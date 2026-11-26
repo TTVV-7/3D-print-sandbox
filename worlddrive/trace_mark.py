@@ -8,7 +8,9 @@ exports/worlddrive-mark-transparent.png, 1024 px) is a painted logo: a shaded
 globe with lighter continents, a yellow road running down the front of it in an
 S, a car coming toward you on it, and a yellow orbit ring round the back. This
 turns it into four flat colours, the four filaments the coasters print with,
-and writes art/mark_logo.svg for designs.py:
+and writes art/mark_logo.svg for designs.py (the coaster) and, as separate
+pieces made printable at keychain size, art/mark_logo_keychain.json (the relief
+keychain, whose pieces stand at heights of their own):
 
     navy        the body: outlines, the lane dashes, the car
     blue        the ocean
@@ -35,10 +37,12 @@ from shapely.validation import make_valid
 HERE = Path(__file__).resolve().parent
 SOURCE = HERE / "art" / "mark_source.png"
 OUT = HERE / "art" / "mark_logo.svg"
+PIECES = HERE / "art" / "mark_logo_keychain.json"
 
 NAVY, BLUE, YELLOW, LIGHT = "#0b1424", "#2b7de0", "#ffd23f", "#8cc4ff"
 UNITS = 100.0          # the art's width, in designs.py's units (~ the coaster's mm)
 COASTER = 110.0        # the coaster it's made for, mm wide
+KEYCHAIN = 55.0        # and the relief keychain
 MIN_WIDTH = 0.6        # mm: narrower than this is dropped
 GAP = 0.9              # mm of navy between the road and the globe
 CONTINENT = 22         # how much lighter than the ocean a continent is (0-255)
@@ -92,15 +96,22 @@ def printable(g, width):
     return unary_union(polys).simplify(0.05)
 
 
-def trace():
+def pieces(size=None):
+    """The mark's pieces, in art units (about 100 wide, y up), made printable for a part
+    `size` mm wide: {ocean, land, road, car, glass}. The car is its whole shape (the body, and
+    the windows and headlights in it); glass is just the windows and headlights."""
+    size = size or COASTER
     m = masks()
     h, w = m["size"]
     px = UNITS / w                      # art units per pixel
-    mm = COASTER / UNITS                # mm per art unit
+    mm = size / UNITS                   # mm per art unit
     to_art = lambda g: affinity.scale(g, px, -px, origin=(0, 0))
 
     road = to_art(polygons(m["yellow"]))
     road_filled = unary_union([Polygon(p.exterior) for p in getattr(road, "geoms", [road])])
+    # what the road goes round: the lane dashes, and the car, the biggest of them
+    inside = [p for p in getattr(road_filled.difference(road), "geoms", [])] or [road_filled.difference(road)]
+    car = max(inside, key=lambda p: p.area)
     glass = to_art(polygons(m["white"])).intersection(road_filled)
     land = to_art(polygons(m["land"]))
     cx, cy, rad = m["globe"]
@@ -110,16 +121,24 @@ def trace():
     width = MIN_WIDTH / mm
     # The globe is all ocean or land, nothing between: land too thin to print goes back to the
     # ocean, and a strait too thin to print goes to the land, so no piece of either is narrower
-    # than MIN_WIDTH and no navy shows through on the globe's raised top.
+    # than MIN_WIDTH and no navy shows through on the globe's top.
     land = printable(land.intersection(ocean_all), width)
     ocean = printable(ocean_all.difference(land), width)
     land = ocean_all.difference(ocean).buffer(-width * 0.25).buffer(width * 0.25)
-    layers = {
-        BLUE: ocean,
-        LIGHT: printable(unary_union([land, glass]), width),
-        YELLOW: printable(road.difference(glass.buffer(0.2)), width),
-    }
-    return layers
+    return dict(ocean=ocean, land=printable(land, width), road=printable(road.difference(glass.buffer(0.2)), width),
+                car=printable(car, width), glass=printable(glass, width))
+
+
+def trace():
+    """The coaster's four flat colours: {colour: geometry}."""
+    p = pieces(COASTER)
+    return {BLUE: p["ocean"], LIGHT: unary_union([p["land"], p["glass"]]), YELLOW: p["road"]}
+
+
+def write_pieces(size=KEYCHAIN, path=PIECES):
+    """The pieces for a part `size` mm wide, as WKT in JSON, for designs.py's relief keychain."""
+    import json
+    Path(path).write_text(json.dumps({k: v.wkt for k, v in pieces(size).items()}))
 
 
 def write_svg(layers, path=OUT, pad=2.0):
@@ -151,3 +170,5 @@ if __name__ == "__main__":
     for colour, g in layers.items():
         print(colour, f"{g.area:.0f} units², {len(getattr(g, 'geoms', [g]))} pieces")
     print("wrote", OUT)
+    write_pieces()
+    print("wrote", PIECES)

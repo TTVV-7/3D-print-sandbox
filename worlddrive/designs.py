@@ -278,6 +278,67 @@ def coaster_badge():
 
 # ---------------------------------------------------------------- output ---
 
+LIGHT = "#8cc4ff"      # the traced mark's continents and car glass (trace_mark.py)
+
+# The relief keychain's heights over its 3 mm body, mm: the ocean lowest, its continents
+# above it, the road lifted off the world, and the car above the road.
+RELIEF = dict(ocean=0.4, land=0.8, road=1.2, car=1.8)
+GLASS = 0.4            # how deep the car's windows sit in its top
+
+
+def relief_keychain(size=55.0, thick=3.0, border=2.0, label="wd_logo_keychain"):
+    """The site's current mark as a keychain in steps: ocean, continents, road and car each a
+    level higher (RELIEF). The pieces are trace_mark.py's (art/mark_logo_keychain.json). Three
+    of them are inlays, as logocard makes them (ocean blue, continents light blue, road
+    yellow); the car is navy, the body's own colour, so it's a block of the body standing up
+    off the face, with its windows set into its top in the continents' light blue. Returns
+    ([part], info) like logocard.build. Printed back down: every step stands on the one
+    under it, so nothing needs a support."""
+    import json
+    from shapely import wkt
+
+    names = ("ocean", "land", "road", "car", "glass")
+    raw = json.loads((HERE / "art" / "mark_logo_keychain.json").read_text())
+    pieces = [(name, wkt.loads(raw[name])) for name in names]
+    placed, _, outline, _ = logocard.fit_art(pieces, size, border, "outline", True)
+    p = dict(placed)
+    ink = unary_union(list(p.values()))
+    outline, hole, ring_got = logocard.keyring(outline, ink, "tab", "top-left", logocard.RING_D)
+    body_2d = outline.difference(hole) if hole is not None else outline
+    keep = outline.buffer(-0.3)
+    off = hole.buffer(0.6) if hole is not None else Polygon()
+    face = logocard.FACE
+
+    body = cards.prisms([body_2d], 0.0, thick)[0]
+    cutters, groups = [], []
+    for slot, name in (("primary", "ocean"), ("pattern", "land"), ("secondary", "road")):
+        polys = logocard.tidy(p[name].intersection(keep).difference(off))
+        groups.append(dict(slot=slot, element="logo", face="front",
+                           mesh=logocard.solid(polys, thick - face - 0.01, face + RELIEF[name] + 0.01)))
+        cutters.append(logocard.solid(polys, thick - face, face + 1.0))
+    body = cards.boolean("difference", [body, *cutters])
+
+    # The car: a navy block on the face, its windows let into its top.
+    car = logocard.tidy(p["car"].intersection(keep).difference(off))
+    top = thick + RELIEF["car"]
+    glass = logocard.tidy(p["glass"].intersection(unary_union(car).buffer(-0.3)))
+    block = logocard.solid(car, thick - 0.01, RELIEF["car"] + 0.01)
+    if glass:
+        block = cards.boolean("difference", [block, logocard.solid(glass, top - GLASS, 1.0)])
+        groups.append(dict(slot="pattern", element="logo", face="front",
+                           mesh=logocard.solid(glass, top - GLASS - 0.01, GLASS + 0.01)))
+    body = cards.boolean("union", [body, block])
+    groups.insert(0, dict(slot="body", element="body", face="body", mesh=body))
+    part = logocard.finish(dict(name="", label=label, card=0, groups=groups, assembled=np.eye(4)))
+    x0, y0, x1, y1 = body_2d.bounds
+    finest = min(float(cards.finest(logocard.tidy(p[n].intersection(keep)))) for n in ("ocean", "land", "road"))
+    info = dict(w=round(x1 - x0, 2), h=round(y1 - y0, 2), total_z=round(top, 2), ring=ring_got,
+                nfc=None, slots=["body", "primary", "secondary", "pattern"], finest=round(finest, 2),
+                art=[dict(slot="primary", hex=BLUE), dict(slot="secondary", hex=YELLOW),
+                     dict(slot="pattern", hex=LIGHT)])
+    return [part], info
+
+
 PALETTE = (NAVY, BLUE, YELLOW, WHITE)
 BODY = (NAVY,) + tuple(cards.COLOURS[1:])
 
@@ -338,10 +399,27 @@ def main():
               f"chip {info['nfc']['d'] if info['nfc'] else 'none'}, "
               f"slots {[(r['slot'], r['hex']) for r in info['art']]}")
 
+    # The relief keychain: the current mark in steps, built here rather than by logocard.
+    parts, info = relief_keychain()
+    name = parts[0]["label"]
+    palette = list(BODY)
+    for r in info["art"]:
+        palette[cards.SLOTS.index(r["slot"])] = r["hex"]
+    (out_dir / f"{name}.3mf").write_bytes(cards.export_3mf(parts, tuple(palette)))
+    cards.plate(logocard.weld(parts)).export(out_dir / f"{name}.stl")
+    mesh, cols = render.coloured(parts, palette, None)
+    render.render(mesh, prev_dir / f"{name}.png", elev=58, azim=-90, zoom=1.3, colours=cols,
+                  bg=(236, 238, 242))
+    render.render(mesh, prev_dir / f"{name}_side.png", elev=20, azim=-70, zoom=1.3, colours=cols,
+                  bg=(236, 238, 242))
+    sheet.append(prev_dir / f"{name}.png")
+    print(f"{name}: {info['w']} x {info['h']} x {info['total_z']} mm, steps {RELIEF}, "
+          f"ring {info['ring']}, finest {info['finest']} mm")
+
     from PIL import Image
     ims = [Image.open(p) for p in sheet]
     w, h = ims[0].size
-    out = Image.new("RGB", (w * 3, h * 2), (236, 238, 242))
+    out = Image.new("RGB", (w * 3, h * -(-len(ims) // 3)), (236, 238, 242))
     for i, im in enumerate(ims):
         out.paste(im, ((i % 3) * w, (i // 3) * h))
     out.save(prev_dir / "all.png")
