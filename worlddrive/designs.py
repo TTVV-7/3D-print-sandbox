@@ -295,6 +295,10 @@ DESIGNS = [
     ("wd_coaster_mark", "mark",
      dict(size=100, thick=4.0, backing="circle", border=8.0, ring="none",
           nfc=False, back="none")),
+    # The mark itself as the coaster: die-cut to the globe and the road round it, no disc.
+    ("wd_coaster_logo", "mark",
+     dict(size=110, thick=4.0, backing="outline", border=3.0, ring="none",
+          nfc=False, back="none")),
     ("wd_coaster_badge", "badge",
      dict(size=100, thick=4.0, backing="circle", border=1.0, ring="none",
           nfc=False, back="none")),

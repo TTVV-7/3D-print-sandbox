@@ -1,6 +1,6 @@
 # World Drive keychains & coasters
 
-![all five](previews/all.png)
+![all six](previews/all.png)
 
 `python3 worlddrive/designs.py` rebuilds everything (about 20 s): the flat
 artwork in `art/`, the printable files in `stl/` (a 3MF with the colours
@@ -13,6 +13,7 @@ The parts are made by `src/logocard.py`, the same code as the NFC logo cards.
 | `wd_mark_keychain_nfc` | The same, 50 mm, two halves with a 25 mm NTAG sticker glued between them. Write `https://worlddrive.app` to the tag and a tap opens the game. Tap arcs on the back | 50 × 49 × 3 mm |
 | `wd_wordmark_keychain` | The mark plus WORLD / DRIVE on a rounded tag, ring hole on the left | 80 × 35 × 3 mm |
 | `wd_coaster_mark` | The mark on a plain navy disc | Ø100 × 4 mm |
+| `wd_coaster_logo` | The mark itself as the coaster: die-cut to the globe and the road round it, no disc | 110 × 109 × 4 mm |
 | `wd_coaster_badge` | WORLD DRIVE over the top, worlddrive.app underneath, yellow rim | Ø100 × 4 mm |
 
 ## Colours: four filaments, one AMS
@@ -32,7 +33,7 @@ The mark is a simplified flat-colour redraw of the site's icon so it prints
 cleanly. It comes in two levels of detail (`DETAIL` in `designs.py`):
 
 - **full**: three meridians, three parallels and fine lane dashes. Used only
-  where the mark is 58 mm or more across, which means the two solid coasters.
+  where the mark is 58 mm or more across, which means the three solid coasters.
 - **bold**: fewer and fatter grid lines, wider gaps between colours, bigger
   dashes only where the road is wide, and a bigger car. Used on the keychains
   and the infill coasters' centre disc, where the mark is 30–45 mm across.
