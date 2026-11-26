@@ -295,10 +295,12 @@ DESIGNS = [
     ("wd_coaster_mark", "mark",
      dict(size=100, thick=4.0, backing="circle", border=8.0, ring="none",
           nfc=False, back="none")),
-    # The mark itself as the coaster: die-cut to the globe and the road round it, no disc.
+    # The mark itself as the coaster: die-cut to the globe and the road round it, no disc. The
+    # globe stands 1.2 mm above the rest (the road, the car and the navy keylines stay at the
+    # face), so it's what the mug sits on; 4.8 mm at its tallest, printed back down.
     ("wd_coaster_logo", "mark",
-     dict(size=110, thick=4.0, backing="outline", border=3.0, ring="none",
-          nfc=False, back="none")),
+     dict(size=110, thick=3.6, backing="outline", border=3.0, ring="none",
+          nfc=False, back="none", rises={"primary": 1.2})),
     ("wd_coaster_badge", "badge",
      dict(size=100, thick=4.0, backing="circle", border=1.0, ring="none",
           nfc=False, back="none")),
