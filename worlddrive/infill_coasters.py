@@ -41,7 +41,7 @@ BASE = 1.2         # solid floor: six 0.2 mm layers
 HEIGHT = 4.8       # overall; the walls stand 3.6 mm proud of the floor
 RIM = 2.4          # rim width
 WALL = 0.9         # pattern wall: two lines of a 0.4 mm nozzle
-MEDAL = 16.0       # radius of the solid centre disc on the branded ones
+MEDAL = 22.0       # radius of the solid centre disc on the branded ones
 INLAY = 0.6        # depth of the logo's colours in that disc
 
 R = D / 2
@@ -155,7 +155,7 @@ def coaster(pattern, branded=False):
     top = HEIGHT - (INLAY if branded else 0.0)
     layers.append(("pattern", [walls], BASE, top - BASE))
     if branded:
-        m = designs.mark()
+        m = designs.mark("bold")          # every line two nozzle passes wide
         allm = unary_union(list(m.values()))
         x0, y0, x1, y1 = allm.bounds
         s = 2 * (MEDAL - 2.2) / max(x1 - x0, y1 - y0)

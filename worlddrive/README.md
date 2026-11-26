@@ -11,7 +11,7 @@ The parts are made by `src/logocard.py`, the same code as the NFC logo cards.
 |---|---|---|
 | `wd_mark_keychain` | The globe-and-road mark, die-cut, with a ring tab | 45 × 45 × 3 mm |
 | `wd_mark_keychain_nfc` | The same, 50 mm, two halves with a 25 mm NTAG sticker glued between them. Write `https://worlddrive.app` to the tag and a tap opens the game. Tap arcs on the back | 50 × 49 × 3 mm |
-| `wd_wordmark_keychain` | The mark plus WORLD / DRIVE on a rounded tag, ring hole on the left | 62 × 28 × 3 mm |
+| `wd_wordmark_keychain` | The mark plus WORLD / DRIVE on a rounded tag, ring hole on the left | 80 × 35 × 3 mm |
 | `wd_coaster_mark` | The mark on a plain navy disc | Ø100 × 4 mm |
 | `wd_coaster_badge` | WORLD DRIVE over the top, worlddrive.app underneath, yellow rim | Ø100 × 4 mm |
 
@@ -29,9 +29,18 @@ last few layers. They print **artwork face down** on the bed, so a textured
 PEI plate gives the faces that texture. No supports.
 
 The mark is a simplified flat-colour redraw of the site's icon so it prints
-cleanly. Lines are at least 1 mm wide on the keychains. The fiddly parts are
-the lane dashes: on the 45 mm keychain they are about 1 × 2 mm. Use a 0.4 mm
-nozzle or smaller. If they come out messy, print the 50 mm or a coaster.
+cleanly. It comes in two levels of detail (`DETAIL` in `designs.py`):
+
+- **full**: three meridians, three parallels and fine lane dashes. Used only
+  where the mark is 58 mm or more across, which means the two solid coasters.
+- **bold**: fewer and fatter grid lines, wider gaps between colours, bigger
+  dashes only where the road is wide, and a bigger car. Used on the keychains
+  and the infill coasters' centre disc, where the mark is 30–45 mm across.
+
+At those sizes no part of the bold mark is under 0.4 mm and only 1–2 % of any
+colour is under 0.8 mm (two passes of a 0.4 mm nozzle). The full mark at
+45 mm had 36 % of the white under 0.8 mm and 9 % of the gaps between colours
+under 0.4 mm.
 
 Coasters: put four 10 mm felt or cork dots on the back, or glue a 95 mm cork
 disc on it. PETG copes with hot mugs better than PLA does.
@@ -57,8 +66,8 @@ any slicer.
 | `topo` | contour lines of a made-up landscape |
 | `globe` | a globe's meridians and parallels, tilted like the logo |
 
-Each one comes plain (`wd_infill_<pattern>`) or with the World Drive mark on
-a solid disc in the middle (`wd_infill_<pattern>_logo`).
+Each one comes plain (`wd_infill_<pattern>`) or with the bold World Drive
+mark on a solid 44 mm disc in the middle (`wd_infill_<pattern>_logo`).
 `wd_infill_set.3mf` and `wd_infill_set_logo.3mf` have all four laid out 2 × 2
 on one plate (206 × 206 mm).
 

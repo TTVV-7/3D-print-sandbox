@@ -61,25 +61,29 @@ def ribbon(pts, w0, w1):
     return Polygon(np.vstack([left, right[::-1]])).buffer(0)
 
 
-def dashes(pts, w0, w1, on=0.55, period=9.0):
-    """Lane dashes down the middle of the road, scaled with its width."""
+def dashes(pts, w0, w1, on=0.55, period=9.0, thick=0.09, least=0.9, min_road=0.0):
+    """Lane dashes down the middle of the road, scaled with its width.
+    `thick` is the dash's half-width as a share of the road's width, never
+    under `least`; no dashes where the road is narrower than `min_road`."""
     pts = np.asarray(pts)
     seg = np.linalg.norm(np.diff(pts, axis=0), axis=1)
     s = np.concatenate([[0], np.cumsum(seg)])
     w = np.linspace(w0, w1, len(pts))
     out, pos = [], period * 0.6
     while pos < s[-1] - period * 0.3:
-        i = np.searchsorted(s, pos)
-        k = w[min(i, len(w) - 1)] / w1                  # perspective scale
-        length = period * on * (0.5 + 0.5 * k)
-        a, b = pos, min(pos + length, s[-1])
+        i = min(np.searchsorted(s, pos), len(w) - 1)
+        k = w[i] / w1                                    # perspective scale
+        step = period * (0.5 + 0.5 * k)
+        if w[i] < min_road:
+            pos += step
+            continue
+        a, b = pos, min(pos + period * on * (0.5 + 0.5 * k), s[-1])
         sub = [np.interp(a, s, pts[:, 0]), np.interp(a, s, pts[:, 1])], \
               [np.interp(b, s, pts[:, 0]), np.interp(b, s, pts[:, 1])]
         mid = pts[(s >= a) & (s <= b)]
         line = np.vstack([sub[0], *mid, sub[1]]) if len(mid) else np.array(sub)
-        out.append(LineString(line).buffer(max(0.9, w[min(i, len(w) - 1)] * 0.09),
-                                           cap_style=2))
-        pos += period * (0.5 + 0.5 * k)
+        out.append(LineString(line).buffer(max(least, w[i] * thick), cap_style=2))
+        pos += step
     return unary_union(out)
 
 
@@ -98,20 +102,37 @@ def car(at, angle, scale=1.0):
     return affinity.translate(shell, *at)
 
 
-def mark():
+# Two drawings of the same mark.  "full" is for things where the mark ends up
+# 80 mm or more across (the big coasters); "bold" is for keychains and the
+# infill coasters' centre disc, where it is 30-45 mm across and every line has
+# to be at least two passes of a 0.4 mm nozzle: fewer, fatter grid lines,
+# wider keylines between the colours, bigger dashes only where the road is
+# wide enough for them, and a bigger car.
+DETAIL = {
+    "full": dict(gap=1.3, grid=1.1, meridians=(0.42, 0.80), parallels=(-0.5, 0.0, 0.5),
+                 dash=dict(period=9.0, thick=0.09, least=0.9), car=0.95, inset=1.4),
+    "bold": dict(gap=2.2, grid=1.7, meridians=(0.55,), parallels=(-0.45, 0.2),
+                 dash=dict(period=15.0, on=0.5, thick=0.12, least=1.7, min_road=10.0),
+                 car=1.35, inset=2.0),
+}
+
+
+def mark(detail="full"):
     """{colour: geometry} for the World Drive mark, y up, about 100 x 100."""
+    o = DETAIL[detail]
+    gap = o["gap"]
     cx, cy, r = 48.0, 50.0, 34.0
     globe = Point(cx, cy).buffer(r, 256)
 
-    # graticule: three meridians and three parallels, cut as navy lines
+    # graticule: meridians and parallels, cut as navy lines
     grid = []
-    for rx in (r * 0.42, r * 0.80):
-        ring = Point(0, 0).buffer(1, 256)
-        ring = affinity.scale(ring, rx, r)
-        grid.append(affinity.translate(ring.exterior, cx, cy).buffer(1.1))
-    grid.append(LineString([(cx, cy - r), (cx, cy + r)]).buffer(1.1))
-    for dy in (-r * 0.5, 0.0, r * 0.5):
-        grid.append(LineString([(cx - r, cy + dy), (cx + r, cy + dy)]).buffer(1.1))
+    for k in o["meridians"]:
+        ring = affinity.scale(Point(0, 0).buffer(1, 256), r * k, r)
+        grid.append(affinity.translate(ring.exterior, cx, cy).buffer(o["grid"]))
+    grid.append(LineString([(cx, cy - r), (cx, cy + r)]).buffer(o["grid"]))
+    for k in o["parallels"]:
+        dy = r * k
+        grid.append(LineString([(cx - r, cy + dy), (cx + r, cy + dy)]).buffer(o["grid"]))
     grid = affinity.rotate(unary_union(grid), -18, origin=(cx, cy)).intersection(globe)
 
     # the road: down from the top right, over the globe, round the bottom
@@ -122,18 +143,18 @@ def mark():
         bezier([(72, 10), (88, 15), (98, 24), (96, 34)], 60)[1:],
     ])
     road = ribbon(road_pts, 5.0, 15.0)
-    lane = dashes(road_pts, 5.0, 15.0).intersection(road.buffer(-1.4))
+    lane = dashes(road_pts, 5.0, 15.0, **o["dash"]).intersection(road.buffer(-o["inset"]))
 
     # the car sits at the near end of the road
     t = np.argmin(np.linalg.norm(road_pts - np.array([86, 26]), axis=1))
     d = road_pts[min(t + 1, len(road_pts) - 1)] - road_pts[max(t - 1, 0)]
     ang = np.degrees(np.arctan2(d[1], d[0]))
-    shell = car(road_pts[t], ang, 0.95)
+    shell = car(road_pts[t], ang, o["car"])
 
-    road_y = road.difference(lane.buffer(GAP * 0.6)).difference(shell.buffer(GAP))
-    globe_b = globe.difference(grid).difference(road.buffer(GAP)).difference(
-        shell.buffer(GAP))
-    lane = lane.difference(shell.buffer(GAP * 2.5))
+    road_y = road.difference(lane.buffer(gap * 0.6)).difference(shell.buffer(gap))
+    globe_b = globe.difference(grid).difference(road.buffer(gap)).difference(
+        shell.buffer(gap))
+    lane = lane.difference(shell.buffer(gap * 2.5))
     return clean({BLUE: globe_b, YELLOW: road_y, WHITE: unary_union([lane, shell])})
 
 
@@ -217,8 +238,9 @@ def to_svg(layers, path, pad=2.0):
 # --------------------------------------------------------------- designs ---
 
 def wordmark_badge():
-    """The mark on the left, WORLD over DRIVE on the right."""
-    m = mark()
+    """The mark on the left, WORLD over DRIVE on the right (keychain-sized,
+    so the bold mark)."""
+    m = mark("bold")
     x = 104
     w = text("WORLD", 30, (x, 52))
     d = text("DRIVE", 30, (x, 14))
@@ -261,14 +283,14 @@ BODY = (NAVY,) + tuple(cards.COLOURS[1:])
 
 DESIGNS = [
     # name, art, logocard.build kwargs
-    ("wd_mark_keychain", "mark",
+    ("wd_mark_keychain", "mark_bold",
      dict(size=45, backing="outline", border=2.0, ring="tab", ring_at="top-left",
           nfc=False, back="none")),
-    ("wd_mark_keychain_nfc", "mark",
+    ("wd_mark_keychain_nfc", "mark_bold",
      dict(size=50, backing="outline", border=2.0, ring="tab", ring_at="top-left",
           nfc=True, back="arcs", link="https://worlddrive.app", fit="halves")),
     ("wd_wordmark_keychain", "wordmark",
-     dict(size=62, backing="rounded", border=3.0, ring="hole", ring_at="left",
+     dict(size=80, backing="rounded", border=3.0, ring="hole", ring_at="left",
           nfc=False, back="none")),
     ("wd_coaster_mark", "mark",
      dict(size=100, thick=4.0, backing="circle", border=8.0, ring="none",
@@ -283,7 +305,8 @@ def main():
     art_dir, out_dir, prev_dir = HERE / "art", HERE / "stl", HERE / "previews"
     for d in (art_dir, out_dir, prev_dir):
         d.mkdir(exist_ok=True)
-    arts = {"mark": mark(), "wordmark": wordmark_badge(), "badge": coaster_badge()}
+    arts = {"mark": mark(), "mark_bold": mark("bold"), "wordmark": wordmark_badge(),
+            "badge": coaster_badge()}
     svgs = {k: to_svg(v, art_dir / f"{k}.svg") for k, v in arts.items()}
 
     sheet = []
