@@ -41,6 +41,7 @@ BASE = 1.2         # solid floor: six 0.2 mm layers
 HEIGHT = 4.8       # overall; the walls stand 3.6 mm proud of the floor
 RIM = 2.4          # rim width
 WALL = 0.9         # pattern wall: two lines of a 0.4 mm nozzle
+MIN_GAP = 1.2      # walls closer than this are merged into one solid band
 MEDAL = 22.0       # radius of the solid centre disc on the branded ones
 INLAY = 0.6        # depth of the logo's colours in that disc
 
@@ -97,21 +98,32 @@ def gyroid(period=16.0, z=0.8):
                     + np.sin(k * y) * np.cos(z) + np.sin(z) * np.cos(k * x), R + 2)
 
 
-def topo(seed=7, step=0.1):
-    """Contour lines of a few hills and a valley."""
+def topo(seed=259, sigma=(16, 26), hills=7, closest=2.4):
+    """Contour lines of a made-up landscape of rounded hills and hollows.
+
+    The contour step is worked out from the steepest slope, so the closest
+    two lines anywhere are `closest` mm apart, centre to centre: a 0.9 mm
+    wall and a 1.5 mm gap.  The seed and hill sizes were picked from a few
+    hundred by searching for landscapes with at least three hills or hollows
+    on the face whose slopes are still even, so the lines never bunch and
+    the biggest open pocket is about 12 mm."""
     rng = np.random.default_rng(seed)
-    hills = [(rng.uniform(-40, 40), rng.uniform(-40, 40), rng.uniform(12, 26),
-              rng.uniform(-1.0, 1.6)) for _ in range(7)]
+    bumps = [(rng.uniform(-45, 45), rng.uniform(-45, 45), rng.uniform(*sigma),
+              rng.choice([-1, 1]) * rng.uniform(0.6, 1.0)) for _ in range(hills)]
 
     def f(x, y):
-        h = 0.25 * np.sin(x / 13) * np.cos(y / 17)
-        for hx, hy, s, amp in hills:
+        h = 0 * x
+        for hx, hy, s, amp in bumps:
             h = h + amp * np.exp(-((x - hx) ** 2 + (y - hy) ** 2) / (2 * s * s))
         return h
 
-    xs = np.linspace(-R, R, 200)
+    xs = np.linspace(-R_IN, R_IN, 240)
     X, Y = np.meshgrid(xs, xs)
-    lo, hi = f(X, Y).min(), f(X, Y).max()
+    h = f(X, Y)
+    gy, gx = np.gradient(h, xs, xs)
+    inside = X ** 2 + Y ** 2 < R_IN ** 2
+    step = closest * np.hypot(gx, gy)[inside].max()
+    lo, hi = h[inside].min(), h[inside].max()
     return unary_union([contours(f, R + 2, lv)
                         for lv in np.arange(lo + step / 2, hi, step)])
 
@@ -142,7 +154,12 @@ def coaster(pattern, branded=False):
     (and the logo's road), primary = the globe, secondary = the car."""
     disc = Point(0, 0).buffer(R, 256)
     inner = Point(0, 0).buffer(R_IN, 256)
-    walls = PATTERNS[pattern]().buffer(WALL / 2, quad_segs=6).intersection(inner)
+    walls = PATTERNS[pattern]().buffer(WALL / 2, quad_segs=6)
+    # a slot narrower than about three nozzle widths prints as a smear, not a
+    # gap: close it, so where lines bunch (the topo's steep slopes, the
+    # globe's edge) they read as one clean band instead
+    walls = walls.buffer(MIN_GAP / 2, quad_segs=6).buffer(-MIN_GAP / 2, quad_segs=6)
+    walls = walls.intersection(inner)
     keep = [disc.difference(inner), walls]
     if branded:
         medal = Point(0, 0).buffer(MEDAL, 256)

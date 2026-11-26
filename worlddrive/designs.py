@@ -267,7 +267,7 @@ def coaster_badge():
         return affinity.scale(g, s, s, origin=c)
     m = clean({k: place(v) for k, v in m.items()})
     top = arc_text("WORLD DRIVE", 37.5, c, 9.5, top=True, tracking=0.1)
-    bottom = arc_text("worlddrive.app", 37.0, c, 6.8, top=False, tracking=0.08)
+    bottom = arc_text("worlddrive.app", 36.6, c, 7.6, top=False, tracking=0.07)
     rim = Point(*c).buffer(48.5, 256).difference(Point(*c).buffer(46.3, 256))
     stars = unary_union([Point(c[0] + 41 * np.cos(a), c[1] + 41 * np.sin(a)).buffer(1.6)
                          for a in np.radians([180 + 8, -8])])

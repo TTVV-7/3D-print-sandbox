@@ -63,7 +63,7 @@ any slicer.
 |---|---|
 | `honeycomb` | hexagons, 10 mm across |
 | `gyroid` | a slice through a gyroid, like the slicer infill |
-| `topo` | contour lines of a made-up landscape |
+| `topo` | contour lines of a made-up landscape: two hills, a valley and a saddle. The contour step is set from the steepest slope so no two lines are closer than 2.4 mm |
 | `globe` | a globe's meridians and parallels, tilted like the logo |
 
 Each one comes plain (`wd_infill_<pattern>`) or with the bold World Drive
@@ -72,7 +72,9 @@ mark on a solid 44 mm disc in the middle (`wd_infill_<pattern>_logo`).
 on one plate (206 × 206 mm).
 
 - Ø100 mm, 4.8 mm tall: a 1.2 mm floor with walls 3.6 mm high on it.
-- The walls are 0.9 mm, two lines of a 0.4 mm nozzle. The biggest open
+- The walls are 0.9 mm, two lines of a 0.4 mm nozzle. Anywhere two walls
+  would be closer than 1.2 mm (a slot that prints as a smear rather than a
+  gap) they are merged into one band (`MIN_GAP`). The biggest open
   pocket is about 16 mm across, so any mug sits on plenty of walls.
 - **Colours**: the floor is one filament and the walls another, so the
   plain ones need just one filament change, at 1.2 mm. On a single-nozzle
