@@ -13,7 +13,7 @@ The parts are made by `src/logocard.py`, the same code as the NFC logo cards.
 | `wd_mark_keychain_nfc` | The same, 50 mm, two halves with a 25 mm NTAG sticker glued between them. Write `https://worlddrive.app` to the tag and a tap opens the game. Tap arcs on the back | 50 × 49 × 3 mm |
 | `wd_wordmark_keychain` | The mark plus WORLD / DRIVE on a rounded tag, ring hole on the left | 80 × 35 × 3 mm |
 | `wd_coaster_mark` | The mark on a plain navy disc | Ø100 × 4 mm |
-| `wd_coaster_logo` | The mark itself as the coaster: die-cut to the globe and the road round it, no disc. The globe stands 1.2 mm above the road and keylines, so the mug sits on it ([side view](previews/wd_coaster_logo_side.png)). Print it **back down** (as exported), not face down: the raised globe is the top | 110 × 109 × 4.8 mm |
+| `wd_coaster_logo` | The site's current mark as the coaster: the globe with its continents, the road down the front of it with the car, and the orbit ring, die-cut to that shape. The globe stands 1.2 mm above the road and keylines, so the mug sits on it ([side view](previews/wd_coaster_logo_side.png)). Print it **back down** (as exported), not face down: the raised globe is the top | 110 × 107 × 4.8 mm |
 | `wd_coaster_badge` | WORLD DRIVE over the top, worlddrive.app underneath, yellow rim | Ø100 × 4 mm |
 
 ## Colours: four filaments, one AMS
@@ -22,6 +22,7 @@ The parts are made by `src/logocard.py`, the same code as the NFC logo cards.
 |---|---|---|
 | Body | navy `#0b1424` (or black) | the card itself and the keylines |
 | | blue `#2b7de0` | the globe |
+| | light blue `#8cc4ff` | the logo coaster's continents (in place of white) |
 | | yellow `#ffd23f` | the road, DRIVE, the coaster rim and URL |
 | | white | the car, the lane dashes, WORLD |
 
@@ -49,6 +50,20 @@ disc on it. PETG copes with hot mugs better than PLA does.
 To change something, edit `designs.py`: `mark()` is the logo, `DESIGNS` sets
 each item's size, ring, NFC, backing and thickness, and the four colours are
 at the top.
+
+## The logo coaster's artwork
+
+`wd_coaster_logo` isn't drawn here like the others: it's traced from the site's
+own logo, `art/mark_source.png` (Neptune-digital-twin's
+`exports/worlddrive-mark-transparent.png`), by `trace_mark.py`, which writes
+`art/mark_logo.svg` for `designs.py`. The logo's five colours go to the four
+filaments: navy for the outlines, lane dashes and car; blue for the ocean;
+yellow for the road and orbit ring; light blue (`#8cc4ff`) for the continents
+and the car's windows and headlights. Nothing on it is under 0.6 mm wide. If
+the logo changes, replace `mark_source.png` and run
+`pip install opencv-python-headless` then `python3 worlddrive/trace_mark.py`,
+then `designs.py`. The keychains and the two disc coasters still use the
+older mark drawn in `mark()`.
 
 # Infill coaster set
 

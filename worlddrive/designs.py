@@ -295,12 +295,13 @@ DESIGNS = [
     ("wd_coaster_mark", "mark",
      dict(size=100, thick=4.0, backing="circle", border=8.0, ring="none",
           nfc=False, back="none")),
-    # The mark itself as the coaster: die-cut to the globe and the road round it, no disc. The
-    # globe stands 1.2 mm above the rest (the road, the car and the navy keylines stay at the
-    # face), so it's what the mug sits on; 4.8 mm at its tallest, printed back down.
-    ("wd_coaster_logo", "mark",
-     dict(size=110, thick=3.6, backing="outline", border=3.0, ring="none",
-          nfc=False, back="none", rises={"primary": 1.2})),
+    # The site's current mark itself as the coaster (art/mark_logo.svg, traced from it by
+    # trace_mark.py): die-cut to the globe, the road and the orbit ring, no disc. The globe
+    # (its ocean, "primary", and its continents, "pattern") stands 1.2 mm above the road and
+    # the navy, so it's what the mug sits on; 4.8 mm at its tallest, printed back down.
+    ("wd_coaster_logo", "logo",
+     dict(size=110, thick=3.6, backing="outline", border=2.5, ring="none",
+          nfc=False, back="none", rises={"primary": 1.2, "pattern": 1.2})),
     ("wd_coaster_badge", "badge",
      dict(size=100, thick=4.0, backing="circle", border=1.0, ring="none",
           nfc=False, back="none")),
@@ -314,6 +315,8 @@ def main():
     arts = {"mark": mark(), "mark_bold": mark("bold"), "wordmark": wordmark_badge(),
             "badge": coaster_badge()}
     svgs = {k: to_svg(v, art_dir / f"{k}.svg") for k, v in arts.items()}
+    # The current mark, already flat colours (trace_mark.py makes it from the site's logo).
+    svgs["logo"] = (art_dir / "mark_logo.svg").read_text()
 
     sheet = []
     for name, art, kw in DESIGNS:
