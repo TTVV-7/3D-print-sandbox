@@ -281,8 +281,9 @@ def coaster_badge():
 LIGHT = "#8cc4ff"      # the traced mark's continents and car glass (trace_mark.py)
 
 # The relief keychain's heights over its 3 mm body, mm: the ocean lowest, its continents
-# above it, the road lifted off the world, and the car above the road.
-RELIEF = dict(ocean=0.4, land=0.8, road=1.2, car=1.8)
+# above it, the road lifted off the world, its lane dashes above the road, and the car above
+# them.
+RELIEF = dict(ocean=0.4, land=0.8, road=1.2, dashes=1.5, car=1.8)
 GLASS = 0.4            # how deep the car's windows sit in its top
 
 
@@ -290,14 +291,15 @@ def relief_keychain(size=55.0, thick=3.0, border=2.0, label="wd_logo_keychain"):
     """The site's current mark as a keychain in steps: ocean, continents, road and car each a
     level higher (RELIEF). The pieces are trace_mark.py's (art/mark_logo_keychain.json). Three
     of them are inlays, as logocard makes them (ocean blue, continents light blue, road
-    yellow); the car is navy, the body's own colour, so it's a block of the body standing up
-    off the face, with its windows set into its top in the continents' light blue. Returns
+    yellow); the car and the lane dashes are navy, the body's own colour, so they're blocks of
+    the body standing up off the face, the car's windows set into its top in the continents'
+    light blue. Returns
     ([part], info) like logocard.build. Printed back down: every step stands on the one
     under it, so nothing needs a support."""
     import json
     from shapely import wkt
 
-    names = ("ocean", "land", "road", "car", "glass")
+    names = ("ocean", "land", "road", "car", "glass", "dashes")
     raw = json.loads((HERE / "art" / "mark_logo_keychain.json").read_text())
     pieces = [(name, wkt.loads(raw[name])) for name in names]
     placed, _, outline, _ = logocard.fit_art(pieces, size, border, "outline", True)
@@ -327,6 +329,10 @@ def relief_keychain(size=55.0, thick=3.0, border=2.0, label="wd_logo_keychain"):
         block = cards.boolean("difference", [block, logocard.solid(glass, top - GLASS, 1.0)])
         groups.append(dict(slot="pattern", element="logo", face="front",
                            mesh=logocard.solid(glass, top - GLASS - 0.01, GLASS + 0.01)))
+    # The lane dashes: navy too, standing up out of the road.
+    dashes = logocard.tidy(p["dashes"].intersection(keep).difference(off))
+    if dashes:
+        block = cards.boolean("union", [block, logocard.solid(dashes, thick - 0.01, RELIEF["dashes"] + 0.01)])
     body = cards.boolean("union", [body, block])
     groups.insert(0, dict(slot="body", element="body", face="body", mesh=body))
     part = logocard.finish(dict(name="", label=label, card=0, groups=groups, assembled=np.eye(4)))

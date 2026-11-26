@@ -98,7 +98,7 @@ def printable(g, width):
 
 def pieces(size=None):
     """The mark's pieces, in art units (about 100 wide, y up), made printable for a part
-    `size` mm wide: {ocean, land, road, car, glass}. The car is its whole shape (the body, and
+    `size` mm wide: {ocean, land, road, car, glass, dashes}. The car is its whole shape (the body, and
     the windows and headlights in it); glass is just the windows and headlights."""
     size = size or COASTER
     m = masks()
@@ -112,6 +112,7 @@ def pieces(size=None):
     # what the road goes round: the lane dashes, and the car, the biggest of them
     inside = [p for p in getattr(road_filled.difference(road), "geoms", [])] or [road_filled.difference(road)]
     car = max(inside, key=lambda p: p.area)
+    dashes = unary_union([p for p in inside if p is not car])
     glass = to_art(polygons(m["white"])).intersection(road_filled)
     land = to_art(polygons(m["land"]))
     cx, cy, rad = m["globe"]
@@ -126,7 +127,9 @@ def pieces(size=None):
     ocean = printable(ocean_all.difference(land), width)
     land = ocean_all.difference(ocean).buffer(-width * 0.25).buffer(width * 0.25)
     return dict(ocean=ocean, land=printable(land, width), road=printable(road.difference(glass.buffer(0.2)), width),
-                car=printable(car, width), glass=printable(glass, width))
+                car=printable(car, width), glass=printable(glass, width),
+                # the lane dashes are small: only thinned, not held to printable()'s island size
+                dashes=dashes.buffer(-width / 2).buffer(width / 2).simplify(0.05))
 
 
 def trace():
