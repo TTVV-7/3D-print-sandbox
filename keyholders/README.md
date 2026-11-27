@@ -35,15 +35,33 @@ gets its own walls from the slicer, which stiffens the tooth.
 - PETG is tougher than PLA for the teeth. In PLA, a slightly hotter nozzle
   and less part cooling on the teeth improve layer bonding.
 
-## Artwork
+## Artwork: a drawing of itself
 
-All the artwork is inlaid 0.6 mm and flush with the surface:
+Every flat face carries part of an engineering drawing of the bucket, and
+every number on it is a real dimension:
 
-- the black **SWC** monogram and SOUTHWEST CONTRACTING on the yellow back wall
-- black topographic contour lines on the back wall and both side plates
-- yellow contour lines on the black cutting-edge plate, between the teeth
+| Where | What (black on yellow unless noted) |
+|---|---|
+| Back wall | **SWC** monogram and SOUTHWEST CONTRACTING, 140 inside width, 104 keyhole spacing with centre marks, Ø9 callout |
+| Side plates | side elevation: 80 high, 58 deep, R26 heel with centre lines, 58° mouth angle |
+| Top | a ruler across the full 150 mm width |
+| Side plates' front edges | ticks every 5 mm |
+| Cutting-edge plate | **yellow on black**: 31 tooth pitch, Ø2 PIN, 9 THK, 15° TILT, 5 PLCS |
+| Underneath | title block: SWC, EXCAVATOR BUCKET KEY HOLDER, SCALE 1:1, DWG KH-02 REV B |
 
-The keyholes moved out to ±52 mm, 104 mm apart, to make room for the logo.
-The side plates are upright in the print, so their lines change colour on
-every layer there. That's free on a tool changer, but costs purge on an AMS.
-Set `SEED` for a different hill, and `LOGO` and `TAGLINE` for the lettering.
+![front](bucket_front.png) ![side](bucket_side.png)
+![top](bucket_top.png) ![under](bucket_under.png)
+
+All the artwork is inlaid flush with the surface, not raised. It goes 0.6 mm
+deep on faces that lie flat or slope up in the print, and 0.8 mm on faces
+that stand upright. The keyholes are 104 mm apart. The upright faces (the
+side plates, top, underneath and edge plate) change colour on many layers.
+That's free on a tool changer, but costs purge on an AMS. `drafting.py` holds
+the dimension, arrow, leader and centre-line helpers.
+
+## Layer height
+
+0.2 mm is the right choice for this part. It is not much stronger or weaker
+than the alternatives: for a 0.4 mm nozzle, anywhere from about 0.16 to 0.28
+mm gives similar layer bonding. Walls, nozzle temperature and cooling matter
+far more. At 0.2 mm the 0.6 mm inlays are exactly 3 layers.

@@ -1,4 +1,4 @@
-"""Excavator bucket key holder, v2: stronger teeth, SWC branding and terrain.
+"""Excavator bucket key holder, v2: stronger teeth, SWC branding as a drawing.
 
 A digging bucket hung on the wall by its back, mouth facing out, with a row of
 teeth along the cutting edge to hang keys on. The bowl is a tray for loose
@@ -30,16 +30,24 @@ What v2 changes
   with a drop of CA glue for steel or filament reinforcement. Left empty it
   still helps, because the slicer wraps it in extra walls.
 
-Branding
---------
-The SWC monogram in black on the yellow back wall, with SOUTHWEST
-CONTRACTING under it. Topographic contour lines (a made-up hill) in black on
-the yellow back wall and both side plates, and in yellow on the black
-cutting-edge plate. All the artwork is inlaid 0.6 mm deep and flush with the
-surface, so it prints as a colour change, not a relief.
+Branding: an engineering drawing on the part itself
+---------------------------------------------------
+* Back wall: the SWC monogram and SOUTHWEST CONTRACTING, the inside width
+  (140), the keyhole spacing (104) with centre marks, and a 9 mm diameter callout.
+* Side plates: the side elevation dimensioned on the part: height 80, depth 58,
+  the R26 heel with its centre lines, and the 58 degree mouth angle.
+* Top: a ruler across the full 150 mm width.
+* Side plates' front edges: tick marks every 5 mm up the mouth line.
+* Cutting-edge plate, in yellow on black: the 31 mm tooth pitch, and notes
+  (2 mm pin, 9 mm thick, 15 degree tilt, 5 places).
+* Underneath: a title block.
+
+Every number is a real dimension of this part. The artwork is inlaid flush:
+0.6 mm deep on faces that lie flat or slope up in the print, and 0.8 mm on
+faces that stand upright, so each layer's sliver of colour is printable.
 
 Run: python3 keyholders/make_bucket.py   (numpy, trimesh, manifold3d, shapely,
-mapbox_earcut, fonttools, scikit-image, matplotlib)
+mapbox_earcut, fonttools, pillow)
 """
 import os, sys
 import numpy as np, trimesh
@@ -47,15 +55,13 @@ from trimesh.creation import box, cylinder
 from shapely.geometry import Polygon, LineString, box as sbox
 from shapely.ops import unary_union
 from shapely import affinity
-from skimage.measure import find_contours
 
 from common import hull, u, d, x_, side_prism, keyhole, write_3mf, report, preview
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(HERE, "..", "src"))
-from trace_text import trace  # noqa: E402
+import drafting as df  # noqa: E402
 
-FONT = os.path.join(HERE, "..", "src", "fonts", "Poppins-Bold.ttf")
 
 # --- shape -------------------------------------------------------------------
 W = 150                     # width across the cutting edge
@@ -78,13 +84,10 @@ PIN_D = 2.0                 # pin channel: a 2 mm nail, or 1.75 mm filament + CA
 
 # --- artwork -----------------------------------------------------------------
 INLAY = 0.6                 # how deep the colour goes (3 layers at 0.2)
-LINE_W = 0.9                # contour line width, ~2 extrusions of a 0.4 nozzle
-CONTOUR_STEP = 3.6          # rough spacing of the contour lines
 LOGO = "SWC"
 LOGO_H = 22                 # cap height of the monogram
 TAGLINE = "SOUTHWEST CONTRACTING"
 TAGLINE_H = 4.2
-SEED = 42                   # change for a different hill
 
 YELLOW = (0xF2, 0xB7, 0x05)
 BLACK = (0x22, 0x22, 0x22)
@@ -176,93 +179,121 @@ yellow = d(yellow, black)
 def as_polys(g):
     if g.is_empty:
         return []
-    return [p for p in getattr(g, "geoms", [g]) if isinstance(p, Polygon) and p.area > 0.6]
+    return [p for p in getattr(g, "geoms", [g]) if isinstance(p, Polygon) and p.area > 0.2]
 
 
-def slab(polys, a0, a1, frame):
-    """Extrude 2D polygons from a0 to a1 along a face normal. `frame` maps the
-    2D (a, b) and the extrusion c to x, y, z: "xy" for faces facing z,
-    "zy" for faces facing x, "xz" for faces facing y."""
+def slab(geom, c0, c1, origin, A, B, C):
+    """Extrude 2D view geometry into a thin solid on a face.
+
+    A point (a, b) of the view, raised c along the face's outward normal, goes
+    to origin + a*A + b*B + c*C. A and B are the view's right and up as seen
+    looking at the face, so text reads the right way round; c runs from c0
+    (negative: into the part) to c1."""
     ms = []
-    for p in polys:
-        m = trimesh.creation.extrude_polygon(p, a1 - a0)
-        m.apply_translation((0, 0, a0))
-        a, b, c = m.vertices.T
-        m.vertices = {"xy": np.c_[a, b, c], "zy": np.c_[c, b, a], "xz": np.c_[a, c, b]}[frame]
-        if frame in ("zy", "xz"):          # these swaps mirror the mesh, so turn it back the right way out
+    M = np.array([A, B, C], float).T
+    for p in as_polys(geom):
+        m = trimesh.creation.extrude_polygon(p, c1 - c0)
+        m.vertices = (m.vertices + (0, 0, c0)) @ M.T + origin
+        if np.linalg.det(M) < 0:            # a mirroring map turns the mesh inside out
             m.invert()
         ms.append(m)
     return trimesh.util.concatenate(ms) if ms else None
 
 
-def terrain(bounds, seed, step=CONTOUR_STEP):
-    """Contour lines of a made-up hill over `bounds`, as buffered shapely lines."""
-    rng = np.random.default_rng(seed)
-    x0, y0, x1, y1 = bounds
-    res = 0.4
-    gx, gy = np.meshgrid(np.arange(x0 - 5, x1 + 5, res), np.arange(y0 - 5, y1 + 5, res))
-    h = np.zeros_like(gx)
-    span = max(x1 - x0, y1 - y0)
-    n = max(6, int((x1 - x0)*(y1 - y0) / 450))      # hills and hollows, more on a bigger face
-    for _ in range(n):
-        cx, cy = rng.uniform(x0 - 5, x1 + 5), rng.uniform(y0 - 5, y1 + 5)
-        s = rng.uniform(0.07, 0.18)*span
-        h += rng.choice([-1, 1]) * rng.uniform(0.5, 1.0) * np.exp(-((gx - cx)**2 + (gy - cy)**2) / (2*s*s))
-    for _ in range(3):                              # a little ripple so it reads as ground, not a lens
-        k = rng.uniform(0.05, 0.14); a = rng.uniform(0, np.pi)
-        h += 0.06*np.sin(k*(np.cos(a)*gx + np.sin(a)*gy) + rng.uniform(0, 6))
+X, Y, Z = np.eye(3)
+INLAY_V = 0.8      # faces that stand upright in the print get a bit more, so each layer's sliver of colour is printable
+art_black = []
 
-    # levels spaced so the lines come out ~`step` apart where the slope is average
-    g = np.hypot(*np.gradient(h, res))
-    dl = np.mean(g) * step
-    lines = []
-    for lv in np.arange(h.min() + dl/2, h.max(), dl):
-        for c in find_contours(h, lv):
-            if len(c) > 6:
-                pts = np.c_[x0 - 5 + c[:, 1]*res, y0 - 5 + c[:, 0]*res]
-                lines.append(LineString(pts).simplify(0.08))
-    ink = unary_union([ln.buffer(LINE_W/2, quad_segs=4) for ln in lines])
-    # where lines crowd together they fuse into a solid patch: drop those
-    return unary_union([p for p in as_polys(ink) if p.buffer(-LINE_W*0.75).is_empty or p.area < 4])
-
-
-def text_shapes(s, cap_h, cx, cy, tracking=0.0):
-    shapes = unary_union(trace(s, FONT, tracking))
-    x0, y0, x1, y1 = shapes.bounds
-    k = cap_h / (y1 - y0)
-    shapes = affinity.scale(shapes, k, k, origin=(0, 0))
-    x0, y0, x1, y1 = shapes.bounds
-    return affinity.translate(shapes, cx - (x0 + x1)/2, cy - (y0 + y1)/2)
-
-
-# --- back wall, inside face (z = T): logo + terrain, black on yellow ---------
-BACK = sbox(-XI + 2.5, HEEL_R + 1.5, XI - 2.5, H - T - 2.5)      # flat part of the back wall
-logo = text_shapes(LOGO, LOGO_H, 0, 56, tracking=0.04)
-tag = text_shapes(TAGLINE, TAGLINE_H, 0, 37.5, tracking=0.12)
+# --- back wall, inside face (z = T): logo, keyholes, overall width -----------
+# view: x right, y up, as you face the bucket on the wall
+logo = df.text(LOGO, LOGO_H, (0, 56), tracking=0.04)
+tag = df.text(TAGLINE, TAGLINE_H, (0, 37.5), tracking=0.12)
 underline = sbox(logo.bounds[0], 42.6, logo.bounds[2], 43.6)
-brand = unary_union([logo, tag, underline])
-holes = unary_union([sbox(x - 7, KEYHOLE_Y - 7, x + 7, KEYHOLE_Y + 16) for x in KEYHOLE_X])
-keep_clear = unary_union([brand.buffer(6).buffer(-3.4), holes])   # closed up, so no lines in the C's mouth
-back_art = unary_union([brand, terrain(BACK.bounds, SEED).intersection(BACK).difference(keep_clear)])
-art_black = [slab(as_polys(back_art), T - INLAY, T + 0.05, "xy")]
+back = [logo, tag, underline,
+        df.dim((-52, 40.8), (52, 40.8), -10, f"{KEYHOLE_X[1] - KEYHOLE_X[0]:.0f}"),    # keyhole spacing
+        df.dim((-XI + 0.6, 74.4), (XI - 0.6, 74.4), -2.8, f"{2*XI:.0f}", ext=False),  # inside width
+        df.leader((55.6, 49.6), (58.3, 53.4), "Ø9", h=3.0)]
+for x in KEYHOLE_X:                                          # centre marks, clear of the slot above
+    c = np.array((x, KEYHOLE_Y))
+    back += [df.line(c + (5.5, 0), c + (8.3, 0)), df.line(c - (5.5, 0), c - (8.3, 0)), df.line(c - (0, 5.5), c - (0, 8.3))]
+back = unary_union(back).intersection(sbox(-XI + 0.3, HEEL_R + 1.3, XI - 0.3, H - T - 0.4))
+art_black.append(slab(back, -INLAY, 0.05, (0, 0, T), X, Y, Z))
 
-# --- side plates, outer faces (x = +/-W/2): terrain, black on yellow ---------
-side = Polygon(OUTER).buffer(-2.5)
-for sgn, seed in ((1, SEED + 1), (-1, SEED + 2)):
-    lines = terrain(side.bounds, seed).intersection(side)
-    if sgn > 0:
-        art_black.append(slab(as_polys(lines), W/2 - INLAY, W/2 + 0.05, "zy"))
-    else:
-        art_black.append(slab(as_polys(lines), -W/2 - 0.05, -W/2 + INLAY, "zy"))
+# --- side plates (x = +/-W/2): the side elevation, dimensioned ----------------
+# view: looking at the side, y up; from the -x side z runs right, from +x it runs left
 
-# --- cutting-edge plate, top face: terrain, yellow on black ------------------
-plate_top = sbox(-XI + 2, DEPTH - PLATE_BACK + 4, XI - 2, DEPTH - 3.5)    # in (x, z)
-straps = unary_union([sbox(x - STRAP_W - 1.2, 0, x + STRAP_W + 1.2, 200) for x in TEETH_X])
-edge_lines = terrain(plate_top.bounds, SEED + 3, step=3.0).intersection(plate_top).difference(straps)
-edge_cols = slab(as_polys(edge_lines), -1, 40, "xz")
+
+def side_view(s):
+    """The side drawing in view coordinates; s = +1 for the -x side, -1 for +x."""
+    V = lambda z, y: (s*z, y)
+    va = lambda deg: np.degrees(np.arctan2(np.sin(np.radians(deg)), s*np.cos(np.radians(deg))))
+    vertex = (DEPTH, EDGE_T)                                 # where the mouth line meets the edge
+    mouth = np.degrees(np.arctan2(H - EDGE_T, LIP - DEPTH))  # direction up the mouth line
+    a0, a1 = mouth + 2.5, 178
+    if s < 0:
+        a0, a1 = 180 - a1, 180 - a0
+    g = [df.dim(V(1.2, 2*c45 + 2), V(1.2, H - 1.2), -s*4, f"{H:.0f}"),         # height
+         df.dim(V(22, 1.3), V(DEPTH - 1.2, 1.3), s*4, f"{DEPTH:.0f}"),         # depth to the cutting edge
+         df.radius(V(HEEL_R, HEEL_R), HEEL_R, va(225), f"R{HEEL_R:.0f}"),       # heel
+         df.chain(V(10, HEEL_R), V(44, HEEL_R)), df.chain(V(HEEL_R, 9), V(HEEL_R, 44)),
+         df.angle(V(*vertex), 16, a0, a1, f"{180 - mouth:.0f}°"),               # mouth line to the floor
+         df.line(V(40, EDGE_T), V(DEPTH - 1.2, EDGE_T), df.LW*0.85)]
+    face = affinity.scale(Polygon(OUTER), s, 1, origin=(0, 0)).buffer(-0.9)
+    return unary_union(g).intersection(face)
+
+
+art_black.append(slab(side_view(1), -INLAY_V, 0.05, (-W/2, 0, 0), Z, Y, -X))
+art_black.append(slab(side_view(-1), -INLAY_V, 0.05, (W/2, 0, 0), -Z, Y, X))
+
+# --- top of the bucket (y = H): a ruler across the full width -----------------
+# view: looking down from in front, x right and the wall at the top (b = -z)
+ears_clear = unary_union([sbox(sg*15, -30, sg*37, 5) for sg in (-1, 1)])
+face_top = sbox(-W/2 + 0.7, -LIP + 0.7, W/2 - 0.7, -0.7).difference(ears_clear)
+ruler = [df.line((-W/2 + 0.7, -LIP + 1.1), (W/2 - 0.7, -LIP + 1.1))]
+for k in range(1, int(W // 5)):
+    x = -W/2 + 5*k
+    ruler.append(df.line((x, -LIP + 1.1), (x, -LIP + (6.0 if k % 2 == 0 else 3.6))))
+    if k % 2 == 0:
+        num = df.text(f"{5*k}", 3.0, (x, -4.2))
+        if face_top.contains(num.buffer(0.4)):
+            ruler.append(num)
+art_black.append(slab(unary_union(ruler).intersection(face_top), -INLAY_V, 0.05, (0, H, 0), X, -Z, Y))
+
+# --- the side plates' front edges, along the mouth: tick marks every 5 mm -----
+mlen = np.hypot(H - EDGE_T, DEPTH - LIP)
+mu = np.array((0, H - EDGE_T, LIP - DEPTH)) / mlen          # up the mouth line
+mn = np.array((0, DEPTH - LIP, H - EDGE_T)) / mlen          # its outward normal
+for sg in (-1, 1):
+    ticks = [df.line((5*k, sg*(W/2 - 0.6)), (5*k, sg*(W/2 - (3.6 if k % 2 == 0 else 2.2)))) for k in range(1, int(mlen // 5))]
+    art_black.append(slab(unary_union(ticks), -INLAY, 0.05, (0, EDGE_T, DEPTH), mu, X, mn))
+
+# --- underneath (y = 0): a title block ----------------------------------------
+# view: looking up at the underside, x right and the cutting edge at the top (b = z)
+z0, z1 = HEEL_R + 1.2, DEPTH - PLATE_FULL - 0.8             # flat, and yellow (the black plate starts at z1)
+xa, xb, zm = -42, 36, (z0 + z1)/2
+tb = [df.frame(-W/2 + 1.2, z0 + 0.4, W/2 - 1.2, z1 - 0.4),
+      df.line((xa, z0 + 0.4), (xa, z1 - 0.4)), df.line((xb, z0 + 0.4), (xb, z1 - 0.4)),
+      df.line((xa, zm), (W/2 - 1.2, zm)),
+      df.text("SWC", 7.0, ((-W/2 + xa)/2, zm), max_w=26),
+      df.text("EXCAVATOR BUCKET KEY HOLDER", 3.0, ((xa + xb)/2, (zm + z1)/2), max_w=xb - xa - 4),
+      df.text(TAGLINE, 3.0, ((xa + xb)/2, (z0 + zm)/2), max_w=xb - xa - 4),
+      df.text("SCALE 1:1", 3.0, ((xb + W/2)/2, (zm + z1)/2), max_w=W/2 - xb - 5),
+      df.text("DWG KH-02 REV B", 2.8, ((xb + W/2)/2, (z0 + zm)/2), max_w=W/2 - xb - 5)]
+art_black.append(slab(unary_union(tb).intersection(sbox(-W/2 + 0.5, z0, W/2 - 0.5, z1)), -INLAY_V, 0.05, (0, 0, 0), X, Z, -Y))
+
+# --- cutting-edge plate, top: tooth pitch and notes, yellow on black ----------
+# view: looking down into the bucket, x right and the wall at the top (b = -z)
+gaps = [(TEETH_X[i] + STRAP_W + 1.2, TEETH_X[i + 1] - STRAP_W - 1.2) for i in range(N_TEETH - 1)]
+notes = ["Ø2 PIN", f"{EDGE_T:.0f} THK", f"{TOOTH_TILT:.0f}° TILT", f"{N_TEETH} PLCS"]
+edge_art = []
+for (ga, gb), note in zip(gaps, notes):
+    edge_art.append(df.dim((ga + 0.4, -48), (gb - 0.4, -48), 0, f"{pitch:.0f}", h=3.0, ext=False))
+    edge_art.append(df.text(note, 2.8, ((ga + gb)/2, -37.5), max_w=gb - ga - 1.5))
+plate_face = sbox(-XI + 2, -(DEPTH - 3.5), XI - 2, -(DEPTH - PLATE_BACK + 4))
+edge_cols = slab(unary_union(edge_art).intersection(plate_face), -1, 40, (0, 0, 0), X, -Z, Y)
 # the plate's top here is the sloping floor, y = floor_y(z): keep INLAY under it
 za, zb = DEPTH - PLATE_BACK, DEPTH
-skin = side_prism([(za, floor_y(za) - INLAY), (zb, floor_y(zb) - INLAY), (zb, floor_y(zb) + 0.05), (za, floor_y(za) + 0.05)], -XI, XI)
+skin = side_prism([(za, floor_y(za) - INLAY_V), (zb, floor_y(zb) - INLAY_V), (zb, floor_y(zb) + 0.05), (za, floor_y(za) + 0.05)], -XI, XI)
 # all black under the floor here, so no clip to it; the top sits 0.05 mm proud so it is
 # never coplanar with the floor (that left paper-thin flaps the slicer calls non-manifold)
 art_yellow = x_(edge_cols, skin)
@@ -287,3 +318,5 @@ if __name__ == "__main__":
     preview(parts, HERE + "/bucket.png", azim=-55, elev=25)
     preview(parts, HERE + "/bucket_front.png", azim=-88, elev=8)
     preview(parts, HERE + "/bucket_side.png", azim=-5, elev=10)
+    preview(parts, HERE + "/bucket_top.png", azim=-90, elev=80)
+    preview(parts, HERE + "/bucket_under.png", azim=-90, elev=-80)
