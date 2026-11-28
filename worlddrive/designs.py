@@ -356,9 +356,16 @@ def filaments(palette):
     return [dict(hex=c, material=MATERIAL, name=NAMES.get(c, c)) for c in palette]
 
 
-def export(parts, palette, **kw):
-    """The parts as a 3MF whose colours the slicer already knows (export_3mf_tools)."""
-    return cards.export_3mf_tools(parts, filaments(palette), **kw)
+def export(parts, palette, row_w=None, **kw):
+    """The parts as a 3MF in Bambu Studio's form (bambu3mf.py), so Snapmaker's slicer, Orca and
+    Bambu Studio open it with every colour on its own extruder: 1 navy, 2 yellow, 3 blue,
+    4 white (or the traced logo's light blue). A set laid out for one plate (row_w) goes two
+    across."""
+    import io
+    import bambu3mf
+    buf = io.BytesIO()
+    bambu3mf.write(buf, bambu3mf.from_parts(parts, palette, cards.SLOTS), cols=2 if row_w else 4)
+    return buf.getvalue()
 
 
 PALETTE = (NAVY, BLUE, YELLOW, WHITE)

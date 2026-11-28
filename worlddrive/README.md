@@ -80,11 +80,13 @@ fifth filament); it prints from its own file. `python3
 worlddrive/combine_coasters.py` makes it again after any of them is rebuilt.
 ([preview](previews/all_coasters.png))
 
-Every 3MF here is written by `cards.export_3mf_tools`: one object per part,
-each colour a range of its triangles named with its extruder, and the filaments'
-colours in the project settings, which Snapmaker's slicer (and Orca and
-PrusaSlicer) read as they open it, so the parts come in coloured rather than
-all on filament 1. The filaments are named PETG (`MATERIAL` in `designs.py`).
+Every 3MF here is written in Bambu Studio's own form (`bambu3mf.py`): one object
+per piece, one part per colour, each part's extruder in
+`Metadata/model_settings.config`. That's the form Snapmaker's slicer, Orca and
+Bambu Studio take colours from; they read a plain 3MF's colours, or
+PrusaSlicer's, as all filament 1. Every file uses the same extruders, so the
+spools go in once: **1 navy, 2 yellow, 3 blue, 4 white** (the logo coaster and
+logo keychain put their light blue on 4 instead of white).
 
 # Infill coaster set
 
