@@ -37,8 +37,8 @@ import designs     # noqa: E402
 import logocard    # noqa: E402
 
 D = 100.0          # coaster diameter
-BASE = 1.2         # solid floor: six 0.2 mm layers
-HEIGHT = 4.8       # overall; the walls stand 3.6 mm proud of the floor
+BASE = 0.8         # solid floor: four 0.2 mm layers
+HEIGHT = 3.2       # overall; the walls stand 2.4 mm proud of the floor (about 14 g, 16 with the logo)
 RIM = 2.4          # rim width
 WALL = 0.9         # pattern wall: two lines of a 0.4 mm nozzle
 MIN_GAP = 1.2      # walls closer than this are merged into one solid band

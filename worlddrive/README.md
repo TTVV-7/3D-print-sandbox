@@ -110,13 +110,14 @@ mark on a solid 44 mm disc in the middle (`wd_infill_<pattern>_logo`).
 `wd_infill_set.3mf` and `wd_infill_set_logo.3mf` have all four laid out 2 × 2
 on one plate (206 × 206 mm).
 
-- Ø100 mm, 4.8 mm tall: a 1.2 mm floor with walls 3.6 mm high on it.
+- Ø100 mm, 3.2 mm tall: a 0.8 mm floor with walls 2.4 mm high on it, about
+  14 g of PETG (16 g with the logo). They were 4.8 mm (1.2 + 3.6) and 21–26 g.
 - The walls are 0.9 mm, two lines of a 0.4 mm nozzle. Anywhere two walls
   would be closer than 1.2 mm (a slot that prints as a smear rather than a
   gap) they are merged into one band (`MIN_GAP`). The biggest open
   pocket is about 16 mm across, so any mug sits on plenty of walls.
 - **Colours**: the floor is one filament and the walls another, so the
-  plain ones need just one filament change, at 1.2 mm. On a single-nozzle
+  plain ones need just one filament change, at 0.8 mm. On a single-nozzle
   printer a pause (M600) at that height does it. The logo ones also use
   blue and white in the top 0.6 mm of the centre disc.
 - Good colour pairs: navy floor with yellow walls (as rendered), black with
