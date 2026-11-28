@@ -69,6 +69,16 @@ the logo changes, replace `mark_source.png` and run
 then `designs.py`. The keychains and the two disc coasters still use the
 older mark drawn in `mark()`.
 
+## Every coaster in one file
+
+`stl/wd_all_coasters.3mf` has all eleven coasters (the eight infill ones, the
+badge, the mark and the logo coaster) laid out four across, each its own object
+with its colours already set, five filaments between them (navy, yellow, blue,
+white and the logo coaster's light blue). It's bigger than one plate: the
+slicer puts them on as many as it needs. `python3 worlddrive/combine_coasters.py`
+makes it again after any of them is rebuilt.
+([preview](previews/all_coasters.png))
+
 # Infill coaster set
 
 ![the set, plain and with the logo](previews/infill_set.png)
