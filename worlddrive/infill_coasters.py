@@ -213,7 +213,7 @@ def main():
         for pattern in PATTERNS:
             part = coaster(pattern, branded)
             parts_by[part["name"]] = part
-            (out_dir / f"{part['name']}.3mf").write_bytes(cards.export_3mf([part], palette))
+            (out_dir / f"{part['name']}.3mf").write_bytes(designs.export([part], palette))
             mesh = cards.boolean("union", list(part["slots"].values()))
             mesh.export(out_dir / f"{part['name']}.stl")
             m, cols = render.coloured([part], palette)
@@ -227,7 +227,7 @@ def main():
     for suffix in ("", "_logo"):
         four = [parts_by[f"wd_infill_{p}{suffix}"] for p in PATTERNS]
         (out_dir / f"wd_infill_set{suffix}.3mf").write_bytes(
-            cards.export_3mf(four, palette, gap=6.0, row_w=2 * D + 6.5))
+            designs.export(four, palette, gap=6.0, row_w=2 * D + 6.5))
 
     from PIL import Image
     ims = [Image.open(p) for p in sheet]

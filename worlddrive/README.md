@@ -71,13 +71,20 @@ older mark drawn in `mark()`.
 
 ## Every coaster in one file
 
-`stl/wd_all_coasters.3mf` has all eleven coasters (the eight infill ones, the
-badge, the mark and the logo coaster) laid out four across, each its own object
-with its colours already set, five filaments between them (navy, yellow, blue,
-white and the logo coaster's light blue). It's bigger than one plate: the
-slicer puts them on as many as it needs. `python3 worlddrive/combine_coasters.py`
-makes it again after any of them is rebuilt.
+`stl/wd_all_coasters.3mf` has the ten four-colour coasters (the eight infill
+ones, the badge and the mark) laid out four across, each its own object, every
+colour a part already on its extruder, the same four for all of them: 1 navy,
+2 yellow, 3 blue, 4 white. It's bigger than one plate: the slicer puts them on
+as many as it needs. The logo coaster isn't in it (its light blue would be a
+fifth filament); it prints from its own file. `python3
+worlddrive/combine_coasters.py` makes it again after any of them is rebuilt.
 ([preview](previews/all_coasters.png))
+
+Every 3MF here is written by `cards.export_3mf_tools`: one object per part,
+each colour a range of its triangles named with its extruder, and the filaments'
+colours in the project settings, which Snapmaker's slicer (and Orca and
+PrusaSlicer) read as they open it, so the parts come in coloured rather than
+all on filament 1. The filaments are named PETG (`MATERIAL` in `designs.py`).
 
 # Infill coaster set
 

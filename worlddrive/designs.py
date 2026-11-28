@@ -345,6 +345,22 @@ def relief_keychain(size=55.0, thick=3.0, border=2.0, label="wd_logo_keychain"):
     return [part], info
 
 
+NAMES = {NAVY: "Navy", BLUE: "Blue", YELLOW: "Yellow", WHITE: "White", LIGHT: "Light blue"}
+MATERIAL = "PETG"      # copes with a hot mug better than PLA; change it in the slicer if you like
+
+
+def filaments(palette):
+    """A palette in cards.SLOTS order as cards.export_3mf_tools wants it: each colour a
+    filament, so the slicer (Orca, Snapmaker's, PrusaSlicer) opens the file with every part
+    already on its own extruder."""
+    return [dict(hex=c, material=MATERIAL, name=NAMES.get(c, c)) for c in palette]
+
+
+def export(parts, palette, **kw):
+    """The parts as a 3MF whose colours the slicer already knows (export_3mf_tools)."""
+    return cards.export_3mf_tools(parts, filaments(palette), **kw)
+
+
 PALETTE = (NAVY, BLUE, YELLOW, WHITE)
 BODY = (NAVY,) + tuple(cards.COLOURS[1:])
 
@@ -391,7 +407,7 @@ def main():
         palette = list(BODY)
         for r in info["art"]:
             palette[cards.SLOTS.index(r["slot"])] = r["hex"]
-        (out_dir / f"{name}.3mf").write_bytes(cards.export_3mf(parts, tuple(palette)))
+        (out_dir / f"{name}.3mf").write_bytes(export(parts, tuple(palette)))
         cards.plate(logocard.weld(parts)).export(out_dir / f"{name}.stl")
         # a two-half NFC card is shown glued up, not as its two plate halves
         moves = [p.get("assembled") for p in parts] if len(parts) > 1 else None
@@ -411,7 +427,7 @@ def main():
     palette = list(BODY)
     for r in info["art"]:
         palette[cards.SLOTS.index(r["slot"])] = r["hex"]
-    (out_dir / f"{name}.3mf").write_bytes(cards.export_3mf(parts, tuple(palette)))
+    (out_dir / f"{name}.3mf").write_bytes(export(parts, tuple(palette)))
     cards.plate(logocard.weld(parts)).export(out_dir / f"{name}.stl")
     mesh, cols = render.coloured(parts, palette, None)
     render.render(mesh, prev_dir / f"{name}.png", elev=58, azim=-90, zoom=1.3, colours=cols,
