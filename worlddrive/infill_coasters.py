@@ -44,6 +44,8 @@ WALL = 0.9         # pattern wall: two lines of a 0.4 mm nozzle
 MIN_GAP = 1.2      # walls closer than this are merged into one solid band
 MEDAL = 22.0       # radius of the solid centre disc on the branded ones
 INLAY = 0.6        # depth of the logo's colours in that disc
+CIRCLE = 32        # quarter-circle segments: 128 points round the rim
+TOLERANCE = 0.05   # mm a simplified curve may stray from the true one (a line is 0.4)
 
 R = D / 2
 R_IN = R - RIM
@@ -51,7 +53,7 @@ R_IN = R - RIM
 
 # ------------------------------------------------------------- patterns ---
 
-def contours(f, extent, level=0.0, n=420):
+def contours(f, extent, level=0.0, n=240):
     """Marching squares: the curves where f(x, y) == level, as shapely lines."""
     xs = np.linspace(-extent, extent, n)
     X, Y = np.meshgrid(xs, xs, indexing="ij")
@@ -152,17 +154,22 @@ def coaster(pattern, branded=False):
 
     Slots: body = the floor (and the centre disc's face), pattern = the walls
     (and the logo's road), primary = the globe, secondary = the car."""
-    disc = Point(0, 0).buffer(R, 256)
-    inner = Point(0, 0).buffer(R_IN, 256)
-    walls = PATTERNS[pattern]().buffer(WALL / 2, quad_segs=6)
+    # Few points, the same shapes: every point is G-code on every layer. Circles get 128
+    # (each flat 0.006 mm deep), the walls' corners are sharp (one point, not a dozen
+    # rounding it), and the curves keep only what's more than TOLERANCE off the line.
+    disc = Point(0, 0).buffer(R, CIRCLE)
+    inner = Point(0, 0).buffer(R_IN, CIRCLE)
+    lines = PATTERNS[pattern]().simplify(TOLERANCE)
+    walls = lines.buffer(WALL / 2, join_style="mitre", cap_style="flat", mitre_limit=3.0)
     # a slot narrower than about three nozzle widths prints as a smear, not a
     # gap: close it, so where lines bunch (the topo's steep slopes, the
     # globe's edge) they read as one clean band instead
-    walls = walls.buffer(MIN_GAP / 2, quad_segs=6).buffer(-MIN_GAP / 2, quad_segs=6)
-    walls = walls.intersection(inner)
+    walls = walls.buffer(MIN_GAP / 2, join_style="mitre", mitre_limit=3.0).buffer(
+        -MIN_GAP / 2, join_style="mitre", mitre_limit=3.0)
+    walls = walls.intersection(inner).simplify(TOLERANCE / 2)
     keep = [disc.difference(inner), walls]
     if branded:
-        medal = Point(0, 0).buffer(MEDAL, 256)
+        medal = Point(0, 0).buffer(MEDAL, CIRCLE)
         keep[1] = walls.difference(medal.buffer(1.6))   # an open moat round it
         keep.append(medal)
     walls = unary_union(keep)
@@ -177,9 +184,9 @@ def coaster(pattern, branded=False):
         x0, y0, x1, y1 = allm.bounds
         s = 2 * (MEDAL - 2.2) / max(x1 - x0, y1 - y0)
         c = ((x0 + x1) / 2, (y0 + y1) / 2)
-        m = {k: affinity.scale(affinity.translate(v, -c[0], -c[1]), s, s, origin=(0, 0))
+        m = {k: affinity.scale(affinity.translate(v, -c[0], -c[1]), s, s, origin=(0, 0)).simplify(TOLERANCE)
              for k, v in m.items()}
-        face = Point(0, 0).buffer(MEDAL, 256)
+        face = Point(0, 0).buffer(MEDAL, CIRCLE)
         art = unary_union(list(m.values()))
         layers.append(("body", [face.difference(art)], top, INLAY))
         layers.append(("primary", [m[designs.BLUE]], top, INLAY))
