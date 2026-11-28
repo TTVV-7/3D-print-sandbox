@@ -65,3 +65,18 @@ the dimension, arrow, leader and centre-line helpers.
 than the alternatives: for a 0.4 mm nozzle, anywhere from about 0.16 to 0.28
 mm gives similar layer bonding. Walls, nozzle temperature and cooling matter
 far more. At 0.2 mm the 0.6 mm inlays are exactly 3 layers.
+
+## Posting it (MakerWorld, Snapmaker, Printables)
+
+`python3 keyholders/release.py` builds `keyholders/release/`. There's a
+`swc/` folder with the SWC branding and a `plain/` folder (KEYS / DIG IN.
+HANG ON.) for a public listing. Each folder has:
+
+- a **Standard** 3MF (4 walls, 20% gyroid) and a **Strong** 3MF (6 walls,
+  40% gyroid, teeth and edge plate solid), with the settings saved as
+  per-object settings;
+- yellow, black and single-colour STLs;
+- a 4:3 cover and four views.
+
+`release/LISTING.md` has the title, description, settings table and tags to
+paste in. Set `BUCKET_LOGO` and `BUCKET_TAGLINE` to rebrand it.

@@ -50,7 +50,25 @@ def _esc(s): return s.replace("&", "&amp;").replace('"', "&quot;").replace("<", 
 _MATERIAL_NS = "http://schemas.microsoft.com/3dmanufacturing/material/2015/02"
 _IDENTITY = "1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1"
 
-def write_3mf(parts, path, name):
+# print settings, by slicer: one name per setting for Bambu Studio / Orca, and one for PrusaSlicer
+_KEYS = {"walls": ("wall_loops", "perimeters"),
+         "infill": ("sparse_infill_density", "fill_density"),
+         "pattern": ("sparse_infill_pattern", "fill_pattern"),
+         "top": ("top_shell_layers", "top_solid_layers"),
+         "bottom": ("bottom_shell_layers", "bottom_solid_layers")}
+
+
+def _settings(d, which, indent, kind=None):
+    out = []
+    for k, v in (d or {}).items():
+        key = _KEYS[k][which]
+        val = f"{v}%" if k == "infill" else str(v)
+        t = f' type="{kind}"' if kind else ""
+        out.append(f'{indent}<metadata{t} key="{key}" value="{val}"/>')
+    return out
+
+
+def write_3mf(parts, path, name, settings=None, part_settings=None):
     """One object per filament, grouped as one, each pointing at its colour.
 
     Colour alone does not get a part onto the right filament, and each slicer
@@ -65,6 +83,10 @@ def write_3mf(parts, path, name):
     * ``Metadata/Slic3r_PE_model.config``, the same for PrusaSlicer, which
       loads each grouped part as an object of its own and so is told per
       part, each as one volume spanning its own triangles.
+
+    ``settings`` (walls, infill %, pattern, top/bottom layers) go on the
+    object, and ``part_settings``, one dict or None per part, override them for
+    a single part: they show in the slicer as per-object settings.
     """
     lo = np.min([m.bounds[0] for _, _, m in parts], axis=0)
     objs, ids = [], []
@@ -90,16 +112,20 @@ def write_3mf(parts, path, name):
     # filament 1, 2, ... in the order the parts are listed, matching the colours
     bambu = ['<?xml version="1.0" encoding="UTF-8"?>', "<config>", f'  <object id="{gid}">',
              f'    <metadata key="name" value="{_esc(name)}"/>', '    <metadata key="extruder" value="1"/>']
+    bambu += _settings(settings, 0, "    ")
+    part_settings = part_settings or [None]*len(parts)
     prusa = ['<?xml version="1.0" encoding="UTF-8"?>', "<config>"]
     for i, ((pname, _, m), oid) in enumerate(zip(parts, ids)):
         bambu += [f'    <part id="{oid}" subtype="normal_part">',
                   f'      <metadata key="name" value="{_esc(pname)}"/>',
                   f'      <metadata key="matrix" value="{_IDENTITY}"/>',
-                  f'      <metadata key="extruder" value="{i + 1}"/>', "    </part>"]
+                  f'      <metadata key="extruder" value="{i + 1}"/>']
+        bambu += _settings(part_settings[i], 0, "      ") + ["    </part>"]
         prusa += [f'  <object id="{oid}" instances_count="1">',
                   f'    <metadata type="object" key="name" value="{_esc(pname)}"/>',
-                  f'    <metadata type="object" key="extruder" value="{i + 1}"/>',
-                  f'    <volume firstid="0" lastid="{len(m.faces) - 1}">',
+                  f'    <metadata type="object" key="extruder" value="{i + 1}"/>']
+        prusa += _settings({**(settings or {}), **(part_settings[i] or {})}, 1, "    ", "object")
+        prusa += [f'    <volume firstid="0" lastid="{len(m.faces) - 1}">',
                   f'      <metadata type="volume" key="name" value="{_esc(pname)}"/>',
                   '      <metadata type="volume" key="volume_type" value="ModelPart"/>',
                   f'      <metadata type="volume" key="matrix" value="{_IDENTITY}"/>',

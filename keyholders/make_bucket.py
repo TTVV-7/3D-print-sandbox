@@ -84,9 +84,9 @@ PIN_D = 2.0                 # pin channel: a 2 mm nail, or 1.75 mm filament + CA
 
 # --- artwork -----------------------------------------------------------------
 INLAY = 0.6                 # how deep the colour goes (3 layers at 0.2)
-LOGO = "SWC"
+LOGO = os.environ.get("BUCKET_LOGO", "SWC")                      # big lettering on the back wall
 LOGO_H = 22                 # cap height of the monogram
-TAGLINE = "SOUTHWEST CONTRACTING"
+TAGLINE = os.environ.get("BUCKET_TAGLINE", "SOUTHWEST CONTRACTING")
 TAGLINE_H = 4.2
 
 YELLOW = (0xF2, 0xB7, 0x05)
@@ -206,7 +206,7 @@ art_black = []
 
 # --- back wall, inside face (z = T): logo, keyholes, overall width -----------
 # view: x right, y up, as you face the bucket on the wall
-logo = df.text(LOGO, LOGO_H, (0, 56), tracking=0.04)
+logo = df.text(LOGO, LOGO_H, (0, 56), tracking=0.04, max_w=2*(KEYHOLE_X[1] - 11))   # clear of the keyhole marks
 tag = df.text(TAGLINE, TAGLINE_H, (0, 37.5), tracking=0.12)
 underline = sbox(logo.bounds[0], 42.6, logo.bounds[2], 43.6)
 back = [logo, tag, underline,
@@ -274,7 +274,7 @@ xa, xb, zm = -42, 36, (z0 + z1)/2
 tb = [df.frame(-W/2 + 1.2, z0 + 0.4, W/2 - 1.2, z1 - 0.4),
       df.line((xa, z0 + 0.4), (xa, z1 - 0.4)), df.line((xb, z0 + 0.4), (xb, z1 - 0.4)),
       df.line((xa, zm), (W/2 - 1.2, zm)),
-      df.text("SWC", 7.0, ((-W/2 + xa)/2, zm), max_w=26),
+      df.text(LOGO, 7.0, ((-W/2 + xa)/2, zm), max_w=26),
       df.text("EXCAVATOR BUCKET KEY HOLDER", 3.0, ((xa + xb)/2, (zm + z1)/2), max_w=xb - xa - 4),
       df.text(TAGLINE, 3.0, ((xa + xb)/2, (z0 + zm)/2), max_w=xb - xa - 4),
       df.text("SCALE 1:1", 3.0, ((xb + W/2)/2, (zm + z1)/2), max_w=W/2 - xb - 5),
